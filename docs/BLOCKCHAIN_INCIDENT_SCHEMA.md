@@ -180,8 +180,8 @@ ACK là JSON QoS 1 với các field `schema_version`, `incident_id`,
 `received_at` (chuỗi uint64 Unix giây). Mã lỗi và thứ tự xử lý: xem
 `docs/MQTT_PROTOCOL.md` mục 3.8 và 4.4. Firmware gửi tuần tự theo `sequence`
 (chờ ACK trước khi gửi incident kế tiếp) vì backend và contract đều buộc
-`sequence` tăng. Retry một incident đã được lưu luôn nhận ACK thành công, kể cả
-khi đã quá cửa sổ ±10 phút. `accepted:true` chỉ
+`sequence` tăng. Retry nguyên bytes của một incident đã được lưu luôn nhận ACK thành công,
+kể cả khi đã quá cửa sổ ±10 phút. `accepted:true` chỉ
 xác nhận DB commit, không xác nhận transaction blockchain. Firmware chỉ xóa
 queue khi `incident_id` và `evidence_hash` trong ACK khớp bản đã persist; ACK
 không khớp hoặc `accepted:false` phải giữ record để retry/chẩn đoán.

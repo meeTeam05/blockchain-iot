@@ -1,7 +1,11 @@
 // MQTT intake for device/{id}/incident (Blockchain_task.md, Task 3).
 // Order: dedupe -> stateless verify -> signer registry -> time/sequence policy ->
-// one DB transaction (incident + outbox + realtime) -> ACK publish -> MQTT packet ack.
+// one DB transaction (incident + outbox + realtime) -> MQTT packet ack -> ACK publish.
 // Any thrown error leaves the QoS1 packet unacked so EMQX redelivers it.
+//
+// handleIncident() only builds the ACK; the MQTT plugin publishes it after acking the
+// inbound packet. mqtt.js processes inbound packets one at a time, so awaiting a QoS1
+// PUBACK from inside the message handler would deadlock until the publish timeout.
 import { config } from '../config.js';
 import { advisoryLockId } from '../utils/advisory-lock.js';
 import { createRealtimeEvent } from './realtime-events.js';
@@ -40,7 +44,9 @@ function toUnixSeconds(date) {
     return Math.floor(date.getTime() / 1000);
 }
 
-async function publishAck(fastify, deviceId, ack) {
+// Called after the inbound packet is acked. If it fails the device retries the same
+// incident and the dedupe branch answers with the same ACK.
+export async function publishIncidentAck(fastify, deviceId, ack) {
     await fastify.mqttPublish(incidentAckTopic(deviceId), JSON.stringify(ack), { qos: 1 });
 }
 
@@ -61,12 +67,48 @@ async function recordSecurityEvent(db, { deviceId, type, identity, details, rawP
 
 async function findExisting(db, deviceId, incidentId) {
     const { rows } = await db.query(
-        `SELECT evidence_hash, received_at
+        `SELECT evidence_hash, signer_address, raw_payload, received_at
          FROM incidents
          WHERE device_id = $1 AND incident_id = $2`,
         [deviceId, incidentId]
     );
     return rows[0] ?? null;
+}
+
+// Decides how to answer a delivery whose incident_id is already stored. The claimed
+// evidence_hash alone is not trusted: firmware retries the exact persisted bytes, and any
+// other encoding must verify to the stored evidence and signer before it is re-ACKed.
+function classifyExisting(existing, { identity, payload, rawBuffer, domain }) {
+    if (existing.evidence_hash !== identity.evidenceHash) {
+        return {
+            kind: 'reject',
+            errorCode: INCIDENT_ERROR.INCIDENT_HASH_CONFLICT,
+            reason: 'incident_id already stored with a different evidence_hash',
+            extra: { stored_evidence_hash: existing.evidence_hash },
+        };
+    }
+    if (Buffer.from(existing.raw_payload).equals(rawBuffer)) {
+        return { kind: 'duplicate', existing };
+    }
+
+    const check = verifyIncidentPayload(payload, domain);
+    if (!check.ok) {
+        return {
+            kind: 'reject',
+            errorCode: check.errorCode,
+            reason: `retry of a stored incident does not verify: ${check.reason}`,
+            extra: check.field ? { field: check.field } : {},
+        };
+    }
+    if (check.signer !== existing.signer_address) {
+        return {
+            kind: 'reject',
+            errorCode: INCIDENT_ERROR.SIGNER_NOT_ACTIVE,
+            reason: 'retry of a stored incident is signed by a different key',
+            extra: { recovered_signer: check.signer },
+        };
+    }
+    return { kind: 'duplicate', existing };
 }
 
 function incidentRealtimePayload(row) {
@@ -133,7 +175,8 @@ async function insertIncident(client, { deviceId, verified, domain, rawPayload, 
     return rows[0];
 }
 
-// Returns { accepted, errorCode, ack } for tests/logging; publishes the ACK itself.
+// Returns { accepted, errorCode, ack, duplicate }. `ack` is null when the payload has no
+// well-formed incident_id/evidence_hash to address it; otherwise the caller publishes it.
 export async function handleIncident(fastify, deviceId, payload, rawPayload, options = {}) {
     const incidentConfig = options.incidentConfig ?? config.incident;
     const receivedAt = options.now ? options.now() : new Date();
@@ -156,7 +199,6 @@ export async function handleIncident(fastify, deviceId, payload, rawPayload, opt
             return { accepted: false, errorCode, ack: null };
         }
         const ack = buildIncidentAck({ ...identity, accepted: false, errorCode, receivedAtSec });
-        await publishAck(fastify, deviceId, ack);
         return { accepted: false, errorCode, ack };
     };
 
@@ -167,7 +209,6 @@ export async function handleIncident(fastify, deviceId, payload, rawPayload, opt
             receivedAtSec: toUnixSeconds(new Date(existing.received_at)),
         });
         fastify.log.info({ deviceId, incidentId: identity.incidentId }, 'duplicate incident re-acknowledged');
-        await publishAck(fastify, deviceId, ack);
         return { accepted: true, errorCode: null, ack, duplicate: true };
     };
 
@@ -176,6 +217,9 @@ export async function handleIncident(fastify, deviceId, payload, rawPayload, opt
     }
     if (rawBuffer.length > incidentConfig.maxPayloadBytes) {
         return reject(INCIDENT_ERROR.INVALID_PAYLOAD, 'payload exceeds incident size limit');
+    }
+    if (typeof payload.device_id !== 'string') {
+        return reject(INCIDENT_ERROR.INVALID_PAYLOAD, 'device_id is required');
     }
     if (payload.device_id !== deviceId) {
         return reject(INCIDENT_ERROR.DEVICE_MISMATCH, 'device_id does not match topic', {
@@ -188,18 +232,19 @@ export async function handleIncident(fastify, deviceId, payload, rawPayload, opt
         return reject(INCIDENT_ERROR.UNKNOWN_DEVICE, 'device is not registered');
     }
 
+    const domain = options.domain ?? domainFromConfig(incidentConfig);
+    const dedupeContext = { identity, payload, rawBuffer, domain };
+
     // Dedupe runs before time checks so a retry after reboot still gets its ACK.
     if (identity) {
         const existing = await findExisting(fastify.db, deviceId, identity.incidentId);
         if (existing) {
-            if (existing.evidence_hash === identity.evidenceHash) return acceptDuplicate(existing);
-            return reject(INCIDENT_ERROR.INCIDENT_HASH_CONFLICT, 'incident_id already stored with a different evidence_hash', {
-                stored_evidence_hash: existing.evidence_hash,
-            });
+            const outcome = classifyExisting(existing, dedupeContext);
+            if (outcome.kind === 'duplicate') return acceptDuplicate(existing);
+            return reject(outcome.errorCode, outcome.reason, outcome.extra);
         }
     }
 
-    const domain = options.domain ?? domainFromConfig(incidentConfig);
     const verified = verifyIncidentPayload(payload, domain);
     if (!verified.ok) {
         return reject(verified.errorCode, verified.reason, verified.field ? { field: verified.field } : {});
@@ -210,11 +255,7 @@ export async function handleIncident(fastify, deviceId, payload, rawPayload, opt
 
         // Re-check under the per-device lock: a concurrent delivery may have committed first.
         const existing = await findExisting(client, deviceId, identity.incidentId);
-        if (existing) {
-            return existing.evidence_hash === identity.evidenceHash
-                ? { kind: 'duplicate', existing }
-                : { kind: 'reject', errorCode: INCIDENT_ERROR.INCIDENT_HASH_CONFLICT, reason: 'incident_id already stored with a different evidence_hash' };
-        }
+        if (existing) return classifyExisting(existing, dedupeContext);
 
         const activeSigner = await getActiveSigner(client, deviceId);
         if (activeSigner !== verified.signer) {
@@ -264,13 +305,11 @@ export async function handleIncident(fastify, deviceId, payload, rawPayload, opt
     if (outcome.kind === 'duplicate') return acceptDuplicate(outcome.existing);
     if (outcome.kind === 'reject') return reject(outcome.errorCode, outcome.reason, outcome.extra);
 
-    // ACK only after COMMIT; a publish failure throws so the packet is redelivered
-    // and the retry is answered by the dedupe branch above.
+    // ACK is only built after COMMIT.
     const ack = buildIncidentAck({ ...identity, accepted: true, receivedAtSec });
     fastify.log.info(
         { deviceId, incidentId: identity.incidentId, sequence: verified.evidence.sequence },
         'incident stored and queued for chain'
     );
-    await publishAck(fastify, deviceId, ack);
     return { accepted: true, errorCode: null, ack, duplicate: false };
 }

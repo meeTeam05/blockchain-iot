@@ -106,6 +106,9 @@ từ chối; API verify trả DB, hash và signature status.
   (`docs/API_REFERENCE.md` mục 8a).
 - Vận hành: chạy `node scripts/sync-device-acl.js` trước khi firmware publish
   incident để thiết bị cũ có ACL `incident`/`incident/ack`.
+- Kiểm thử end-to-end (API + EMQX + TimescaleDB thật từ `server/docker-compose.yml`):
+  `test/e2e/incident-mqtt.e2e.test.js`, lệnh chạy ghi ở đầu file; tự skip khi
+  không có `E2E_API_URL`/`E2E_MQTT_URL`.
 
 ### Task 4 — Backend: worker chain, indexer và vận hành
 

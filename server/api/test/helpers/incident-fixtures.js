@@ -4,16 +4,12 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SigningKey } from 'ethers';
 import { PGlite } from '@electric-sql/pglite';
 
-import {
-    computeAttestationDigest,
-    computeDeviceIdHash,
-    computeEvidenceHash,
-    computeIncidentId,
-    normalizeIncidentDomain,
-} from '../../src/services/incident-verify.js';
+import { normalizeIncidentDomain } from '../../src/services/incident-verify.js';
+import { signIncident, testSigningKey } from './incident-signing.js';
+
+export { signIncident, testSigningKey };
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VECTOR_DIR = path.resolve(__dirname, '../../../../docs/test-vectors');
@@ -52,29 +48,6 @@ export function vectorPayload(vector) {
         evidence_hash: vector.expected.evidence_hash,
         signature: vector.expected.signature,
     };
-}
-
-export function testSigningKey(vector) {
-    return new SigningKey(vector.test_private_key_only);
-}
-
-// Rebuilds identity hashes, evidence hash and signature after applying overrides,
-// exactly as correct firmware would.
-export function signIncident({ vector, domain, payload, overrides = {}, signingKey = testSigningKey(vector) }) {
-    const next = { ...payload, ...overrides };
-    next.device_id_hash = computeDeviceIdHash(next.device_id);
-    next.incident_id = computeIncidentId(next.device_id_hash, next.sequence);
-    next.evidence_hash = computeEvidenceHash(next);
-    const digest = computeAttestationDigest(domain, {
-        deviceIdHash: next.device_id_hash,
-        incidentId: next.incident_id,
-        sequence: next.sequence,
-        observedAt: next.observed_at,
-        severity: next.severity,
-        evidenceHash: next.evidence_hash,
-    });
-    next.signature = signingKey.sign(digest).serialized;
-    return next;
 }
 
 export function rawBytes(payload) {

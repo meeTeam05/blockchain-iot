@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { handleIncident, incidentAckTopic } from '../src/services/incident-intake.js';
+import { handleIncident, incidentAckTopic, publishIncidentAck } from '../src/services/incident-intake.js';
 import { INCIDENT_ERROR } from '../src/services/incident-verify.js';
+import { SigningKey } from 'ethers';
 import { registerSigner, revokeSigner } from '../src/services/device-signers.js';
 import {
     DEVICE_ID,
@@ -33,12 +34,15 @@ function nowAt(observedAt, offsetSeconds = 5) {
     return () => new Date((Number(observedAt) + offsetSeconds) * 1000);
 }
 
-function deliver(fastify, { domain, payload }, { deviceId = DEVICE_ID, now, raw } = {}) {
-    return handleIncident(fastify, deviceId, payload, raw ?? rawBytes(payload), {
+// Mirrors the MQTT plugin: handle (commit), ack the inbound packet, then publish the ACK.
+async function deliver(fastify, { domain, payload }, { deviceId = DEVICE_ID, now, raw } = {}) {
+    const result = await handleIncident(fastify, deviceId, payload, raw ?? rawBytes(payload), {
         domain,
         incidentConfig: INCIDENT_CONFIG,
         now: now ?? nowAt(payload.observed_at),
     });
+    if (result.ack) await publishIncidentAck(fastify, deviceId, result.ack);
+    return result;
 }
 
 async function securityEventTypes(store) {
@@ -327,12 +331,18 @@ test('insert failure rolls back incident, outbox and realtime event together', a
     }
 });
 
-test('ACK publish failure after commit throws; redelivery is answered by the dedupe path', async () => {
+test('handleIncident never publishes itself; a lost ACK is recovered by the device retry', async () => {
     const { early, store } = await setup();
     try {
         const failing = createIntakeFastify(store, { publishError: new Error('MQTT bridge is not ready') });
-        await assert.rejects(deliver(failing, early), /not ready/);
+        const result = await handleIncident(failing, DEVICE_ID, early.payload, rawBytes(early.payload), {
+            domain: early.domain,
+            incidentConfig: INCIDENT_CONFIG,
+            now: nowAt(early.payload.observed_at),
+        });
+        assert.equal(result.accepted, true, 'no publish happens inside the handler');
         assert.equal(await countRows(store, 'incidents'), 1, 'commit happened before the ACK attempt');
+        await assert.rejects(publishIncidentAck(failing, DEVICE_ID, result.ack), /not ready/);
 
         const healthy = createIntakeFastify(store);
         const redelivered = await deliver(healthy, early);
@@ -372,6 +382,63 @@ test('evidence survives device deletion (no cascade) and outbox enforces one row
              SELECT id, device_id, incident_id, sequence FROM incidents`
         ));
         await assert.rejects(store.db.query(`UPDATE blockchain_outbox SET status = 'sent'`));
+    } finally {
+        await store.close();
+    }
+});
+
+test('tampered retry of a stored incident (same id and claimed hash) is rejected, not re-ACKed', async () => {
+    const { early, store, fastify } = await setup();
+    try {
+        await deliver(fastify, early);
+        const tampered = { ...early.payload, co_ppm_x1000: 1 };
+        const result = await deliver(fastify, { ...early, payload: tampered });
+        assert.equal(result.accepted, false);
+        assert.equal(result.errorCode, INCIDENT_ERROR.HASH_MISMATCH);
+        assert.deepEqual(await securityEventTypes(store), ['HASH_MISMATCH']);
+        const { rows } = await store.db.query('SELECT co_ppm_x1000 FROM incidents');
+        assert.equal(Number(rows[0].co_ppm_x1000), 52000);
+    } finally {
+        await store.close();
+    }
+});
+
+test('retry with different JSON encoding of the same signed evidence is still a duplicate', async () => {
+    const { early, store, fastify } = await setup();
+    try {
+        await deliver(fastify, early);
+        const reordered = Object.fromEntries(Object.entries(early.payload).reverse());
+        const raw = Buffer.from(JSON.stringify(reordered, null, 2));
+        const result = await deliver(fastify, { ...early, payload: reordered }, { raw });
+        assert.equal(result.accepted, true);
+        assert.equal(result.duplicate, true);
+        assert.equal(await countRows(store, 'incidents'), 1);
+    } finally {
+        await store.close();
+    }
+});
+
+test('same evidence re-signed by another key is not accepted as a duplicate', async () => {
+    const { early, store, fastify } = await setup();
+    try {
+        await deliver(fastify, early);
+        const other = signIncident({ ...early, signingKey: new SigningKey(`0x${'22'.repeat(32)}`) });
+        assert.equal(other.evidence_hash, early.payload.evidence_hash);
+        const result = await deliver(fastify, { ...early, payload: other });
+        assert.equal(result.errorCode, INCIDENT_ERROR.SIGNER_NOT_ACTIVE);
+    } finally {
+        await store.close();
+    }
+});
+
+test('missing device_id is INVALID_PAYLOAD, not a security event', async () => {
+    const { early, store, fastify } = await setup();
+    try {
+        const payload = { ...early.payload };
+        delete payload.device_id;
+        const result = await deliver(fastify, { ...early, payload });
+        assert.equal(result.errorCode, INCIDENT_ERROR.INVALID_PAYLOAD);
+        assert.deepEqual(await securityEventTypes(store), []);
     } finally {
         await store.close();
     }

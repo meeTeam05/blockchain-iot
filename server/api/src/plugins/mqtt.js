@@ -8,7 +8,7 @@ import {
     handleShadowGet,
     handleOtaProgress,
 } from '../services/mqtt-handlers.js';
-import { handleIncident } from '../services/incident-intake.js';
+import { handleIncident, publishIncidentAck } from '../services/incident-intake.js';
 import { normalizeDeviceId } from '../utils/device-id.js';
 import { ensureBridgeUser } from '../services/emqx.js';
 import { config } from '../config.js';
@@ -134,11 +134,13 @@ async function mqttPlugin(fastify) {
     client.on('disconnect', setNotReady);
     client.on('error', (err) => fastify.log.error({ err }, 'MQTT bridge error'));
 
+    // Returns work to run after the inbound packet is acked (e.g. publishes that wait for PUBACK).
     async function handleInboundMessage(topic, buf, packet = null) {
+        const afterAck = [];
         const parts = topic.split('/');
         const deviceId = normalizeDeviceId(parts[1]);
         if (!deviceId) {
-            return;
+            return afterAck;
         }
 
         let payload;
@@ -146,7 +148,7 @@ async function mqttPlugin(fastify) {
             payload = JSON.parse(buf.toString());
         } catch {
             fastify.log.warn({ topic }, 'MQTT payload is not valid JSON');
-            return;
+            return afterAck;
         }
 
         let handled = true;
@@ -164,7 +166,10 @@ async function mqttPlugin(fastify) {
         } else if (parts[2] === 'ota' && parts[3] === 'progress') {
             await handleOtaProgress(fastify, deviceId, payload);
         } else if (parts[2] === 'incident' && parts.length === 3) {
-            await handleIncident(fastify, deviceId, payload, buf);
+            const result = await handleIncident(fastify, deviceId, payload, buf);
+            if (result.ack) {
+                afterAck.push(() => publishIncidentAck(fastify, deviceId, result.ack));
+            }
         } else {
             handled = false;
         }
@@ -172,16 +177,22 @@ async function mqttPlugin(fastify) {
         if (!handled) {
             fastify.log.warn({ topic }, 'MQTT message topic not handled');
         }
+        return afterAck;
     }
 
     client.handleMessage = async (packet, callback) => {
         const topic = packet.topic;
+        let afterAck;
         try {
-            await handleInboundMessage(topic, packet.payload, packet);
+            afterAck = await handleInboundMessage(topic, packet.payload, packet);
             callback();
         } catch (err) {
             fastify.log.error({ err, topic }, 'MQTT message handler error; message left unacked for redelivery');
             // With manualAcks=true, not calling callback keeps the QoS1 message unacked.
+            return;
+        }
+        for (const task of afterAck) {
+            task().catch((err) => fastify.log.warn({ err, topic }, 'post-ack MQTT publish failed'));
         }
     };
 

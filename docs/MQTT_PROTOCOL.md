@@ -341,10 +341,10 @@ Hợp đồng field-level: `docs/BLOCKCHAIN_INCIDENT_SCHEMA.md` (Schema v2). Pay
 Bridge xử lý (`handleIncident()`):
 
 1. Payload tối đa `4096` bytes; `device_id` phải khớp topic; device phải tồn tại.
-2. Dedupe trước mọi kiểm tra thời gian: cùng `(device_id, incident_id)` và cùng `evidence_hash` → ACK `accepted:true` với `received_at` gốc, không tạo row; khác hash → `INCIDENT_HASH_CONFLICT` + `security_events`.
+2. Dedupe trước mọi kiểm tra thời gian: cùng `(device_id, incident_id)`, cùng `evidence_hash` và **nguyên bytes** đã lưu → ACK `accepted:true` với `received_at` gốc, không tạo row. Cùng hash khai báo nhưng bytes khác thì phải verify lại đầy đủ ra đúng evidence và signer đã lưu mới được coi là trùng; sai thì trả mã lỗi của lần verify đó (vd `HASH_MISMATCH`). Khác hash → `INCIDENT_HASH_CONFLICT` + `security_events`.
 3. Verify format, enum/mask, tính lại `device_id_hash`, `incident_id`, `firmware_version_hash`, `calibration_hash` (SHA-256 của `calibration_canonical`), `evidence_hash`, EIP-712 digest (domain lấy từ config server), chữ ký low-s `v∈{27,28}`.
 4. Trong transaction có advisory lock theo device: signer phải là signer active trong `device_signers`; `|observed_at − received_at| ≤ 600s`; `observed_at` không lùi quá 60s so với incident đã lưu; `sequence` lớn hơn sequence đã lưu.
-5. INSERT `incidents` + `blockchain_outbox(queued)` + realtime `incident.created`, COMMIT, rồi publish ACK, rồi mới ack gói MQTT. DB hoặc publish ACK lỗi → không ack gói để EMQX redeliver.
+5. INSERT `incidents` + `blockchain_outbox(queued)` + realtime `incident.created`, COMMIT, ack gói MQTT, rồi mới publish ACK. DB lỗi → không ack gói để EMQX redeliver. ACK không được publish bên trong handler vì `mqtt.js` xử lý gói đến tuần tự: chờ PUBACK trong handler sẽ tự khóa tới timeout. Nếu publish ACK lỗi, firmware không nhận ACK sẽ gửi lại nguyên bytes và nhánh dedupe trả lại ACK.
 
 ---
 
