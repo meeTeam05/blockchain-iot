@@ -13,7 +13,7 @@ import { normalizeDeviceId } from '../utils/device-id.js';
 import { ensureBridgeUser } from '../services/emqx.js';
 import { config } from '../config.js';
 
-const SUBSCRIPTIONS = Object.freeze([
+export const SUBSCRIPTIONS = Object.freeze([
     'device/+/status',
     'device/+/telemetry',
     'device/+/response',

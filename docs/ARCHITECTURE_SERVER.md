@@ -229,6 +229,7 @@ DB hiện giữ các domain state chính:
 - live/history eventing: `realtime_events`, `notification_events`
 - external side-effect recovery: `external_cleanup_jobs`
 - time-series: `telemetry`
+- blockchain evidence: `incidents` (không retention, không cascade khi xóa device), `blockchain_outbox` (hàng đợi chain, worker Task 4 xử lý), `device_signers` (khóa ký EIP-712 của thiết bị), `security_events`
 
 `devices.secret_key` trong schema gốc đã được thay bằng `secret_key_hash` ở runtime code hiện tại. Nghĩa là device credential được hash trước khi lưu ở DB layer, còn secret gốc chỉ trả một lần khi provisioning.
 
@@ -314,6 +315,7 @@ sequenceDiagram
 - `device/+/shadow/report`
 - `device/+/shadow/get`
 - `device/+/ota/progress`
+- `device/+/incident` (incident Schema v2 cho tầng blockchain; ACK trên `device/{id}/incident/ack`)
 
 Bridge dùng:
 

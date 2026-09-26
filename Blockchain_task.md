@@ -89,6 +89,24 @@ reboot retry không đổi chữ ký; ACK sai không xóa record.
 **Hoàn thành khi:** hai vector được lưu/ACK idempotent; tamper/timestamp sai bị
 từ chối; API verify trả DB, hash và signature status.
 
+**Bàn giao Task 3 (nhánh `feature/blockchain-task3-incident-intake`):**
+
+- Task 1: payload thêm `calibration_canonical`; gửi tuần tự theo `sequence`,
+  chờ ACK trước incident kế tiếp; mã lỗi ACK ở `docs/MQTT_PROTOCOL.md` 4.4.
+  Retry quá ±10 phút của incident chưa từng tới server nhận
+  `OBSERVED_AT_OUT_OF_WINDOW` và phải được giữ theo giới hạn queue.
+- Task 2/4: backend đọc domain từ `AIR_SAFETY_LOG_ADDRESS`/`INCIDENT_CHAIN_ID`;
+  signer đăng ký ở `device_signers` (`scripts/device-signer.js`) phải trùng
+  signer on-chain. Outbox `blockchain_outbox` (migration 017) đã có đủ cột
+  `attempts`, `next_attempt_at`, `tx_hash`, `block_number`, `confirmations`,
+  `blocked_at`; Task 4 chỉ UPDATE. Indexer ghi `incidents.owner_status`,
+  `acknowledged_*`, `resolved_*` và `devices.owner_address`.
+- Task 5: API `GET /api/devices/:id/incidents[/:incidentId[/verify]]`, SSE
+  `incident.created`, notification `incident.warning`/`incident.danger`
+  (`docs/API_REFERENCE.md` mục 8a).
+- Vận hành: chạy `node scripts/sync-device-acl.js` trước khi firmware publish
+  incident để thiết bị cũ có ACL `incident`/`incident/ack`.
+
 ### Task 4 — Backend: worker chain, indexer và vận hành
 
 **Phạm vi:** worker độc lập, Sepolia config, indexer, metrics và runbook.
