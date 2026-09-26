@@ -8,6 +8,7 @@ import {
     handleShadowGet,
     handleOtaProgress,
 } from '../services/mqtt-handlers.js';
+import { handleIncident } from '../services/incident-intake.js';
 import { normalizeDeviceId } from '../utils/device-id.js';
 import { ensureBridgeUser } from '../services/emqx.js';
 import { config } from '../config.js';
@@ -19,6 +20,7 @@ const SUBSCRIPTIONS = Object.freeze([
     'device/+/shadow/report',
     'device/+/shadow/get',
     'device/+/ota/progress',
+    'device/+/incident',
 ]);
 
 export function waitForMqttClientEnd(client) {
@@ -161,6 +163,8 @@ async function mqttPlugin(fastify) {
             await handleShadowGet(fastify, deviceId, payload);
         } else if (parts[2] === 'ota' && parts[3] === 'progress') {
             await handleOtaProgress(fastify, deviceId, payload);
+        } else if (parts[2] === 'incident' && parts.length === 3) {
+            await handleIncident(fastify, deviceId, payload, buf);
         } else {
             handled = false;
         }

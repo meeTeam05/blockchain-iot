@@ -123,6 +123,27 @@ function notificationDefinition(event) {
         };
     }
 
+    if (event.type === 'incident.created') {
+        const severity = payload.severity === 'danger' ? 'danger' : payload.severity === 'warning' ? 'warning' : null;
+        if (!severity) return null;
+        const level = severity === 'danger' ? 2 : 1;
+        const gases = [
+            payload.co_level === level ? 'CO' : null,
+            payload.no2_level === level ? 'NO2' : null,
+        ].filter(Boolean);
+        const gasLabel = gases.length > 0 ? gases.join(' and ') : 'Gas';
+
+        return {
+            type: `incident.${severity}`,
+            title: severity === 'danger' ? 'Gas threshold exceeded' : 'Gas early warning',
+            body: severity === 'danger'
+                ? `${gasLabel} exceeded the QCVN 03:2019/BYT limit.`
+                : `${gasLabel} entered early warning.`,
+            severity,
+            payload,
+        };
+    }
+
     return null;
 }
 

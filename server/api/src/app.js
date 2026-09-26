@@ -21,6 +21,8 @@ import commandsRoutes from './routes/commands.js';
 import telemetryRoutes from './routes/telemetry.js';
 import notificationsRoutes from './routes/notifications.js';
 import realtimeRoutes from './routes/realtime.js';
+import incidentsRoutes from './routes/incidents.js';
+import { domainFromConfig } from './services/incident-verify.js';
 import { registerCommandTimeoutJob } from './jobs/command-timeout.js';
 import { registerDataRetentionJob } from './jobs/data-retention.js';
 import { registerEmqxCleanupRetryJob } from './jobs/emqx-cleanup-retry.js';
@@ -45,6 +47,13 @@ if (missingRequiredEnvVars.length > 0) {
     for (const name of missingRequiredEnvVars) {
         console.error(`- ${name}`);
     }
+    process.exit(1);
+}
+
+try {
+    domainFromConfig(config.incident);
+} catch (err) {
+    console.error(`FATAL: invalid incident EIP-712 domain config: ${err.message}`);
     process.exit(1);
 }
 
@@ -98,6 +107,7 @@ await fastify.register(commandsRoutes, { prefix: '/api' });
 await fastify.register(telemetryRoutes, { prefix: '/api' });
 await fastify.register(notificationsRoutes, { prefix: '/api' });
 await fastify.register(realtimeRoutes, { prefix: '/api' });
+await fastify.register(incidentsRoutes, { prefix: '/api' });
 
 // Global error handler
 fastify.setErrorHandler((error, request, reply) => {

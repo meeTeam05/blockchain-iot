@@ -11,6 +11,7 @@ export const REQUIRED_RUNTIME_ENV_VARS = [
     'EMQX_API_KEY',
     'EMQX_API_SECRET',
     'EMQX_MQTT_PASSWORD',
+    'AIR_SAFETY_LOG_ADDRESS',
 ];
 
 function env(name, fallback = '') {
@@ -115,6 +116,16 @@ export const config = Object.freeze({
         get reconnectMaxDelayMs() { return 30_000; },
         get eventRetentionHours() { return intEnv('REALTIME_EVENT_RETENTION_HOURS', 24); },
         get eventRetentionSweepIntervalMs() { return intEnv('REALTIME_EVENT_RETENTION_SWEEP_INTERVAL_MS', 3_600_000); },
+    }),
+    incident: Object.freeze({
+        // EIP-712 domain is provisioned config only; it is never accepted over MQTT.
+        get domainName() { return env('INCIDENT_DOMAIN_NAME', 'AirSafetyLog'); },
+        get domainVersion() { return env('INCIDENT_DOMAIN_VERSION', '1'); },
+        get chainId() { return env('INCIDENT_CHAIN_ID', '11155111'); },
+        get verifyingContract() { return env('AIR_SAFETY_LOG_ADDRESS'); },
+        get maxPayloadBytes() { return intEnv('INCIDENT_MAX_PAYLOAD_BYTES', 4_096); },
+        get clockSkewSeconds() { return intEnv('INCIDENT_CLOCK_SKEW_SECONDS', 600); },
+        get maxRegressionSeconds() { return intEnv('INCIDENT_MAX_REGRESSION_SECONDS', 60); },
     }),
     dataRetention: Object.freeze({
         get commandRetentionDays() { return intEnv('COMMAND_RETENTION_DAYS', 30); },
