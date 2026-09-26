@@ -1,0 +1,60 @@
+{
+  "description": "AIR Incident Schema v2: CO QCVN threshold exceeded by rule while model output is unavailable. Test-only Hardhat key; never use outside tests.",
+  "test_private_key_only": "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+  "domain": {
+    "name": "AirSafetyLog",
+    "version": "1",
+    "chain_id": "11155111",
+    "verifying_contract": "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"
+  },
+  "type_strings": {
+    "incident_evidence": "IncidentEvidence(uint16 schemaVersion,bytes32 deviceIdHash,bytes32 incidentId,uint64 sequence,uint64 observedAt,uint8 timeSource,uint8 sensorValidMask,uint8 detectionMethod,int32 temperatureCx100,uint16 humidityPctX100,uint32 coPpmX1000,uint32 no2PpmX1000,uint8 overallLevel,uint8 coLevel,uint8 no2Level,uint8 coAlarmSourceMask,uint8 no2AlarmSourceMask,uint8 derivedValidMask,uint32 coStel15PpmX1000,uint32 no2Stel15PpmX1000,uint32 coTwa8hPpmX1000,uint32 no2Twa8hPpmX1000,uint32 coProj10PpmX1000,uint32 no2Proj10PpmX1000,uint8 modelProbabilityValidMask,uint16 coModelProbabilityBps,uint16 no2ModelProbabilityBps,uint8 incidentKind,uint8 severity,bytes32 firmwareVersionHash,bytes32 modelSha256,uint32 calibrationRevision,bytes32 calibrationHash)",
+    "incident_attestation": "IncidentAttestation(bytes32 deviceIdHash,bytes32 incidentId,uint64 sequence,uint64 observedAt,uint8 severity,bytes32 evidenceHash)"
+  },
+  "transport": {
+    "device_id": "aa:bb:cc:dd:ee:ff",
+    "firmware_version": "0.1.1-gas-ews",
+    "calibration_canonical": "AIR-CAL-1|co_r0_q10000=98765|no2_r0_q10000=43210|revision=3"
+  },
+  "evidence": {
+    "schema_version": 2,
+    "device_id_hash": "0x727db75a489b54fc2b0f1830187fb6d1e43670171457171bdb54b73b6bedb322",
+    "incident_id": "0xb11ceccb847938ba0a88a007012b8329521444ce87c9810e7c9883efb77b7477",
+    "sequence": "44",
+    "observed_at": "1790394700",
+    "time_source": 1,
+    "sensor_valid_mask": 15,
+    "detection_method": 2,
+    "temperature_c_x100": 3047,
+    "humidity_pct_x100": 7445,
+    "co_ppm_x1000": 70000,
+    "no2_ppm_x1000": 450,
+    "overall_level": 2,
+    "co_level": 2,
+    "no2_level": 0,
+    "co_alarm_source_mask": 1,
+    "no2_alarm_source_mask": 0,
+    "derived_valid_mask": 63,
+    "co_stel15_ppm_x1000": 35000,
+    "no2_stel15_ppm_x1000": 400,
+    "co_twa8h_ppm_x1000": 1800,
+    "no2_twa8h_ppm_x1000": 25,
+    "co_proj10_ppm_x1000": 50000,
+    "no2_proj10_ppm_x1000": 500,
+    "model_probability_valid_mask": 0,
+    "co_model_probability_bps": 0,
+    "no2_model_probability_bps": 0,
+    "incident_kind": 2,
+    "severity": 2,
+    "firmware_version_hash": "0xe395a0397b134eeeb72af7df60c1532be5e8dd1acc557e6b1abbb4f204dcf25c",
+    "model_sha256": "0xd1a789f1e6ad1e2b5225fb8ed78876b5ef348c2a81741e46c8fcb50c85048dcc",
+    "calibration_revision": 3,
+    "calibration_hash": "0xc2c163b7760ba878a6498f17bc91454e27b52e3f34aceeae1baa0fe72ae9699e"
+  },
+  "expected": {
+    "evidence_hash": "0x4cee9444df4aa12c292d85f2a338f2fed0664b595c1e32dcfd506567aa8227b8",
+    "eip712_digest": "0xf8841da92732116cebc3ba8a4b67124e8b79a75353c7fb7e6f4c1c9af820c166",
+    "signer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "signature": "0x545008a77becaddff7d20e4594c7b9e19e6bb599bf481025a7236f6ab012e277758726dedca1379b5eda517a53d4fea0e9e88970b1f7c95a7908fe9681464a061c"
+  }
+}
