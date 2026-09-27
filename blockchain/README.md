@@ -10,6 +10,7 @@ contracts/AirSafetyLog.sol    Contract (OpenZeppelin AccessControl + EIP712 + EC
 test/                         Hardhat test: vector v2, tamper, signer, replay, role…
 scripts/deploy.js             Deploy + ghi deployments/<network>.json + ABI
 scripts/verify.js             Verify source trên Etherscan
+scripts/roles.js              Task `hardhat roles`: xem/cấp/thu role
 abi/AirSafetyLog.json         ABI bàn giao cho backend (Task 3/4) và app (Task 5)
 deployments/sepolia.json      Address, chain ID, tx deploy, block, domain (sau khi deploy)
 ```
@@ -61,6 +62,19 @@ dùng `0xCccc…` chỉ để test.
 | `ownerAddress` của device | ví người dùng (app) | `acknowledgeIncident`, `resolveIncident` |
 
 Admin, manager và relayer **không** thể acknowledge/resolve.
+
+Quản lý role trên mạng đã deploy (gửi từ ví admin trong `DEPLOYER_PRIVATE_KEY`):
+
+```bash
+npm run roles:sepolia                                            # xem ai giữ role nào
+npx hardhat roles --network sepolia --action grant  --role RELAYER_ROLE --account 0x...
+npx hardhat roles --network sepolia --action revoke --role RELAYER_ROLE --account 0x...
+```
+
+Hiện một ví test giữ cả ba role. Trước khi chạy worker (Task 4), backend phải có
+ví relayer riêng: admin `grant RELAYER_ROLE` cho ví đó rồi `revoke RELAYER_ROLE`
+(và `DEVICE_MANAGER_ROLE` nếu tách) khỏi ví admin. Khóa relayer chỉ nằm trong
+secret của backend; ví admin không bao giờ đặt trên server.
 
 ## Quy tắc on-chain
 

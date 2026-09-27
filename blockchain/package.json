@@ -8,7 +8,8 @@
     "test": "hardhat test",
     "export-abi": "node scripts/export-abi.js",
     "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
-    "verify:sepolia": "hardhat run scripts/verify.js --network sepolia"
+    "verify:sepolia": "hardhat run scripts/verify.js --network sepolia",
+    "roles:sepolia": "hardhat roles --network sepolia"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
