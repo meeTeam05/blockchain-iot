@@ -60,6 +60,11 @@ typedef struct {
     uint32_t steps;           /**< finalized 10s steps since reset; changes = new data */
     bool warmup;              /**< latest step is inside the preheat window (gas ignored) */
     bool model_ok;            /**< GAS_EWS_WINDOW_STEPS (20 min) of continuous valid gas data -> model may run */
+    /** Validity of the raw values that finalized this step: bit 0 T, bit 1 RH,
+     * bit 2 CO, bit 3 NO2. Forward-filled values never set these bits. */
+    uint8_t sensor_valid_mask;
+    float temperature_c;      /**< raw finalized step, NAN when unavailable */
+    float humidity_pct;       /**< raw finalized step, NAN when unavailable */
     float ppm[GAS_EWS_NUM_GASES];     /**< latest 10s value after forward-fill, NAN = unknown */
     float stel[GAS_EWS_NUM_GASES];    /**< ppm, NAN = unknown */
     float twa[GAS_EWS_NUM_GASES];     /**< ppm (sum(C*t)/8h, missing time counts as 0) */

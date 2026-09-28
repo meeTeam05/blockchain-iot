@@ -2,10 +2,13 @@
 firmware/build/
 firmware/build-demo/
 firmware/build-normal/
+firmware/build-*/
 firmware/**/build/
 firmware/**/compile_commands.json
 firmware/sdkconfig
 firmware/sdkconfig.old
+firmware/sdkconfig.*.generated
+firmware/components/core/incident/tools/logs/*.log
 firmware/tools/**/sdkconfig
 firmware/tools/**/sdkconfig.old
 firmware/managed_components/

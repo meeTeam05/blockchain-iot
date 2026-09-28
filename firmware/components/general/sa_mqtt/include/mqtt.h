@@ -50,6 +50,18 @@ typedef esp_err_t (*mqtt_shadow_sync_cb_t)(const char *json_payload);
  */
 void mqtt_register_shadow_sync_cb(mqtt_shadow_sync_cb_t cb);
 
+/** Callback for the dedicated Schema v2 incident ACK topic. */
+typedef esp_err_t (*mqtt_incident_ack_cb_t)(const char *json_payload);
+
+/** Dispatch an already-framed incident ACK through the registered callback. */
+static inline esp_err_t mqtt_dispatch_incident_ack(mqtt_incident_ack_cb_t cb,
+                                                   const char *json_payload)
+{
+    return (cb && json_payload) ? cb(json_payload) : ESP_ERR_INVALID_ARG;
+}
+
+void mqtt_register_incident_ack_cb(mqtt_incident_ack_cb_t cb);
+
 /**
  * @brief Callback invoked when a command of a registered type arrives.
  *

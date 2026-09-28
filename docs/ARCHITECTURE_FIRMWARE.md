@@ -215,7 +215,7 @@ NVS hiện đang giữ các nhóm state sau:
 
 ### 6.4 NVS write coordination
 
-`config_nvs_write_begin()` / `config_nvs_write_end()` là shared guard giữa các writer bình thường và factory reset flow. Mục tiêu là chặn NVS writes mới khi factory reset đang erase default NVS partition.
+`config_nvs_write_begin()` / `config_nvs_write_end()` là shared guard giữa các writer bình thường và factory reset flow. Mục tiêu là chặn NVS writes mới khi factory reset đang xóa có mục tiêu hai namespace `wifi_prov` và `device`; `incidentv2` và partition `calib` được giữ nguyên.
 
 ### 6.5 Broker URI contract
 

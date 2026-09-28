@@ -459,7 +459,7 @@ Behavior:
 - Worker lấy baseline R0 trong khoảng 3 phút, bỏ outlier, reject nếu mẫu không ổn định, rồi publish ack sau khi persist hoàn tất.
 - Nếu queue đầy hoặc không khởi tạo, command kết thúc bằng `error`.
 - Nếu không có khí chuẩn / thiết bị tham chiếu, R0 calibration chỉ hỗ trợ đo tương đối, xu hướng, và cảnh báo; không biến `co_ppm` / `no2_ppm` thành phép đo chuẩn tuyệt đối.
-- Gas calibration thuộc sensor vật lý và được lưu trong NVS partition `calib`, nên physical factory reset không xóa `r0_co` / `r0_no2`; người dùng có thể chạy lại `calibrate_*` từ app để overwrite baseline.
+- Physical factory reset chỉ xóa namespace `wifi_prov` và `device`. Gas calibration trong partition `calib`, cùng signer/sequence/queue blockchain trong namespace `incidentv2`, đều được giữ; signer chỉ bị xóa bởi lifecycle revoke tường minh. Người dùng vẫn có thể chạy lại `calibrate_*` từ app để overwrite baseline.
 
 ### 4.2 `device/{id}/shadow/get_response`
 

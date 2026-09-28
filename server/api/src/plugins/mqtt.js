@@ -9,7 +9,7 @@ import {
     handleOtaProgress,
 } from '../services/mqtt-handlers.js';
 import { normalizeDeviceId } from '../utils/device-id.js';
-import { ensureBridgeUser } from '../services/emqx.js';
+import { ensureBridgeUser, refreshDeviceAuthorizations } from '../services/emqx.js';
 import { config } from '../config.js';
 
 const SUBSCRIPTIONS = Object.freeze([
@@ -29,6 +29,16 @@ export function waitForMqttClientEnd(client) {
             reject(err);
         }
     });
+}
+
+export async function refreshProvisionedDeviceAuthorizations(fastify) {
+    const { rows } = await fastify.db.query('SELECT id FROM devices ORDER BY id');
+    const deviceIds = rows.map((row) => row.id);
+    await refreshDeviceAuthorizations(deviceIds);
+    fastify.log.info(
+        { deviceCount: deviceIds.length },
+        'EMQX authorization refreshed for provisioned devices'
+    );
 }
 
 async function mqttPlugin(fastify) {
@@ -92,6 +102,7 @@ async function mqttPlugin(fastify) {
         while (!closed) {
             try {
                 await ensureBridgeUser();
+                await refreshProvisionedDeviceAuthorizations(fastify);
                 if (!closed && !connectingStarted) {
                     connectingStarted = true;
                     client.connect();

@@ -180,6 +180,14 @@ menu "Smart Air Configuration"
                 (internal RAM fallback). When disabled, the ai component is a
                 no-op stub.
 
+        config SA_ENABLE_BLOCKCHAIN_INCIDENT
+            bool "Enable Blockchain Incident Schema v2 queue"
+            default n
+            depends on SA_ENABLE_AI
+            help
+                Queue signed v2 incidents after Gas EWS has initiated its
+                local alarm. Signer provisioning refuses plaintext NVS.
+
         config SA_ENABLE_LED
             bool "Enable WS2812 RGB LED"
             default y
@@ -193,6 +201,54 @@ menu "Smart Air Configuration"
             help
                 When disabled, the factory reset button task is not started.
                 The button GPIO is not configured.
+
+    endmenu
+
+    menu "Blockchain incidents"
+
+        config SA_INCIDENT_QUEUE_CAPACITY
+            int "Persistent incident queue capacity"
+            depends on SA_ENABLE_BLOCKCHAIN_INCIDENT
+            default 4
+            range 1 8
+            help
+                Complete signed payloads retained in NVS. A full queue never
+                blocks local safety alerting.
+
+        config SA_INCIDENT_VERIFYING_CONTRACT
+            string "Provisioned EIP-712 verifying contract"
+            depends on SA_ENABLE_BLOCKCHAIN_INCIDENT
+            default ""
+            help
+                Lower/upper-case 0x Ethereum address provisioned with this
+                firmware. Incidents are not signed until this is set.
+
+        config SA_INCIDENT_OFFLINE_BENCH
+            bool "Offline Board Incident Bench Mode (TEST ONLY)"
+            depends on SA_ENABLE_AI && SA_AI_REPLAY && SA_ENABLE_BLOCKCHAIN_INCIDENT
+            depends on SA_ENABLE_BUZZER
+            depends on NVS_ENCRYPTION
+            default n
+            help
+                Intended only for physical bench verification. Bypasses the
+                BLE/Wi-Fi provisioning dependency and starts AI replay plus
+                the local production incident subsystem without a network.
+                It does not bypass transition gating, evidence generation,
+                signing, or encrypted-NVS persistence. MQTT delivery remains
+                unavailable/offline. Never enable this in production builds.
+
+        config SA_INCIDENT_SIGNER_PROVISION_BENCH
+            bool "UART Signer Provisioning Bench Tool (TEST ONLY)"
+            depends on SA_ENABLE_BLOCKCHAIN_INCIDENT
+            depends on NVS_ENCRYPTION
+            depends on ESP_CONSOLE_UART
+            default n
+            help
+                Test/operator-only UART command for first-time provisioning of
+                one 32-byte secp256k1 private key. The key is stored only by
+                the existing production incident_provision_signer() API. Never
+                enable this option in production builds, and never log the
+                private key.
 
     endmenu
 
@@ -463,7 +519,9 @@ menu "Smart Air Configuration"
         range 0 48
         help
             GPIO for factory reset button. Active-low with internal pull-up.
-            Hold for SA_FACTORY_RESET_HOLD_MS to trigger full NVS erase + reboot.
+            Hold for SA_FACTORY_RESET_HOLD_MS to clear Wi-Fi/MQTT/device-mode/
+            relay provisioning state and reboot. Blockchain signer, incident
+            queue, and the separate calibration partition are preserved.
 
     config SA_FACTORY_RESET_HOLD_MS
         int "Factory reset hold duration (ms)"

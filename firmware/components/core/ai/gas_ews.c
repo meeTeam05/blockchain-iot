@@ -268,6 +268,11 @@ static void process_step(int64_t k, const float raw_gas[NG], float raw_t, float 
     s_status.steps = s_steps;
     s_status.warmup = warm;
     s_status.model_ok = model_ok;
+    s_status.sensor_valid_mask = (!isnan(raw_t) ? 1u : 0u) | (!isnan(raw_rh) ? 2u : 0u) |
+                                 (!isnan(raw_gas[GAS_EWS_CO]) ? 4u : 0u) |
+                                 (!isnan(raw_gas[GAS_EWS_NO2]) ? 8u : 0u);
+    s_status.temperature_c = raw_t;
+    s_status.humidity_pct = raw_rh;
     for (int g = 0; g < NG; g++) {
         s_status.ppm[g] = gas[g];
         s_status.stel[g] = (float)stel[g];
@@ -431,4 +436,3 @@ void gas_ews_set_model_result(uint32_t steps, const float p[GAS_EWS_NUM_GASES], 
     }
     UNLOCK();
 }
-

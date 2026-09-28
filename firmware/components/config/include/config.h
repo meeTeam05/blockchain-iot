@@ -12,6 +12,7 @@
 #include "sdkconfig.h"
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 /* Compile-time constants */
 
@@ -31,6 +32,13 @@
 #define SA_ENABLE_FACTORY_RESET CONFIG_SA_ENABLE_FACTORY_RESET
 #define SA_ENABLE_RELAYS        CONFIG_SA_ENABLE_RELAYS
 #define SA_ENABLE_AI            CONFIG_SA_ENABLE_AI
+#define SA_ENABLE_BLOCKCHAIN_INCIDENT CONFIG_SA_ENABLE_BLOCKCHAIN_INCIDENT
+
+#if CONFIG_SA_INCIDENT_OFFLINE_BENCH
+#define SA_INCIDENT_OFFLINE_BENCH 1
+#else
+#define SA_INCIDENT_OFFLINE_BENCH 0
+#endif
 
 /** Runtime AI default after boot (0 when SA_ENABLE_AI is off and the symbol is undefined) */
 #if CONFIG_SA_AI_ENABLED_AT_BOOT
@@ -101,6 +109,9 @@
 #define SA_NVS_KEY_PASS       "password"
 #define SA_NVS_KEY_DONE       "done"
 
+/** Default-NVS namespace containing MQTT credentials, mode, and relay state. */
+#define SA_NVS_DEVICE_NAMESPACE "device"
+
 /** NVS partition for sensor-owned calibration data preserved across factory reset. */
 #define SA_NVS_CALIB_PARTITION "calib"
 
@@ -131,7 +142,7 @@ void config_nvs_write_end(void);
 bool config_factory_reset_in_progress(void);
 
 /**
- * @brief Begin factory reset by erasing the default NVS partition and blocking writers.
+ * @brief Begin factory reset by blocking normal default-NVS writers.
  * 
  * @return ESP_OK if factory reset was successfully initiated, or an error if the erase 
  *         could not be started.
@@ -139,7 +150,16 @@ bool config_factory_reset_in_progress(void);
 esp_err_t config_factory_reset_begin(void);
 
 /**
- * @brief End factory reset by unblocking writers after the default NVS partition erase is complete.
+ * @brief Erase only user provisioning/runtime-control namespaces.
+ *
+ * Call only while the factory-reset guard is held. This clears Wi-Fi, MQTT,
+ * device-mode, and relay state. It deliberately preserves the incidentv2
+ * namespace, including its signer, sequence, and durable incident queue.
+ */
+esp_err_t config_factory_reset_erase_provisioning(void);
+
+/**
+ * @brief End factory reset by unblocking writers after targeted erase completes.
  */
 void config_factory_reset_end(void);
 
@@ -202,6 +222,17 @@ esp_err_t config_load_gas_r0(const char *sensor_name, float *r0, bool *calibrate
  * @return ESP_OK on success, NVS error otherwise.
  */
 esp_err_t config_save_gas_r0(const char *sensor_name, float r0);
+
+/**
+ * @brief Atomically copy calibration identity for a signed incident snapshot.
+ *
+ * Values are R0 in ohms scaled by 10,000. Missing/legacy values are returned
+ * as zero; revision is zero only until the first revision-aware calibration
+ * save. This preserves legacy calibrations without inventing a revision.
+ */
+esp_err_t config_get_gas_calibration_snapshot(int64_t *co_r0_q10000,
+                                              int64_t *no2_r0_q10000,
+                                              uint32_t *revision);
 
 /**
  * @brief Device mode query shared across components to avoid dependency cycles.

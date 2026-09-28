@@ -30,6 +30,9 @@ esp_err_t gas_ews_model_init(void);
 esp_err_t gas_ews_model_infer(const float window[GAS_EWS_WINDOW_STEPS][GAS_EWS_NUM_CHANNELS],
                               float p_out[GAS_EWS_NUM_GASES]);
 
+/** SHA-256 over exact embedded TFLite flatbuffer bytes. */
+esp_err_t gas_ews_model_sha256(uint8_t out[32]);
+
 #ifdef __cplusplus
 }
 #endif

@@ -1,0 +1,7 @@
+# Test-only AI replay over the normal BLE/Wi-Fi/MQTT project path.
+# Combine with: sdkconfig.defaults;sdkconfig.incident;sdkconfig.incident.network-replay
+CONFIG_SA_AI_REPLAY=y
+CONFIG_SA_AI_REPLAY_SPEED=60
+CONFIG_SA_AI_REPLAY_SCENARIO=0
+# CONFIG_SA_INCIDENT_OFFLINE_BENCH is not set
+# CONFIG_SA_INCIDENT_SIGNER_PROVISION_BENCH is not set

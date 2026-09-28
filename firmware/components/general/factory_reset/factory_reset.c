@@ -20,7 +20,6 @@
 
 #include "config.h"
 #include "esp_log.h"
-#include "nvs_flash.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
@@ -51,6 +50,7 @@ esp_err_t factory_reset_run(void)
 
     ESP_LOGW(TAG, "Factory reset triggered; erasing provisioning data");
     ESP_LOGW(TAG, "Factory reset scope: Wi-Fi provisioning + MQTT creds/URI + mode + relay state");
+    ESP_LOGW(TAG, "Blockchain signer and pending incidents are preserved for explicit lifecycle management");
     ESP_LOGW(TAG, "Gas calibration R0 is preserved in the '%s' NVS partition", SA_NVS_CALIB_PARTITION);
 
     /* Solid red: point of no return */
@@ -68,10 +68,10 @@ esp_err_t factory_reset_run(void)
     /* 2. Clean MQTT shutdown (suppresses spurious reconnects during reboot) */
     mqtt_stop();
 
-    /* 3. Erase the default NVS partition; sensor-owned calibration is in SA_NVS_CALIB_PARTITION. */
-    err = nvs_flash_erase();
+    /* 3. Erase only user provisioning/runtime-control namespaces. */
+    err = config_factory_reset_erase_provisioning();
     if (err != ESP_OK) {
-        ESP_LOGE(TAG, "nvs_flash_erase failed (%s)", esp_err_to_name(err));
+        ESP_LOGE(TAG, "targeted provisioning erase failed (%s)", esp_err_to_name(err));
         config_factory_reset_end();
         return err;
     }

@@ -75,6 +75,7 @@ static const char *mqtt_connect_return_code_name(esp_mqtt_connect_return_code_t 
 static esp_mqtt_client_handle_t s_client = NULL;
 static mqtt_time_sync_cb_t s_time_sync_cb = NULL;
 static mqtt_shadow_sync_cb_t s_shadow_sync_cb = NULL;
+static mqtt_incident_ack_cb_t s_incident_ack_cb = NULL;
 static portMUX_TYPE s_client_lock = portMUX_INITIALIZER_UNLOCKED;
 static uint32_t s_client_users;
 
@@ -121,6 +122,7 @@ static char s_response_topic[96]; /* device/{id}/response */
 static char s_shadow_get_topic[96];           /* device/{id}/shadow/get */
 static char s_shadow_get_response_topic[128]; /* device/{id}/shadow/get_response */
 static char s_ota_topic[96];      /* device/{id}/ota/update */
+static char s_incident_ack_topic[112]; /* device/{id}/incident/ack */
 static char *s_rx_topic = NULL;
 static char *s_rx_payload = NULL;
 static int s_rx_total_len;
@@ -136,7 +138,8 @@ static int mqtt_inbound_payload_limit(const char *topic, int topic_len)
 {
     if (mqtt_event_topic_equals(topic, topic_len, s_cmd_topic) ||
         mqtt_event_topic_equals(topic, topic_len, s_shadow_get_response_topic) ||
-        mqtt_event_topic_equals(topic, topic_len, s_ota_topic)) {
+        mqtt_event_topic_equals(topic, topic_len, s_ota_topic) ||
+        mqtt_event_topic_equals(topic, topic_len, s_incident_ack_topic)) {
         return MQTT_MAX_INBOUND_PAYLOAD_LEN;
     }
 
@@ -405,6 +408,7 @@ static esp_err_t mqtt_subscribe_required_topics(esp_mqtt_client_handle_t client)
         {s_cmd_topic, "command"},
         {s_shadow_get_response_topic, "shadow/get_response"},
         {s_ota_topic, "ota"},
+        {s_incident_ack_topic, "incident/ack"},
     };
 
     for (size_t i = 0; i < sizeof(subscriptions) / sizeof(subscriptions[0]); i++) {
@@ -622,6 +626,13 @@ static void mqtt_event_handler(void *arg, esp_event_base_t base, int32_t event_i
             }
         }
 
+        if (strcmp(topic, s_incident_ack_topic) == 0 && s_incident_ack_cb != NULL) {
+            esp_err_t ack_err = mqtt_dispatch_incident_ack(s_incident_ack_cb, payload);
+            if (ack_err != ESP_OK) {
+                ESP_LOGW(TAG, "incident ACK rejected: %s", esp_err_to_name(ack_err));
+            }
+        }
+
         /* Route: OTA update trigger */
         if (strstr(topic, "/ota/update") != NULL) {
             cJSON *root = cJSON_ParseWithLength(payload, strlen(payload));
@@ -779,6 +790,11 @@ void mqtt_register_shadow_sync_cb(mqtt_shadow_sync_cb_t cb)
     s_shadow_sync_cb = cb;
 }
 
+void mqtt_register_incident_ack_cb(mqtt_incident_ack_cb_t cb)
+{
+    s_incident_ack_cb = cb;
+}
+
 esp_err_t mqtt_register_command_handler(const char *type, mqtt_command_cb_t cb)
 {
     if (type == NULL || type[0] == '\0' || cb == NULL) {
@@ -836,6 +852,7 @@ esp_err_t mqtt_start(const char *broker_uri, const char *device_id, const char *
     snprintf(s_shadow_get_topic, sizeof(s_shadow_get_topic), "device/%s/shadow/get", s_device_id);
     snprintf(s_shadow_get_response_topic, sizeof(s_shadow_get_response_topic), "device/%s/shadow/get_response", s_device_id);
     snprintf(s_ota_topic, sizeof(s_ota_topic), "device/%s/ota/update", s_device_id);
+    snprintf(s_incident_ack_topic, sizeof(s_incident_ack_topic), "device/%s/incident/ack", s_device_id);
 
     ESP_LOGI(TAG, "Starting MQTT client (id=%s, broker=%s)", s_device_id, s_broker_uri);
 
