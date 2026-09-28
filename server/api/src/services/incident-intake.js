@@ -1,5 +1,5 @@
 // MQTT intake for device/{id}/incident (Blockchain_task.md, Task 3).
-// Order: dedupe -> stateless verify -> signer registry -> time/sequence policy ->
+// Order: dedupe -> stateless verify -> signer registry -> time policy/sequence uniqueness ->
 // one DB transaction (incident + outbox + realtime) -> MQTT packet ack -> ACK publish.
 // Any thrown error leaves the QoS1 packet unacked so EMQX redelivers it.
 //
@@ -131,7 +131,6 @@ async function insertIncident(client, { deviceId, verified, domain, rawPayload, 
         'device_id',
         ...evidenceKeys,
         'firmware_version',
-        'calibration_canonical',
         'evidence_hash',
         'eip712_digest',
         'signature',
@@ -149,7 +148,6 @@ async function insertIncident(client, { deviceId, verified, domain, rawPayload, 
         deviceId,
         ...evidenceKeys.map((key) => evidence[key]),
         transport.firmwareVersion,
-        transport.calibrationCanonical,
         computed.evidenceHash,
         computed.digest,
         transport.signature,
@@ -267,20 +265,10 @@ export async function handleIncident(fastify, deviceId, payload, rawPayload, opt
             };
         }
 
-        const { rows } = await client.query(
-            `SELECT MAX(sequence)::text AS last_sequence, MAX(observed_at)::text AS last_observed_at
-             FROM incidents
-             WHERE device_id = $1`,
-            [deviceId]
-        );
         const ordering = checkIncidentOrdering({
-            sequence: verified.evidence.sequence,
             observedAt: verified.evidence.observed_at,
             receivedAtSec,
-            lastSequence: rows[0]?.last_sequence ?? null,
-            lastObservedAt: rows[0]?.last_observed_at ?? null,
             clockSkewSeconds: incidentConfig.clockSkewSeconds,
-            maxRegressionSeconds: incidentConfig.maxRegressionSeconds,
         });
         if (!ordering.ok) {
             return { kind: 'reject', errorCode: ordering.errorCode, reason: ordering.reason };

@@ -1,7 +1,7 @@
 // Incident Schema v2 verification (docs/BLOCKCHAIN_INCIDENT_SCHEMA.md).
-// Pure functions only: no DB, no MQTT. Every hash is recomputed from the
-// transport payload; nothing the device claims is trusted as-is.
-import { createHash } from 'node:crypto';
+// Pure functions only: no DB, no MQTT. Identity, firmware, evidence and EIP-712
+// hashes are recomputed. calibration_hash is itself signed evidence, but Task 1
+// does not transmit its canonical preimage so it cannot be recomputed alone.
 import {
     AbiCoder,
     TypedDataEncoder,
@@ -25,8 +25,6 @@ export const INCIDENT_ERROR = Object.freeze({
     INVALID_SIGNATURE: 'INVALID_SIGNATURE',
     SIGNER_NOT_ACTIVE: 'SIGNER_NOT_ACTIVE',
     OBSERVED_AT_OUT_OF_WINDOW: 'OBSERVED_AT_OUT_OF_WINDOW',
-    OBSERVED_AT_REGRESSED: 'OBSERVED_AT_REGRESSED',
-    SEQUENCE_NOT_INCREASING: 'SEQUENCE_NOT_INCREASING',
     INCIDENT_HASH_CONFLICT: 'INCIDENT_HASH_CONFLICT',
 });
 
@@ -93,7 +91,6 @@ export const ATTESTATION_TYPES = Object.freeze({
 export const TRANSPORT_EXTRA_KEYS = Object.freeze([
     'device_id',
     'firmware_version',
-    'calibration_canonical',
     'evidence_hash',
     'signature',
 ]);
@@ -112,8 +109,6 @@ const UINT64_DEC_RE = /^(0|[1-9][0-9]{0,19})$/;
 const SIGNATURE_RE = /^0x[0-9a-fA-F]{130}$/;
 const MAC_RE = /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/;
 const MAX_FIRMWARE_VERSION_LENGTH = 64;
-const MAX_CALIBRATION_CANONICAL_LENGTH = 256;
-const CALIBRATION_PREFIX = 'AIR-CAL-1|';
 const PRINTABLE_ASCII_RE = /^[\x20-\x7e]+$/;
 const BPS_MAX = 10_000;
 const HUMIDITY_MAX = 10_000;
@@ -202,18 +197,6 @@ function checkField(type, key, value) {
     return value >= 0 && value <= UINT_MAX[type] ? null : `${key} is out of ${type} range`;
 }
 
-export function parseCalibrationRevision(canonical) {
-    if (typeof canonical !== 'string' || !canonical.startsWith(CALIBRATION_PREFIX)) return null;
-    const revisions = canonical
-        .split('|')
-        .slice(1)
-        .filter((segment) => segment.startsWith('revision='))
-        .map((segment) => segment.slice('revision='.length));
-    if (revisions.length !== 1 || !/^(0|[1-9][0-9]{0,9})$/.test(revisions[0])) return null;
-    const revision = Number(revisions[0]);
-    return revision <= UINT_MAX.uint32 ? revision : null;
-}
-
 // Step 1: shape/format. Returns the payload split into evidence + transport fields.
 export function parseIncidentPayload(payload) {
     if (!isPlainObject(payload)) {
@@ -236,7 +219,7 @@ export function parseIncidentPayload(payload) {
     }
 
     const { device_id: deviceId, firmware_version: firmwareVersion } = payload;
-    const { calibration_canonical: calibrationCanonical, evidence_hash: evidenceHash, signature } = payload;
+    const { evidence_hash: evidenceHash, signature } = payload;
     if (typeof deviceId !== 'string' || !MAC_RE.test(deviceId)) {
         return fail(INCIDENT_ERROR.INVALID_PAYLOAD, 'device_id must be a lowercase MAC address');
     }
@@ -244,11 +227,6 @@ export function parseIncidentPayload(payload) {
         || firmwareVersion.length > MAX_FIRMWARE_VERSION_LENGTH
         || !PRINTABLE_ASCII_RE.test(firmwareVersion)) {
         return fail(INCIDENT_ERROR.INVALID_PAYLOAD, 'firmware_version must be printable ASCII (1..64 chars)');
-    }
-    if (typeof calibrationCanonical !== 'string'
-        || calibrationCanonical.length > MAX_CALIBRATION_CANONICAL_LENGTH
-        || !PRINTABLE_ASCII_RE.test(calibrationCanonical)) {
-        return fail(INCIDENT_ERROR.INVALID_PAYLOAD, 'calibration_canonical must be printable ASCII (1..256 chars)');
     }
     if (!isBytes32(evidenceHash)) {
         return fail(INCIDENT_ERROR.INVALID_PAYLOAD, 'evidence_hash must be lowercase 0x-prefixed bytes32 hex');
@@ -263,7 +241,6 @@ export function parseIncidentPayload(payload) {
         transport: {
             deviceId,
             firmwareVersion,
-            calibrationCanonical,
             evidenceHash,
             signature: signature.toLowerCase(),
         },
@@ -342,10 +319,6 @@ export function computeIncidentId(deviceIdHash, sequence) {
 
 export function computeFirmwareVersionHash(firmwareVersion) {
     return keccak256(toUtf8Bytes(firmwareVersion));
-}
-
-export function computeCalibrationHash(calibrationCanonical) {
-    return `0x${createHash('sha256').update(calibrationCanonical, 'utf8').digest('hex')}`;
 }
 
 export function computeEvidenceHash(evidence) {
@@ -432,30 +405,17 @@ export function verifyIncidentPayload(payload, domain) {
     const semanticError = validateIncidentSemantics(evidence);
     if (semanticError) return fail(INCIDENT_ERROR.INVALID_SEMANTICS, semanticError, { evidence, transport });
 
-    const calibrationRevision = parseCalibrationRevision(transport.calibrationCanonical);
-    if (calibrationRevision === null) {
-        return fail(INCIDENT_ERROR.INVALID_PAYLOAD, 'calibration_canonical must be AIR-CAL-1|...|revision=N', { evidence, transport });
-    }
-    if (calibrationRevision !== evidence.calibration_revision) {
-        return fail(INCIDENT_ERROR.HASH_MISMATCH, 'calibration_canonical revision does not match calibration_revision', {
-            evidence,
-            transport,
-        });
-    }
-
     const deviceIdHash = computeDeviceIdHash(transport.deviceId);
     const computed = {
         deviceIdHash,
         incidentId: computeIncidentId(deviceIdHash, evidence.sequence),
         firmwareVersionHash: computeFirmwareVersionHash(transport.firmwareVersion),
-        calibrationHash: computeCalibrationHash(transport.calibrationCanonical),
         evidenceHash: computeEvidenceHash(evidence),
     };
     const hashChecks = [
         ['device_id_hash', evidence.device_id_hash, computed.deviceIdHash],
         ['incident_id', evidence.incident_id, computed.incidentId],
         ['firmware_version_hash', evidence.firmware_version_hash, computed.firmwareVersionHash],
-        ['calibration_hash', evidence.calibration_hash, computed.calibrationHash],
         ['evidence_hash', transport.evidenceHash, computed.evidenceHash],
     ];
     for (const [field, claimed, actual] of hashChecks) {
@@ -490,27 +450,21 @@ export function verifyIncidentPayload(payload, domain) {
     };
 }
 
-// Step 3 (needs DB state): schema section 6 time policy + strictly increasing sequence.
+// Step 3 (needs receive time): accept delayed signed evidence indefinitely, but
+// reject zero timestamps and timestamps implausibly far in the future. Sequence
+// uniqueness/conflicts are enforced transactionally by incident-intake.js.
 export function checkIncidentOrdering({
-    sequence,
     observedAt,
     receivedAtSec,
-    lastSequence = null,
-    lastObservedAt = null,
     clockSkewSeconds,
-    maxRegressionSeconds,
 }) {
     const observed = BigInt(observedAt);
     const received = BigInt(receivedAtSec);
-    const skew = observed > received ? observed - received : received - observed;
-    if (skew > BigInt(clockSkewSeconds)) {
-        return fail(INCIDENT_ERROR.OBSERVED_AT_OUT_OF_WINDOW, `observed_at differs from receive time by ${skew}s`);
+    if (observed === 0n) {
+        return fail(INCIDENT_ERROR.OBSERVED_AT_OUT_OF_WINDOW, 'observed_at must be greater than zero');
     }
-    if (lastObservedAt !== null && observed + BigInt(maxRegressionSeconds) < BigInt(lastObservedAt)) {
-        return fail(INCIDENT_ERROR.OBSERVED_AT_REGRESSED, 'observed_at regressed more than allowed from the last incident');
-    }
-    if (lastSequence !== null && BigInt(sequence) <= BigInt(lastSequence)) {
-        return fail(INCIDENT_ERROR.SEQUENCE_NOT_INCREASING, 'sequence must be greater than the last accepted sequence');
+    if (observed > received + BigInt(clockSkewSeconds)) {
+        return fail(INCIDENT_ERROR.OBSERVED_AT_OUT_OF_WINDOW, 'observed_at is too far in the future');
     }
     return { ok: true };
 }
@@ -521,7 +475,7 @@ export function buildIncidentAck({ incidentId, evidenceHash, accepted, errorCode
         incident_id: incidentId,
         evidence_hash: evidenceHash,
         accepted,
-        error_code: accepted ? null : errorCode,
+        error_code: accepted ? '' : errorCode,
         received_at: String(receivedAtSec),
     };
 }

@@ -19,7 +19,6 @@ import {
 const INCIDENT_CONFIG = Object.freeze({
     maxPayloadBytes: 4096,
     clockSkewSeconds: 600,
-    maxRegressionSeconds: 60,
 });
 
 async function setup({ withSigner = true } = {}) {
@@ -90,7 +89,7 @@ test('vector v2 is stored, queued in the outbox, announced and ACKed after commi
             incident_id: early.vector.evidence.incident_id,
             evidence_hash: early.vector.expected.evidence_hash,
             accepted: true,
-            error_code: null,
+            error_code: '',
             received_at: String(Number(early.payload.observed_at) + 5),
         });
     } finally {
@@ -183,14 +182,20 @@ test('tampered payload is rejected with HASH_MISMATCH, logged as a security even
     }
 });
 
-test('timestamp outside the +/-10 minute window is rejected and not stored', async () => {
+test('delayed first delivery is accepted; zero and too-far-future timestamps are rejected', async () => {
     const { early, store, fastify } = await setup();
     try {
-        for (const offset of [601, -601]) {
-            const result = await deliver(fastify, early, { now: nowAt(early.payload.observed_at, offset) });
-            assert.equal(result.errorCode, INCIDENT_ERROR.OBSERVED_AT_OUT_OF_WINDOW, `offset ${offset}`);
-        }
-        assert.equal((await deliver(fastify, early, { now: nowAt(early.payload.observed_at, 600) })).accepted, true);
+        assert.equal((await deliver(fastify, early, { now: nowAt(early.payload.observed_at, 86_400) })).accepted, true);
+
+        const future = signIncident({ ...early, overrides: { sequence: '45', observed_at: '1790395301' } });
+        const futureResult = await deliver(fastify, { ...early, payload: future }, {
+            now: () => new Date(1790394700 * 1000),
+        });
+        assert.equal(futureResult.errorCode, INCIDENT_ERROR.OBSERVED_AT_OUT_OF_WINDOW);
+
+        const zero = signIncident({ ...early, overrides: { sequence: '46', observed_at: '0' } });
+        assert.equal((await deliver(fastify, { ...early, payload: zero })).errorCode,
+            INCIDENT_ERROR.OBSERVED_AT_OUT_OF_WINDOW);
         assert.equal(await countRows(store, 'incidents'), 1);
         assert.deepEqual(await securityEventTypes(store), []);
     } finally {
@@ -198,24 +203,21 @@ test('timestamp outside the +/-10 minute window is rejected and not stored', asy
     }
 });
 
-test('observed_at may not regress more than 60s and sequence must strictly increase', async () => {
+test('unseen incidents may arrive out of sequence; same-sequence conflicting evidence is rejected', async () => {
     const { early, exceeded, store, fastify } = await setup();
     try {
-        await deliver(fastify, exceeded); // seq 44 @ 1790394700
+        const seq4 = signIncident({ ...exceeded, overrides: { sequence: '4', observed_at: '1790394700' } });
+        const seq3 = signIncident({ ...early, overrides: { sequence: '3', observed_at: '1790394600' } });
+        assert.equal((await deliver(fastify, { ...exceeded, payload: seq4 }, { now: nowAt(seq4.observed_at) })).accepted, true);
+        assert.equal((await deliver(fastify, { ...early, payload: seq3 }, { now: nowAt(seq4.observed_at) })).accepted, true);
 
-        // seq 43 @ 1790394600: regressed 100s.
-        const regressed = await deliver(fastify, early, { now: nowAt(exceeded.payload.observed_at) });
-        assert.equal(regressed.errorCode, INCIDENT_ERROR.OBSERVED_AT_REGRESSED);
-
-        // seq 42 inside the regression allowance but lower than 44.
-        const olderSeq = signIncident({ ...early, overrides: { sequence: '42', observed_at: '1790394650' } });
-        const lower = await deliver(fastify, { ...early, payload: olderSeq }, { now: nowAt(exceeded.payload.observed_at) });
-        assert.equal(lower.errorCode, INCIDENT_ERROR.SEQUENCE_NOT_INCREASING);
-
-        // Gaps are allowed as long as sequence increases.
-        const next = signIncident({ ...early, overrides: { sequence: '50', observed_at: '1790394660' } });
-        assert.equal((await deliver(fastify, { ...early, payload: next }, { now: nowAt(exceeded.payload.observed_at) })).accepted, true);
+        const seq3Conflict = signIncident({ ...exceeded, overrides: { sequence: '3', observed_at: '1790394690' } });
+        const conflict = await deliver(fastify, { ...exceeded, payload: seq3Conflict }, { now: nowAt(seq4.observed_at) });
+        // incident_id is derived from device_id_hash + sequence, so a same-sequence
+        // conflict necessarily reaches the existing-ID/different-hash guard.
+        assert.equal(conflict.errorCode, INCIDENT_ERROR.INCIDENT_HASH_CONFLICT);
         assert.equal(await countRows(store, 'incidents'), 2);
+        assert.deepEqual(await securityEventTypes(store), ['INCIDENT_HASH_CONFLICT']);
     } finally {
         await store.close();
     }
@@ -231,7 +233,7 @@ test('signer must be the registered active signer; revoked and rotated-away keys
         await registerSigner(pool, DEVICE_ID, early.vector.expected.signer);
         assert.equal((await deliver(fastify, early)).accepted, true);
 
-        await revokeSigner(store.db, DEVICE_ID, 'factory_reset');
+        await revokeSigner(store.db, DEVICE_ID, 'explicit_operator_revoke');
         const revoked = await deliver(fastify, exceeded);
         assert.equal(revoked.errorCode, INCIDENT_ERROR.SIGNER_NOT_ACTIVE);
 
@@ -250,7 +252,7 @@ test('signer must be the registered active signer; revoked and rotated-away keys
             [DEVICE_ID]
         );
         assert.deepEqual(rows.map((r) => r.status), ['revoked', 'revoked', 'active']);
-        assert.deepEqual(rows.map((r) => r.revoke_reason), ['factory_reset', 'rotated', null]);
+        assert.deepEqual(rows.map((r) => r.revoke_reason), ['explicit_operator_revoke', 'rotated', null]);
     } finally {
         await store.close();
     }

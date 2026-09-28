@@ -15,7 +15,8 @@ CREATE TABLE IF NOT EXISTS device_signers (
     CONSTRAINT device_signers_address_check CHECK (signer_address ~ '^0x[0-9a-f]{40}$'),
     CONSTRAINT device_signers_status_check CHECK (status IN ('active', 'revoked')),
     CONSTRAINT device_signers_revoked_at_check CHECK ((status = 'revoked') = (revoked_at IS NOT NULL)),
-    -- A key is never reused: reset/rotation always provisions a new signer.
+    -- A revoked/rotated key is never reused. Physical factory reset preserves
+    -- the Task 1 signer and does not imply revocation.
     CONSTRAINT device_signers_address_unique UNIQUE (signer_address)
 );
 

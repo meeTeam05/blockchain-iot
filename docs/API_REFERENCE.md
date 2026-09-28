@@ -1085,7 +1085,7 @@ Trả toàn bộ field summary và thêm:
 | `incident_kind`, `time_source`, `observed_at_iso` | enum đã giải mã |
 | `sensors`, `derived`, `model` | giá trị đã quy đổi (°C, %, ppm, xác suất 0..1); **`null` khi bit valid tương ứng bị clear** |
 | `alarm_sources.co/no2` | `{ rule, projection, model }` từ source mask |
-| `firmware`, `calibration` | version/hash firmware, `model_sha256`, calibration revision/hash/canonical |
+| `firmware`, `calibration` | version/hash firmware, `model_sha256`, calibration revision/hash; canonical là `null` cho Task 1 wire payload và hash không thể tái tạo độc lập |
 | `evidence_hash`, `eip712_digest`, `signature`, `signer_address` | bằng chứng đã verify lúc intake |
 | `owner_address` | ví owner on-chain (`null` tới khi indexer đồng bộ) |
 | `owner` | thời điểm/ví/tx acknowledge và resolve |
@@ -1094,7 +1094,7 @@ Trả toàn bộ field summary và thêm:
 
 ### `GET /api/devices/:id/incidents/:incidentId/verify` 🔒
 
-Parse lại `raw_payload` đã lưu, tính lại mọi hash và chữ ký với domain EIP-712 đã ghi lúc intake, đồng thời đối chiếu các cột DB với payload gốc.
+Parse lại `raw_payload` đã lưu, tính lại identity/firmware/evidence/EIP-712 hash và chữ ký với domain đã ghi lúc intake, đồng thời đối chiếu các cột DB với payload gốc. `calibration_hash` được kiểm tra như signed evidence nhưng không có canonical preimage trên wire để tính độc lập.
 
 **200 OK:**
 ```json
@@ -1114,7 +1114,7 @@ Parse lại `raw_payload` đã lưu, tính lại mọi hash và chữ ký với 
     "device_id_hash": { "stored": "0x…", "computed": "0x…", "match": true },
     "incident_id": { "stored": "0x…", "computed": "0x…", "match": true },
     "firmware_version_hash": { "stored": "0x…", "computed": "0x…", "match": true },
-    "calibration_hash": { "stored": "0x…", "computed": "0x…", "match": true },
+    "calibration_hash": { "stored": "0x…", "computed": null, "match": true, "independently_recomputable": false },
     "evidence_hash": { "stored": "0x…", "computed": "0x…", "match": true },
     "eip712_digest": { "stored": "0x…", "computed": "0x…", "match": true }
   },
@@ -1131,7 +1131,7 @@ Parse lại `raw_payload` đã lưu, tính lại mọi hash và chữ ký với 
 }
 ```
 
-`valid` = mọi hash khớp, chữ ký recover đúng signer đã lưu, signer có trong registry (signer bị revoke sau thời điểm ký vẫn hợp lệ, `signer_status` báo `revoked`), và cột DB khớp payload gốc.
+`valid` = mọi hash có thể tái tạo khớp, `calibration_hash` trong DB khớp signed evidence, chữ ký recover đúng signer đã lưu, signer có trong registry (signer bị revoke sau thời điểm ký vẫn hợp lệ, `signer_status` báo `revoked`), và cột DB khớp payload gốc.
 
 ### Realtime / notification
 
@@ -1288,7 +1288,7 @@ EMQX Admin API provisioning/cleanup dùng `EMQX_API_URL` và timeout `EMQX_API_T
 | `device/+/shadow/report` | `handleShadowReport()` | Drop unknown devices, validate known fields and size, normalize future ts, UPSERT `device_shadows` only when `payload.ts` is not older than current `reported.ts`; emit applied patch |
 | `device/+/shadow/get`    | `handleShadowGet()`    | Require plain object payload, load shadow, best-effort publish `shadow/get_response`                                                                                                  |
 | `device/+/ota/progress`  | `handleOtaProgress()`  | Cache raw JSON at `ota_progress:` TTL 600s; emit `ota.progress` without additional schema validation                                                                                 |
-| `device/+/incident`      | `handleIncident()`     | Dedupe theo `(device_id, incident_id)`; verify Schema v2 (format, enum/mask, mọi hash, EIP-712, signer active); time/sequence policy; một transaction INSERT `incidents` + `blockchain_outbox(queued)` + `incident.created`; ACK sau commit |
+| `device/+/incident`      | `handleIncident()`     | Dedupe theo `(device_id, incident_id)`; verify Schema v2 (format, enum/mask, wire-recomputable hashes, signed `calibration_hash`, EIP-712, signer active); delayed/future-time và sequence-uniqueness policy; một transaction INSERT `incidents` + `blockchain_outbox(queued)` + `incident.created`; ACK sau commit |
 
 **Publish:**
 

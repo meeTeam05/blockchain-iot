@@ -16,7 +16,7 @@ import {
     rawBytes,
 } from './helpers/incident-fixtures.js';
 
-const INCIDENT_CONFIG = Object.freeze({ maxPayloadBytes: 4096, clockSkewSeconds: 600, maxRegressionSeconds: 60 });
+const INCIDENT_CONFIG = Object.freeze({ maxPayloadBytes: 4096, clockSkewSeconds: 600 });
 
 async function setup() {
     const early = await loadVector('earlyWarning');
@@ -87,6 +87,8 @@ test('GET detail reports values only when valid and keeps raw evidence', async (
         assert.deepEqual(detail.alarm_sources.co, { rule: false, projection: false, model: true });
         assert.equal(detail.firmware.version, '0.1.1-gas-ews');
         assert.equal(detail.calibration.revision, 3);
+        assert.equal(detail.calibration.canonical, null);
+        assert.equal(detail.calibration.independently_recomputable, false);
         assert.equal(detail.evidence_hash, early.vector.expected.evidence_hash);
         assert.equal(detail.chain.status, 'queued');
         assert.equal(detail.owner_status, 'open');
@@ -114,6 +116,8 @@ test('GET verify recomputes hashes and signature from the stored raw payload', a
         }
         assert.equal(body.hashes.evidence_hash.computed, early.vector.expected.evidence_hash);
         assert.equal(body.hashes.eip712_digest.computed, early.vector.expected.eip712_digest);
+        assert.equal(body.hashes.calibration_hash.computed, null);
+        assert.equal(body.hashes.calibration_hash.independently_recomputable, false);
         assert.deepEqual(body.signature, {
             valid: true,
             recovered_signer: early.vector.expected.signer.toLowerCase(),

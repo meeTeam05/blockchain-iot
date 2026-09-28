@@ -26,10 +26,11 @@ clock không hợp lệ hoặc dữ liệu trigger không hợp lệ.
 - Outbox gửi theo `sequence` tuần tự cho từng thiết bị. Retry exponential
   backoff; quá 10 lần hoặc 24 giờ chuyển `blocked`, báo vận hành và chặn các
   incident chain tiếp theo của thiết bị đó. MQTT ACK, DB và app không bị chặn.
-- Chỉ nhận `timeSource` SNTP/RTC hợp lệ, `observed_at` trong ±10 phút với lúc
-  nhận và không lùi quá 60 giây so với incident hợp lệ gần nhất của thiết bị.
-- Chỉ rotate sau khi firmware flush queue. Factory reset phải revoke signer;
-  dùng lại phải provision và register signer mới. Không ký lại incident cũ.
+- Chỉ nhận `timeSource` SNTP/RTC hợp lệ và `observed_at > 0`; từ chối timestamp
+  ở tương lai quá 10 phút. Bản ghi signed hợp lệ đến muộn vẫn được nhận.
+- Chỉ rotate sau khi firmware flush queue. Factory reset giữ signer/sequence/
+  queue; revoke hoặc rotate signer là lifecycle operation tường minh, phối hợp
+  với backend/operator. Không ký lại incident cũ.
 - ACK QoS 1 gồm `schema_version`, `incident_id`, `evidence_hash`, `accepted`,
   `error_code`, `received_at`; firmware chỉ xóa queue khi `accepted=true` và
   ID/hash khớp bản đã lưu.
@@ -77,7 +78,8 @@ reboot retry không đổi chữ ký; ACK sai không xóa record.
 **Phạm vi:** Fastify MQTT handler, EMQX ACL, migrations, APIs và realtime.
 
 - Subscribe `device/+/incident`; cấp ACL publish/ACK. Validate v2, topic/device
-  ID, time policy, enum/mask, all hashes, EIP-712 signature và signer đăng ký.
+  ID, time policy, enum/mask, các hash có preimage trên wire, signed
+  `calibration_hash`, EIP-712 signature và signer đăng ký.
 - Tạo `incidents` không retention với unique `(device_id, incident_id)` và
   `(device_id, sequence)`, evidence/payload nguyên bản, verify result và status.
 - Payload trùng cùng hash: ACK thành công, không tạo row. Cùng ID khác hash:
@@ -91,10 +93,11 @@ từ chối; API verify trả DB, hash và signature status.
 
 **Bàn giao Task 3 (nhánh `feature/blockchain-task3-incident-intake`):**
 
-- Task 1: payload thêm `calibration_canonical`; gửi tuần tự theo `sequence`,
-  chờ ACK trước incident kế tiếp; mã lỗi ACK ở `docs/MQTT_PROTOCOL.md` 4.4.
-  Retry quá ±10 phút của incident chưa từng tới server nhận
-  `OBSERVED_AT_OUT_OF_WINDOW` và phải được giữ theo giới hạn queue.
+- Task 1: payload truyền signed `calibration_hash`, không truyền
+  `calibration_canonical`; backend không được giả định arrival theo `sequence`.
+  ACK thành công dùng `error_code:""`; mã lỗi ACK ở
+  `docs/MQTT_PROTOCOL.md` 4.4. Incident hợp lệ đến muộn được nhận; chỉ
+  timestamp bằng 0 hoặc ở tương lai quá tolerance bị từ chối.
 - Task 2/4: backend đọc domain từ `AIR_SAFETY_LOG_ADDRESS`/`INCIDENT_CHAIN_ID`;
   signer đăng ký ở `device_signers` (`scripts/device-signer.js`) phải trùng
   signer on-chain. Outbox `blockchain_outbox` (migration 017) đã có đủ cột

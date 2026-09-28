@@ -74,7 +74,8 @@ export async function registerSigner(fastifyOrPool, deviceId, signerAddress, { r
     }
 }
 
-// Factory reset must revoke the signer; reusing the device requires a new registration.
+// Signer removal is an explicit lifecycle operation. Device factory reset preserves
+// the Task 1 signer and must not implicitly call this function.
 export async function revokeSigner(target, deviceId, reason = 'revoked') {
     const { rowCount } = await queryTarget(target).query(
         `UPDATE device_signers

@@ -125,7 +125,6 @@ export const config = Object.freeze({
         get verifyingContract() { return env('AIR_SAFETY_LOG_ADDRESS'); },
         get maxPayloadBytes() { return intEnv('INCIDENT_MAX_PAYLOAD_BYTES', 4_096); },
         get clockSkewSeconds() { return intEnv('INCIDENT_CLOCK_SKEW_SECONDS', 600); },
-        get maxRegressionSeconds() { return intEnv('INCIDENT_MAX_REGRESSION_SECONDS', 60); },
     }),
     dataRetention: Object.freeze({
         get commandRetentionDays() { return intEnv('COMMAND_RETENTION_DAYS', 30); },

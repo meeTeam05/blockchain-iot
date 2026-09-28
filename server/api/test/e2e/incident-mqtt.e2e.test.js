@@ -76,6 +76,12 @@ async function publishAndAwaitAck(client, deviceId, payload) {
     return ack;
 }
 
+async function publishRawAndExpectNoAck(client, deviceId, rawPayload, timeoutMs = 750) {
+    const ack = nextAck(client, timeoutMs);
+    await client.publishAsync(`device/${deviceId}/incident`, rawPayload, { qos: 1 });
+    await assert.rejects(ack, /no incident ACK received/);
+}
+
 async function emqxPutRules(deviceId, rules) {
     const auth = Buffer.from(`${config.emqx.apiKey}:${config.emqx.apiSecret}`).toString('base64');
     const res = await fetch(
@@ -128,7 +134,6 @@ test('device publishes a signed incident through EMQX and receives an idempotent
                 ...vector.evidence,
                 device_id: deviceId,
                 firmware_version: vector.transport.firmware_version,
-                calibration_canonical: vector.transport.calibration_canonical,
             },
             overrides: { sequence: '1', observed_at: String(now) },
         });
@@ -139,6 +144,20 @@ test('device publishes a signed incident through EMQX and receives an idempotent
         assert.equal(first.ack.accepted, true, JSON.stringify(first.ack));
         assert.equal(first.ack.incident_id, payload.incident_id);
         assert.equal(first.ack.evidence_hash, payload.evidence_hash);
+        assert.equal(first.ack.error_code, '');
+        assert.equal(typeof first.ack.received_at, 'string');
+
+        // An accepted ACK is observable only after both durable rows committed.
+        const committedBeforeAck = await pool.query(
+            `SELECT EXISTS(
+                 SELECT 1 FROM incidents WHERE device_id = $1 AND incident_id = $2
+             ) AS incident,
+             EXISTS(
+                 SELECT 1 FROM blockchain_outbox WHERE device_id = $1 AND incident_id = $2
+             ) AS outbox`,
+            [deviceId, payload.incident_id]
+        );
+        assert.deepEqual(committedBeforeAck.rows[0], { incident: true, outbox: true });
 
         // 4. Retry of the same bytes: ACK accepted again, same received_at, no new row.
         const retry = await publishAndAwaitAck(client, deviceId, payload);
@@ -150,15 +169,119 @@ test('device publishes a signed incident through EMQX and receives an idempotent
         assert.equal(tampered.ack.accepted, false);
         assert.equal(tampered.ack.error_code, 'HASH_MISMATCH');
 
+        const wrongEvidenceHashPayload = signIncident({
+            vector,
+            domain,
+            signingKey,
+            payload,
+            overrides: { sequence: '7', observed_at: String(now + 1) },
+        });
+        wrongEvidenceHashPayload.evidence_hash = `0x${'0'.repeat(64)}`;
+        const wrongEvidenceHash = await publishAndAwaitAck(client, deviceId, wrongEvidenceHashPayload);
+        assert.equal(wrongEvidenceHash.ack.accepted, false);
+        assert.equal(wrongEvidenceHash.ack.error_code, 'HASH_MISMATCH');
+
+        // 6. Malformed JSON has no addressable incident id/hash, so it is dropped without ACK.
+        await publishRawAndExpectNoAck(client, deviceId, '{bad-json');
+
+        // 7. The topic identity is authoritative.
+        const topicMismatch = await publishAndAwaitAck(client, deviceId, { ...payload, device_id: randomMac() });
+        assert.equal(topicMismatch.ack.accepted, false);
+        assert.equal(topicMismatch.ack.error_code, 'DEVICE_MISMATCH');
+
+        // 8. A cryptographically invalid signature is rejected before signer authorization.
+        const invalidSignaturePayload = {
+            ...payload,
+            signature: `0x${'0'.repeat(64)}${payload.signature.slice(66)}`,
+        };
+        const invalidSignature = await publishAndAwaitAck(client, deviceId, invalidSignaturePayload);
+        assert.equal(invalidSignature.ack.accepted, false);
+        assert.equal(invalidSignature.ack.error_code, 'INVALID_SIGNATURE');
+
+        // 9. A well-formed signature from a key that is not active for the device is rejected.
+        const unauthorizedKey = new SigningKey(`0x${randomBytes(32).toString('hex')}`);
+        const unauthorizedPayload = signIncident({
+            vector,
+            domain,
+            signingKey: unauthorizedKey,
+            payload,
+            overrides: { sequence: '2', observed_at: String(now + 1) },
+        });
+        const unauthorized = await publishAndAwaitAck(client, deviceId, unauthorizedPayload);
+        assert.equal(unauthorized.ack.accepted, false);
+        assert.equal(unauthorized.ack.error_code, 'SIGNER_NOT_ACTIVE');
+
+        // 10. Same sequence implies the same derived incident_id; conflicting signed evidence is rejected.
+        const conflictingPayload = signIncident({
+            vector,
+            domain,
+            signingKey,
+            payload,
+            overrides: { co_ppm_x1000: payload.co_ppm_x1000 + 1 },
+        });
+        assert.equal(conflictingPayload.incident_id, payload.incident_id);
+        assert.notEqual(conflictingPayload.evidence_hash, payload.evidence_hash);
+        const conflict = await publishAndAwaitAck(client, deviceId, conflictingPayload);
+        assert.equal(conflict.ack.accepted, false);
+        assert.equal(conflict.ack.error_code, 'INCIDENT_HASH_CONFLICT');
+
+        // 11. Sparse Task 1 queue delivery order: sequence 4 may arrive before sequence 3.
+        const sequence4 = signIncident({
+            vector,
+            domain,
+            signingKey,
+            payload,
+            overrides: { sequence: '4', observed_at: String(now + 2) },
+        });
+        const sequence3 = signIncident({
+            vector,
+            domain,
+            signingKey,
+            payload,
+            overrides: { sequence: '3', observed_at: String(now + 1) },
+        });
+        assert.equal((await publishAndAwaitAck(client, deviceId, sequence4)).ack.accepted, true);
+        assert.equal((await publishAndAwaitAck(client, deviceId, sequence3)).ack.accepted, true);
+
+        // 12. Delayed signed evidence is accepted; excessive future skew is rejected.
+        const delayed = signIncident({
+            vector,
+            domain,
+            signingKey,
+            payload,
+            overrides: { sequence: '5', observed_at: String(now - 3600) },
+        });
+        const delayedAck = await publishAndAwaitAck(client, deviceId, delayed);
+        assert.equal(delayedAck.ack.accepted, true);
+        assert.equal(delayedAck.ack.error_code, '');
+
+        const future = signIncident({
+            vector,
+            domain,
+            signingKey,
+            payload,
+            overrides: { sequence: '6', observed_at: String(now + 3600) },
+        });
+        const futureAck = await publishAndAwaitAck(client, deviceId, future);
+        assert.equal(futureAck.ack.accepted, false);
+        assert.equal(futureAck.ack.error_code, 'OBSERVED_AT_OUT_OF_WINDOW');
+
         const counts = await pool.query(
             `SELECT (SELECT COUNT(*) FROM incidents WHERE device_id = $1)::int AS incidents,
                     (SELECT COUNT(*) FROM blockchain_outbox WHERE device_id = $1 AND status = 'queued')::int AS queued,
-                    (SELECT COUNT(*) FROM security_events WHERE device_id = $1 AND type = 'HASH_MISMATCH')::int AS security`,
+                    (SELECT COUNT(*) FROM realtime_events WHERE device_id = $1 AND type = 'incident.created')::int AS realtime,
+                    (SELECT COUNT(*) FROM notification_events WHERE device_id = $1 AND type = 'incident.warning')::int AS notifications`,
             [deviceId]
         );
-        assert.deepEqual(counts.rows[0], { incidents: 1, queued: 1, security: 1 });
+        assert.deepEqual(counts.rows[0], { incidents: 4, queued: 4, realtime: 4, notifications: 4 });
 
-        // 6. API verify recomputes everything from the stored raw payload.
+        const storedSequences = await pool.query(
+            'SELECT sequence::text FROM incidents WHERE device_id = $1 ORDER BY sequence',
+            [deviceId]
+        );
+        assert.deepEqual(storedSequences.rows.map((row) => row.sequence), ['1', '3', '4', '5']);
+
+        // 13. API verify recomputes everything available from the stored raw payload.
         const verify = await api('GET', `/api/devices/${deviceId}/incidents/${payload.incident_id}/verify`, { token });
         assert.equal(verify.status, 200);
         assert.equal(verify.body.valid, true, JSON.stringify(verify.body));
@@ -166,7 +289,12 @@ test('device publishes a signed incident through EMQX and receives an idempotent
         assert.equal(verify.body.chain.status, 'queued');
 
         const list = await api('GET', `/api/devices/${deviceId}/incidents`, { token });
-        assert.deepEqual(list.body.map((i) => [i.sequence, i.severity, i.chain_status]), [['1', 'warning', 'queued']]);
+        assert.deepEqual(list.body.map((i) => [i.sequence, i.severity, i.chain_status]), [
+            ['5', 'warning', 'queued'],
+            ['4', 'warning', 'queued'],
+            ['3', 'warning', 'queued'],
+            ['1', 'warning', 'queued'],
+        ]);
     } finally {
         await client.endAsync();
         await pool.end();

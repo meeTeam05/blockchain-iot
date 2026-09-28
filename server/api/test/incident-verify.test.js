@@ -7,13 +7,11 @@ import {
     INCIDENT_ERROR,
     buildIncidentAck,
     checkIncidentOrdering,
-    computeCalibrationHash,
     computeDeviceIdHash,
     computeEvidenceHash,
     computeFirmwareVersionHash,
     computeIncidentId,
     normalizeIncidentDomain,
-    parseCalibrationRevision,
     recoverIncidentSigner,
     verifyIncidentPayload,
 } from '../src/services/incident-verify.js';
@@ -30,7 +28,6 @@ for (const name of Object.keys(VECTOR_FILES)) {
         assert.equal(computeDeviceIdHash(transport.device_id), evidence.device_id_hash);
         assert.equal(computeIncidentId(evidence.device_id_hash, evidence.sequence), evidence.incident_id);
         assert.equal(computeFirmwareVersionHash(transport.firmware_version), evidence.firmware_version_hash);
-        assert.equal(computeCalibrationHash(transport.calibration_canonical), evidence.calibration_hash);
         assert.equal(computeEvidenceHash(evidence), expected.evidence_hash);
 
         const result = verifyIncidentPayload(payload, domain);
@@ -75,12 +72,11 @@ test('value-only tampering that keeps semantics valid is caught as HASH_MISMATCH
     }
 });
 
-test('transport tampering: device_id, firmware_version, calibration_canonical and evidence_hash', async () => {
+test('transport tampering: device_id, firmware_version and evidence_hash', async () => {
     const { domain, payload } = await loadVector('earlyWarning');
     const cases = [
         [{ device_id: '11:22:33:44:55:66' }, 'device_id_hash'],
         [{ firmware_version: '0.1.2-gas-ews' }, 'firmware_version_hash'],
-        [{ calibration_canonical: 'AIR-CAL-1|co_r0_q10000=98766|no2_r0_q10000=43210|revision=3' }, 'calibration_hash'],
         [{ evidence_hash: `0x${'0'.repeat(64)}` }, 'evidence_hash'],
     ];
     for (const [override, field] of cases) {
@@ -90,17 +86,11 @@ test('transport tampering: device_id, firmware_version, calibration_canonical an
     }
 });
 
-test('calibration revision in the canonical string must equal calibration_revision', async () => {
+test('calibration_canonical is not part of the Task 1 MQTT wire contract', async () => {
     const { domain, payload } = await loadVector('earlyWarning');
-    const result = verifyIncidentPayload({
-        ...payload,
-        calibration_canonical: 'AIR-CAL-1|co_r0_q10000=98765|no2_r0_q10000=43210|revision=4',
-    }, domain);
-    assert.equal(result.errorCode, INCIDENT_ERROR.HASH_MISMATCH);
-    assert.equal(parseCalibrationRevision('AIR-CAL-1|revision=3'), 3);
-    assert.equal(parseCalibrationRevision('AIR-CAL-2|revision=3'), null);
-    assert.equal(parseCalibrationRevision('AIR-CAL-1|revision=03'), null);
-    assert.equal(parseCalibrationRevision('AIR-CAL-1|revision=1|revision=2'), null);
+    assert.equal(Object.hasOwn(payload, 'calibration_canonical'), false);
+    const result = verifyIncidentPayload({ ...payload, calibration_canonical: 'not-on-wire' }, domain);
+    assert.equal(result.errorCode, INCIDENT_ERROR.INVALID_PAYLOAD);
 });
 
 test('attestation tampering: signature bytes, domain and signer', async () => {
@@ -172,7 +162,7 @@ test('format rules: uint64 strings, lowercase bytes32, integer ranges, unknown/m
         assert.equal(result.errorCode, INCIDENT_ERROR.INVALID_PAYLOAD, JSON.stringify(override));
     }
     const missing = { ...payload };
-    delete missing.calibration_canonical;
+    delete missing.firmware_version;
     assert.equal(verifyIncidentPayload(missing, domain).errorCode, INCIDENT_ERROR.INVALID_PAYLOAD);
     assert.equal(verifyIncidentPayload([], domain).errorCode, INCIDENT_ERROR.INVALID_PAYLOAD);
     assert.equal(verifyIncidentPayload(null, domain).errorCode, INCIDENT_ERROR.INVALID_PAYLOAD);
@@ -244,21 +234,14 @@ test('model-unavailable vector is valid: bps 0 with valid bit clear is not a zer
     assert.equal(claimed.errorCode, INCIDENT_ERROR.HASH_MISMATCH);
 });
 
-test('checkIncidentOrdering enforces the +/-10 minute window, 60s regression and increasing sequence', () => {
-    const base = { clockSkewSeconds: 600, maxRegressionSeconds: 60 };
-    assert.equal(checkIncidentOrdering({ ...base, sequence: '5', observedAt: '1000', receivedAtSec: 1600 }).ok, true);
-    assert.equal(checkIncidentOrdering({ ...base, sequence: '5', observedAt: '1000', receivedAtSec: 1601 }).errorCode,
+test('checkIncidentOrdering accepts delayed evidence but rejects zero and future timestamps', () => {
+    const base = { clockSkewSeconds: 600 };
+    assert.equal(checkIncidentOrdering({ ...base, observedAt: '1', receivedAtSec: 9999999999 }).ok, true);
+    assert.equal(checkIncidentOrdering({ ...base, observedAt: '0', receivedAtSec: 1600 }).errorCode,
         INCIDENT_ERROR.OBSERVED_AT_OUT_OF_WINDOW);
-    assert.equal(checkIncidentOrdering({ ...base, sequence: '5', observedAt: '2201', receivedAtSec: 1600 }).errorCode,
+    assert.equal(checkIncidentOrdering({ ...base, observedAt: '2200', receivedAtSec: 1600 }).ok, true);
+    assert.equal(checkIncidentOrdering({ ...base, observedAt: '2201', receivedAtSec: 1600 }).errorCode,
         INCIDENT_ERROR.OBSERVED_AT_OUT_OF_WINDOW);
-    assert.equal(checkIncidentOrdering({ ...base, sequence: '5', observedAt: '1000', receivedAtSec: 1000, lastSequence: '4', lastObservedAt: '1060' }).ok,
-        true);
-    assert.equal(checkIncidentOrdering({ ...base, sequence: '5', observedAt: '1000', receivedAtSec: 1000, lastSequence: '4', lastObservedAt: '1061' }).errorCode,
-        INCIDENT_ERROR.OBSERVED_AT_REGRESSED);
-    assert.equal(checkIncidentOrdering({ ...base, sequence: '4', observedAt: '1000', receivedAtSec: 1000, lastSequence: '4', lastObservedAt: '990' }).errorCode,
-        INCIDENT_ERROR.SEQUENCE_NOT_INCREASING);
-    assert.equal(checkIncidentOrdering({ ...base, sequence: '18446744073709551615', observedAt: '1000', receivedAtSec: 1000, lastSequence: '18446744073709551614' }).ok,
-        true);
 });
 
 test('buildIncidentAck produces the agreed ACK shape', () => {
@@ -269,7 +252,7 @@ test('buildIncidentAck produces the agreed ACK shape', () => {
         incident_id: id,
         evidence_hash: hash,
         accepted: true,
-        error_code: null,
+        error_code: '',
         received_at: '1790394605',
     });
     assert.equal(buildIncidentAck({ incidentId: id, evidenceHash: hash, accepted: false, errorCode: 'HASH_MISMATCH', receivedAtSec: 1 }).error_code,

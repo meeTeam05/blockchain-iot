@@ -336,14 +336,14 @@ Ghi chú:
 
 ### 3.8 `device/{id}/incident`
 
-Hợp đồng field-level: `docs/BLOCKCHAIN_INCIDENT_SCHEMA.md` (Schema v2). Payload là 33 field evidence `snake_case` cộng `device_id`, `firmware_version`, `calibration_canonical`, `evidence_hash`, `signature`; không nhận field khác. Firmware chỉ publish khi level chung tăng (xem schema mục 3), persist payload trước khi publish, và gửi tuần tự theo `sequence`: chờ ACK của incident trước rồi mới gửi incident kế tiếp.
+Hợp đồng field-level: `docs/BLOCKCHAIN_INCIDENT_SCHEMA.md` (Schema v2). Payload là 33 field evidence `snake_case` cộng `device_id`, `firmware_version`, `evidence_hash`, `signature`; không nhận field khác. Firmware chỉ publish khi level chung tăng (xem schema mục 3) và persist payload trước khi publish. Queue có thể retry/publish nhiều slot nên backend không giả định thứ tự arrival theo `sequence`.
 
 Bridge xử lý (`handleIncident()`):
 
 1. Payload tối đa `4096` bytes; `device_id` phải khớp topic; device phải tồn tại.
 2. Dedupe trước mọi kiểm tra thời gian: cùng `(device_id, incident_id)`, cùng `evidence_hash` và **nguyên bytes** đã lưu → ACK `accepted:true` với `received_at` gốc, không tạo row. Cùng hash khai báo nhưng bytes khác thì phải verify lại đầy đủ ra đúng evidence và signer đã lưu mới được coi là trùng; sai thì trả mã lỗi của lần verify đó (vd `HASH_MISMATCH`). Khác hash → `INCIDENT_HASH_CONFLICT` + `security_events`.
-3. Verify format, enum/mask, tính lại `device_id_hash`, `incident_id`, `firmware_version_hash`, `calibration_hash` (SHA-256 của `calibration_canonical`), `evidence_hash`, EIP-712 digest (domain lấy từ config server), chữ ký low-s `v∈{27,28}`.
-4. Trong transaction có advisory lock theo device: signer phải là signer active trong `device_signers`; `|observed_at − received_at| ≤ 600s`; `observed_at` không lùi quá 60s so với incident đã lưu; `sequence` lớn hơn sequence đã lưu.
+3. Verify format, enum/mask, tính lại `device_id_hash`, `incident_id`, `firmware_version_hash`, `evidence_hash`, EIP-712 digest (domain lấy từ config server), chữ ký low-s `v∈{27,28}`. `calibration_hash` nằm trong signed evidence nhưng không thể tái tạo độc lập vì firmware không truyền calibration canonical.
+4. Trong transaction có advisory lock theo device: signer phải là signer active trong `device_signers`; `observed_at > 0` và không ở tương lai quá 600 giây. Incident hợp lệ đến muộn được nhận. Mọi sequence chưa dùng được nhận bất kể arrival order. Vì `incident_id` được suy ra từ device + sequence, cùng sequence nhưng evidence khác bị `INCIDENT_HASH_CONFLICT`.
 5. INSERT `incidents` + `blockchain_outbox(queued)` + realtime `incident.created`, COMMIT, ack gói MQTT, rồi mới publish ACK. DB lỗi → không ack gói để EMQX redeliver. ACK không được publish bên trong handler vì `mqtt.js` xử lý gói đến tuần tự: chờ PUBACK trong handler sẽ tự khóa tới timeout. Nếu publish ACK lỗi, firmware không nhận ACK sẽ gửi lại nguyên bytes và nhánh dedupe trả lại ACK.
 
 ---
@@ -550,16 +550,17 @@ Constraints:
   "incident_id": "0xe8f3e03ea5a28046ea1da415f43795e53d347c068800cd7ffff7e658b571a4d0",
   "evidence_hash": "0xa8acc3c5d1ef72bebd65acb59b0fc91585b3b6ec53d366ee44e917577e8bcc96",
   "accepted": true,
-  "error_code": null,
+  "error_code": "",
   "received_at": "1790394605"
 }
 ```
 
 - `accepted:true` chỉ xác nhận DB commit, không xác nhận transaction blockchain.
+- `error_code` luôn là string để khớp parser firmware; khi `accepted:true` giá trị là chuỗi rỗng.
 - `received_at` là chuỗi uint64 Unix giây lúc server nhận lần đầu.
 - `incident_id`/`evidence_hash` echo lại giá trị thiết bị gửi. Firmware chỉ xóa record khi `accepted:true` và cả hai khớp bản đã persist.
 - Payload không có `incident_id`/`evidence_hash` bytes32 hợp lệ thì không được ACK (chỉ log).
-- `error_code` khi `accepted:false`: `INVALID_PAYLOAD`, `DEVICE_MISMATCH`, `UNKNOWN_DEVICE`, `INVALID_SEMANTICS`, `HASH_MISMATCH`, `INVALID_SIGNATURE`, `SIGNER_NOT_ACTIVE`, `OBSERVED_AT_OUT_OF_WINDOW`, `OBSERVED_AT_REGRESSED`, `SEQUENCE_NOT_INCREASING`, `INCIDENT_HASH_CONFLICT`.
+- `error_code` khi `accepted:false`: `INVALID_PAYLOAD`, `DEVICE_MISMATCH`, `UNKNOWN_DEVICE`, `INVALID_SEMANTICS`, `HASH_MISMATCH`, `INVALID_SIGNATURE`, `SIGNER_NOT_ACTIVE`, `OBSERVED_AT_OUT_OF_WINDOW`, `INCIDENT_HASH_CONFLICT`.
 
 ---
 

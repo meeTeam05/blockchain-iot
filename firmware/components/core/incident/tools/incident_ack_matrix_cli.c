@@ -309,8 +309,18 @@ static bool delete_commit_failure(void)
     return load_record(0, &after) && memcmp(&records[0], &after, sizeof(after)) == 0;
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
+    if (argc == 3 && strcmp(argv[1], "--validate-json") == 0) {
+        reset_all();
+        esp_err_t result = dispatch_ack(argv[2]);
+        printf("ACK_CONTRACT_TEST: %s\n", result == ESP_OK ? "PASS" : "FAIL");
+        return result == ESP_OK ? 0 : 1;
+    }
+    if (argc != 1) {
+        fprintf(stderr, "usage: %s [--validate-json JSON]\n", argv[0]);
+        return 2;
+    }
     bool results[] = {
         valid_ack_delete(), wrong_id_or_hash(true), wrong_id_or_hash(false), accepted_false(),
         wrong_schema(), malformed_json(), missing_fields(), invalid_types(), invalid_hex_length(),

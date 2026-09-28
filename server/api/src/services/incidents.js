@@ -3,7 +3,6 @@ import { getSignerRecord } from './device-signers.js';
 import {
     EVIDENCE_FIELDS,
     computeAttestationDigest,
-    computeCalibrationHash,
     computeDeviceIdHash,
     computeEvidenceHash,
     computeFirmwareVersionHash,
@@ -137,6 +136,7 @@ export function formatIncidentDetail(row) {
             revision: Number(row.calibration_revision),
             hash: row.calibration_hash,
             canonical: row.calibration_canonical,
+            independently_recomputable: false,
         },
         evidence_hash: row.evidence_hash,
         eip712_digest: row.eip712_digest,
@@ -181,8 +181,10 @@ function hashCheck(stored, computed) {
     return { stored, computed, match: stored === computed };
 }
 
-// Recomputes every hash and the signature from the stored raw bytes, using the domain
-// recorded at intake, and cross-checks the parsed DB columns against those bytes.
+// Recomputes identity/firmware/evidence/EIP-712 hashes and the signature from
+// stored raw bytes, using the intake domain, then cross-checks DB columns.
+// calibration_hash has no canonical preimage on the Task 1 wire and is checked
+// as signed evidence rather than independently recomputed.
 export async function verifyStoredIncident(fastify, row) {
     const domain = normalizeIncidentDomain({
         name: row.domain_name,
@@ -223,7 +225,12 @@ export async function verifyStoredIncident(fastify, row) {
         device_id_hash: hashCheck(evidence.device_id_hash, deviceIdHash),
         incident_id: hashCheck(evidence.incident_id, computeIncidentId(deviceIdHash, evidence.sequence)),
         firmware_version_hash: hashCheck(evidence.firmware_version_hash, computeFirmwareVersionHash(transport.firmwareVersion)),
-        calibration_hash: hashCheck(evidence.calibration_hash, computeCalibrationHash(transport.calibrationCanonical)),
+        calibration_hash: {
+            stored: row.calibration_hash,
+            computed: null,
+            match: row.calibration_hash === evidence.calibration_hash,
+            independently_recomputable: false,
+        },
         evidence_hash: hashCheck(row.evidence_hash, evidenceHash),
     };
     const digest = computeAttestationDigest(domain, {

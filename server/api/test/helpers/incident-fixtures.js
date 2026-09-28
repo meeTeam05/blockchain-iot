@@ -14,6 +14,7 @@ export { signIncident, testSigningKey };
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VECTOR_DIR = path.resolve(__dirname, '../../../../docs/test-vectors');
 const MIGRATION_017 = path.resolve(__dirname, '../../../db/migrations/017_blockchain_incidents.sql');
+const MIGRATION_018 = path.resolve(__dirname, '../../../db/migrations/018_task1_task3_wire_compat.sql');
 
 export const VECTOR_FILES = Object.freeze({
     earlyWarning: 'incident-v2-model-early-warning.json',
@@ -44,7 +45,6 @@ export function vectorPayload(vector) {
         ...vector.evidence,
         device_id: vector.transport.device_id,
         firmware_version: vector.transport.firmware_version,
-        calibration_canonical: vector.transport.calibration_canonical,
         evidence_hash: vector.expected.evidence_hash,
         signature: vector.expected.signature,
     };
@@ -112,6 +112,7 @@ export async function createIncidentDb({ signerAddress = null } = {}) {
     const pg = new PGlite();
     await pg.exec(BASE_SCHEMA);
     await pg.exec(await readFile(MIGRATION_017, 'utf8'));
+    await pg.exec(await readFile(MIGRATION_018, 'utf8'));
 
     await pg.query('INSERT INTO users (id) VALUES ($1), ($2)', [USER_ID, OUTSIDER_ID]);
     await pg.query('INSERT INTO homes (id) VALUES ($1)', [HOME_ID]);
