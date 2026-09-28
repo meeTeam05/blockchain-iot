@@ -18,6 +18,7 @@
 6. [Shadow — Trạng thái thiết bị](#6-shadow--trạng-thái-thiết-bị)
 7. [Commands — Điều khiển](#7-commands--điều-khiển)
 8. [Telemetry — Dữ liệu cảm biến](#8-telemetry--dữ-liệu-cảm-biến)
+8a. [Incidents — Bằng chứng sự cố blockchain](#8a-incidents--bằng-chứng-sự-cố-blockchain)
 9. [Realtime — App SSE and Notifications Feed](#9-realtime--app-sse-and-notifications-feed)
 10. [Redis Keys Reference](#10-redis-keys-reference)
 11. [MQTT Bridge — Server-side](#11-mqtt-bridge--server-side)
@@ -62,6 +63,9 @@
 | POST   | `/api/devices/:id/ai`             |   🔒   |   30/min   | Bật/tắt AI on-device (runtime, không lưu NVS)             |
 | GET    | `/api/devices/:id/commands`       |   🔒   |            | Lịch sử command                                           |
 | GET    | `/api/devices/:id/telemetry`      |   🔒   |            | Dữ liệu cảm biến                                          |
+| GET    | `/api/devices/:id/incidents`      |   🔒   |            | Danh sách incident đã ký (Schema v2)                      |
+| GET    | `/api/devices/:id/incidents/:incidentId` | 🔒 |          | Chi tiết incident + trạng thái chain                      |
+| GET    | `/api/devices/:id/incidents/:incidentId/verify` | 🔒 |   | Tính lại hash/chữ ký từ payload gốc đã lưu                |
 | GET    | `/api/notifications`              |   🔒   |            | Feed thông báo thiết bị theo thời gian                    |
 | GET    | `/api/realtime`                   |   🔒   |            | App realtime stream (SSE)                                 |
 
@@ -1038,6 +1042,103 @@ Sắp xếp `ts DESC`.
 
 ---
 
+## 8a. Incidents — Bằng chứng sự cố blockchain
+
+Incident do firmware ký (EIP-712) và gửi qua `device/{id}/incident`; backend verify rồi lưu vào `incidents` (không retention) và xếp `blockchain_outbox` ở `queued`. Hợp đồng dữ liệu: `docs/BLOCKCHAIN_INCIDENT_SCHEMA.md`. Mọi route yêu cầu user là thành viên home của device (`checkDeviceAccess`), nếu không trả `403`. `:incidentId` là bytes32 hex (`0x` + 64 hex, không phân biệt hoa thường), sai định dạng trả `400`, không có trả `404`.
+
+### `GET /api/devices/:id/incidents` 🔒
+
+| Param             | Default | Max | Mô tả                                              |
+| ----------------- | ------- | --- | -------------------------------------------------- |
+| `limit`           | `50`    | 200 | Số item                                            |
+| `before_sequence` | _(none)_| —   | Cursor: chỉ lấy `sequence` nhỏ hơn (chuỗi uint64)  |
+
+**200 OK** (mới nhất trước, theo `sequence` giảm dần):
+```json
+[
+  {
+    "device_id": "aa:bb:cc:dd:ee:ff",
+    "incident_id": "0xb11c…7477",
+    "sequence": "44",
+    "observed_at": "1790394700",
+    "received_at": "2026-09-26T03:51:45.000Z",
+    "severity": "danger",
+    "overall_level": "EXCEEDED",
+    "co_level": "EXCEEDED",
+    "no2_level": "SAFE",
+    "verify_status": "valid",
+    "owner_status": "open",
+    "chain_status": "queued",
+    "tx_hash": null
+  }
+]
+```
+
+`chain_status`: `queued` | `pending` | `confirmed` | `failed` | `blocked` (Task 3 chỉ tạo `queued`; worker chain cập nhật phần còn lại). `owner_status`: `open` | `acknowledged` | `resolved` (indexer cập nhật).
+
+### `GET /api/devices/:id/incidents/:incidentId` 🔒
+
+Trả toàn bộ field summary và thêm:
+
+| Field | Ý nghĩa |
+| --- | --- |
+| `incident_kind`, `time_source`, `observed_at_iso` | enum đã giải mã |
+| `sensors`, `derived`, `model` | giá trị đã quy đổi (°C, %, ppm, xác suất 0..1); **`null` khi bit valid tương ứng bị clear** |
+| `alarm_sources.co/no2` | `{ rule, projection, model }` từ source mask |
+| `firmware`, `calibration` | version/hash firmware, `model_sha256`, calibration revision/hash/canonical |
+| `evidence_hash`, `eip712_digest`, `signature`, `signer_address` | bằng chứng đã verify lúc intake |
+| `owner_address` | ví owner on-chain (`null` tới khi indexer đồng bộ) |
+| `owner` | thời điểm/ví/tx acknowledge và resolve |
+| `chain` | `{ status, attempts, tx_hash, block_number, confirmations, confirmed_at, last_error, updated_at }` |
+| `evidence` | 33 field evidence nguyên bản đúng như đã ký (uint64 là chuỗi) |
+
+### `GET /api/devices/:id/incidents/:incidentId/verify` 🔒
+
+Parse lại `raw_payload` đã lưu, tính lại mọi hash và chữ ký với domain EIP-712 đã ghi lúc intake, đồng thời đối chiếu các cột DB với payload gốc.
+
+**200 OK:**
+```json
+{
+  "device_id": "aa:bb:cc:dd:ee:ff",
+  "incident_id": "0xe8f3…a4d0",
+  "valid": true,
+  "db": {
+    "stored": true,
+    "received_at": "2026-09-26T03:50:05.000Z",
+    "verify_status": "valid",
+    "raw_payload_parsed": true,
+    "columns_match_raw_payload": true,
+    "mismatched_columns": []
+  },
+  "hashes": {
+    "device_id_hash": { "stored": "0x…", "computed": "0x…", "match": true },
+    "incident_id": { "stored": "0x…", "computed": "0x…", "match": true },
+    "firmware_version_hash": { "stored": "0x…", "computed": "0x…", "match": true },
+    "calibration_hash": { "stored": "0x…", "computed": "0x…", "match": true },
+    "evidence_hash": { "stored": "0x…", "computed": "0x…", "match": true },
+    "eip712_digest": { "stored": "0x…", "computed": "0x…", "match": true }
+  },
+  "signature": {
+    "valid": true,
+    "recovered_signer": "0xf39f…2266",
+    "stored_signer": "0xf39f…2266",
+    "registered": true,
+    "signer_status": "active",
+    "error": null
+  },
+  "domain": { "name": "AirSafetyLog", "version": "1", "chain_id": "11155111", "verifying_contract": "0x…" },
+  "chain": { "status": "queued", "attempts": 0, "tx_hash": null, "block_number": null, "confirmations": null, "confirmed_at": null, "last_error": null, "updated_at": "…" }
+}
+```
+
+`valid` = mọi hash khớp, chữ ký recover đúng signer đã lưu, signer có trong registry (signer bị revoke sau thời điểm ký vẫn hợp lệ, `signer_status` báo `revoked`), và cột DB khớp payload gốc.
+
+### Realtime / notification
+
+Incident mới phát SSE event `incident.created` với payload `{ incident_id, sequence, severity, overall_level, co_level, no2_level, observed_at, chain_status }` và notification `incident.warning` ("Gas early warning") hoặc `incident.danger` ("Gas threshold exceeded").
+
+---
+
 ## 9. Realtime — App SSE and Notifications Feed
 
 ### `GET /api/notifications` 🔒
@@ -1187,6 +1288,7 @@ EMQX Admin API provisioning/cleanup dùng `EMQX_API_URL` và timeout `EMQX_API_T
 | `device/+/shadow/report` | `handleShadowReport()` | Drop unknown devices, validate known fields and size, normalize future ts, UPSERT `device_shadows` only when `payload.ts` is not older than current `reported.ts`; emit applied patch |
 | `device/+/shadow/get`    | `handleShadowGet()`    | Require plain object payload, load shadow, best-effort publish `shadow/get_response`                                                                                                  |
 | `device/+/ota/progress`  | `handleOtaProgress()`  | Cache raw JSON at `ota_progress:` TTL 600s; emit `ota.progress` without additional schema validation                                                                                 |
+| `device/+/incident`      | `handleIncident()`     | Dedupe theo `(device_id, incident_id)`; verify Schema v2 (format, enum/mask, mọi hash, EIP-712, signer active); time/sequence policy; một transaction INSERT `incidents` + `blockchain_outbox(queued)` + `incident.created`; ACK sau commit |
 
 **Publish:**
 
@@ -1194,6 +1296,7 @@ EMQX Admin API provisioning/cleanup dùng `EMQX_API_URL` và timeout `EMQX_API_T
 | --------------------------------- | ---------------------------------------------------- | ---------------------------- |
 | `device/{id}/command`             | `sendCommand()` / `flushPending()`                   | `{ command_id, ...payload }` |
 | `device/{id}/shadow/get_response` | Device online / `PUT /shadow/desired` / `shadow/get` | `{ desired, delta, ts }`     |
+| `device/{id}/incident/ack`        | Sau khi xử lý `device/{id}/incident`                  | `{ schema_version, incident_id, evidence_hash, accepted, error_code, received_at }` |
 
 > OTA trigger `device/{id}/ota/update` hiện do API bridge publish khi app gọi `POST /api/devices/:id/ota`. Manual broker/admin publish vẫn là fallback operator path nếu cần.
 

@@ -49,11 +49,13 @@ Direction:
 | `device/{deviceId}/shadow/get` | `device -> broker` | 1 | `false` | firmware -> bridge | xin desired/delta sau connect |
 | `device/{deviceId}/ota/progress` | `device -> broker` | 1 | `false` | firmware -> bridge | OTA progress snapshot |
 | `device/{deviceId}/ai/state` | `device -> broker` | 1 | `false` | firmware (khi `SA_ENABLE_AI=y`) -> chưa có bên đọc | trạng thái cảnh báo CO/NO2 (QCVN 03:2019/BYT) |
+| `device/{deviceId}/incident` | `device -> broker` | 1 | `false` | firmware -> bridge | incident Schema v2 đã ký EIP-712 |
 | `device/{deviceId}/command` | `broker -> device` | 1 | `false` | API bridge -> firmware | imperative command |
 | `device/{deviceId}/shadow/get_response` | `broker -> device` | 1 | `false` | API bridge -> firmware | desired + delta |
 | `device/{deviceId}/ota/update` | `broker -> device` | 1 | `false` | server/api OTA route or manual admin publish -> firmware | OTA trigger |
+| `device/{deviceId}/incident/ack` | `broker -> device` | 1 | `false` | API bridge -> firmware | ACK intake incident |
 
-ACL device hiện tại cho phép đúng 10 topic ở trên, scoped theo device của chính nó. Rule cho `ai/state` chỉ được ghi khi đăng ký thiết bị; thiết bị đăng ký trước khi có rule này phải được thêm rule trước khi bật AI, nếu không mỗi lần publish sẽ bị ngắt kết nối (`deny_action = disconnect`).
+ACL device hiện tại cho phép đúng 12 topic ở trên, scoped theo device của chính nó. Rule cho `ai/state`, `incident` và `incident/ack` chỉ được ghi khi đăng ký thiết bị; thiết bị đăng ký trước khi có rule phải được cập nhật trước khi firmware publish, nếu không mỗi lần publish sẽ bị ngắt kết nối (`deny_action = disconnect`). Dùng `node scripts/sync-device-acl.js [device_id ...]` trong `server/api` để ghi lại ACL cho thiết bị đã đăng ký.
 
 ---
 
@@ -332,6 +334,18 @@ Ghi chú:
 - Giá trị chưa biết được gửi là `null`.
 - Bridge và app hiện chưa đọc topic này.
 
+### 3.8 `device/{id}/incident`
+
+Hợp đồng field-level: `docs/BLOCKCHAIN_INCIDENT_SCHEMA.md` (Schema v2). Payload là 33 field evidence `snake_case` cộng `device_id`, `firmware_version`, `calibration_canonical`, `evidence_hash`, `signature`; không nhận field khác. Firmware chỉ publish khi level chung tăng (xem schema mục 3), persist payload trước khi publish, và gửi tuần tự theo `sequence`: chờ ACK của incident trước rồi mới gửi incident kế tiếp.
+
+Bridge xử lý (`handleIncident()`):
+
+1. Payload tối đa `4096` bytes; `device_id` phải khớp topic; device phải tồn tại.
+2. Dedupe trước mọi kiểm tra thời gian: cùng `(device_id, incident_id)`, cùng `evidence_hash` và **nguyên bytes** đã lưu → ACK `accepted:true` với `received_at` gốc, không tạo row. Cùng hash khai báo nhưng bytes khác thì phải verify lại đầy đủ ra đúng evidence và signer đã lưu mới được coi là trùng; sai thì trả mã lỗi của lần verify đó (vd `HASH_MISMATCH`). Khác hash → `INCIDENT_HASH_CONFLICT` + `security_events`.
+3. Verify format, enum/mask, tính lại `device_id_hash`, `incident_id`, `firmware_version_hash`, `calibration_hash` (SHA-256 của `calibration_canonical`), `evidence_hash`, EIP-712 digest (domain lấy từ config server), chữ ký low-s `v∈{27,28}`.
+4. Trong transaction có advisory lock theo device: signer phải là signer active trong `device_signers`; `|observed_at − received_at| ≤ 600s`; `observed_at` không lùi quá 60s so với incident đã lưu; `sequence` lớn hơn sequence đã lưu.
+5. INSERT `incidents` + `blockchain_outbox(queued)` + realtime `incident.created`, COMMIT, ack gói MQTT, rồi mới publish ACK. DB lỗi → không ack gói để EMQX redeliver. ACK không được publish bên trong handler vì `mqtt.js` xử lý gói đến tuần tự: chờ PUBACK trong handler sẽ tự khóa tới timeout. Nếu publish ACK lỗi, firmware không nhận ACK sẽ gửi lại nguyên bytes và nhánh dedupe trả lại ACK.
+
 ---
 
 ## 4. Broker-to-device topics
@@ -527,6 +541,25 @@ Constraints:
 - Firmware drop inbound OTA payload nếu > `512` bytes.
 - `url` phải fit buffer OTA nội bộ `256` bytes cả null terminator.
 - Extra keys hiện bị firmware bỏ qua.
+
+### 4.4 `device/{id}/incident/ack`
+
+```json
+{
+  "schema_version": 2,
+  "incident_id": "0xe8f3e03ea5a28046ea1da415f43795e53d347c068800cd7ffff7e658b571a4d0",
+  "evidence_hash": "0xa8acc3c5d1ef72bebd65acb59b0fc91585b3b6ec53d366ee44e917577e8bcc96",
+  "accepted": true,
+  "error_code": null,
+  "received_at": "1790394605"
+}
+```
+
+- `accepted:true` chỉ xác nhận DB commit, không xác nhận transaction blockchain.
+- `received_at` là chuỗi uint64 Unix giây lúc server nhận lần đầu.
+- `incident_id`/`evidence_hash` echo lại giá trị thiết bị gửi. Firmware chỉ xóa record khi `accepted:true` và cả hai khớp bản đã persist.
+- Payload không có `incident_id`/`evidence_hash` bytes32 hợp lệ thì không được ACK (chỉ log).
+- `error_code` khi `accepted:false`: `INVALID_PAYLOAD`, `DEVICE_MISMATCH`, `UNKNOWN_DEVICE`, `INVALID_SEMANTICS`, `HASH_MISMATCH`, `INVALID_SIGNATURE`, `SIGNER_NOT_ACTIVE`, `OBSERVED_AT_OUT_OF_WINDOW`, `OBSERVED_AT_REGRESSED`, `SEQUENCE_NOT_INCREASING`, `INCIDENT_HASH_CONFLICT`.
 
 ---
 

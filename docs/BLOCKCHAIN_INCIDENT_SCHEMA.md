@@ -166,14 +166,22 @@ device/{device_id}/incident/ack
 ```
 
 Payload transport dùng tên `snake_case` của mọi field evidence, thêm
-`device_id`, `firmware_version`, `evidence_hash`, `signature`. Backend phải
-tự tính lại hash định danh, calibration hash, evidence hash và digest trước
-khi ACK. Backend chỉ nhận `timeSource` hợp lệ, `observedAt` lệch không quá 10
+`device_id`, `firmware_version`, `calibration_canonical`, `evidence_hash`,
+`signature`; không có field nào khác. `calibration_canonical` là chuỗi
+`AIR-CAL-1|...|revision=N` mà `calibrationHash` băm (SHA-256), với `N` bằng
+`calibration_revision`; thiếu chuỗi này backend không thể tự tính lại
+calibration hash. Backend phải tự tính lại hash định danh, calibration hash,
+evidence hash và digest trước khi ACK. Backend chỉ nhận `timeSource` hợp lệ, `observedAt` lệch không quá 10
 phút so với lúc nhận và không lùi quá 60 giây so với incident hợp lệ gần nhất
 của thiết bị.
 
 ACK là JSON QoS 1 với các field `schema_version`, `incident_id`,
-`evidence_hash`, `accepted`, `error_code`, `received_at`. `accepted:true` chỉ
+`evidence_hash`, `accepted`, `error_code` (`null` khi accepted) và
+`received_at` (chuỗi uint64 Unix giây). Mã lỗi và thứ tự xử lý: xem
+`docs/MQTT_PROTOCOL.md` mục 3.8 và 4.4. Firmware gửi tuần tự theo `sequence`
+(chờ ACK trước khi gửi incident kế tiếp) vì backend và contract đều buộc
+`sequence` tăng. Retry nguyên bytes của một incident đã được lưu luôn nhận ACK thành công,
+kể cả khi đã quá cửa sổ ±10 phút. `accepted:true` chỉ
 xác nhận DB commit, không xác nhận transaction blockchain. Firmware chỉ xóa
 queue khi `incident_id` và `evidence_hash` trong ACK khớp bản đã persist; ACK
 không khớp hoặc `accepted:false` phải giữ record để retry/chẩn đoán.

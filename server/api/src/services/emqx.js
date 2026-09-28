@@ -79,7 +79,7 @@ async function upsertUserRules(username, rules, requestId = null) {
     }
 }
 
-function deviceRules(deviceId) {
+export function deviceRules(deviceId) {
     return [
         { topic: `device/${deviceId}/status`, action: 'publish', permission: 'allow' },
         { topic: `device/${deviceId}/telemetry`, action: 'publish', permission: 'allow' },
@@ -96,7 +96,7 @@ function deviceRules(deviceId) {
     ];
 }
 
-function bridgeRules() {
+export function bridgeRules() {
     return [
         { topic: 'device/+/status', action: 'subscribe', permission: 'allow' },
         { topic: 'device/+/telemetry', action: 'subscribe', permission: 'allow' },
@@ -166,6 +166,16 @@ export async function createDeviceUser(deviceId, secretKey, logger = null, reque
     }
 
     return { userCreated };
+}
+
+// Rewrites the ACL of an already-registered device to the current deviceRules().
+// Needed after new device topics are added: EMQX disconnects on denied publish.
+export async function syncDeviceRules(deviceId, requestId = null) {
+    await upsertUserRules(deviceId, deviceRules(deviceId), requestId);
+}
+
+export async function clearEmqxAuthorizationCache(requestId = null) {
+    await clearAuthorizationCache(requestId);
 }
 
 export async function deleteDeviceUser(deviceId) {
