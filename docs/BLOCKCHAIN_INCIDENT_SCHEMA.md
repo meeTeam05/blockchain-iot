@@ -153,6 +153,18 @@ Domain Sepolia hiện tại vẫn là `AirSafetyLog`, version `1`, chain ID `111
 và địa chỉ contract đã provision. Nếu ABI/attestation của contract thay đổi,
 phải deploy contract/domain version mới; không nhận domain qua MQTT.
 
+Contract đã provision trên Sepolia: `AirSafetyLog` tại
+`0x4E6e20bC0601CddD6Cb0C3AE8440e6933839A8Aa` (source verified). Address, tx
+deploy và ABI nằm trong
+[`blockchain/deployments/sepolia.json`](../blockchain/deployments/sepolia.json)
+và [`blockchain/abi/AirSafetyLog.json`](../blockchain/abi/AirSafetyLog.json).
+`verifyingContract` trong test vector (`0xCccc…`) chỉ dùng cho test.
+
+Contract chỉ nhận `sequence` lớn hơn `lastSequence` đã ghi của thiết bị và giữ
+giá trị này qua revoke/register lại. Sau factory reset, provisioning phải đặt
+sequence tiếp theo lớn hơn `getDevice(deviceIdHash).lastSequence`; mỗi địa chỉ
+signer chỉ được đăng ký một lần.
+
 Signature là secp256k1 `r || s || v` 65 byte, hex `0x`, `v` là 27 hoặc 28 và
 `s` ở low-half. Không dùng EIP-191 prefix ngoài EIP-712 prefix.
 
