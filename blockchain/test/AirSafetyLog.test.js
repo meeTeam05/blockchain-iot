@@ -62,10 +62,12 @@ describe("AirSafetyLog", function () {
       expect(inc.signer).to.equal(deviceKey.address);
     });
 
-    it("accepts sequence 0 as the first incident and allows gaps", async function () {
+    it("reserves sequence 0 and allows gaps from the production first sequence", async function () {
       const { log, submit } = await loadFixture(deployFixture);
-      await expect(submit(makeClaim(DEVICE, 0))).to.emit(log, "IncidentLogged");
-      await expect(submit(makeClaim(DEVICE, 0))).to.be.revertedWithCustomError(log, "IncidentAlreadyLogged");
+      await expect(submit(makeClaim(DEVICE, 0)))
+        .to.be.revertedWithCustomError(log, "InvalidSequence")
+        .withArgs(0n);
+      await expect(submit(makeClaim(DEVICE, 1))).to.emit(log, "IncidentLogged");
       await expect(submit(makeClaim(DEVICE, 5))).to.not.be.reverted;
       await expect(submit(makeClaim(DEVICE, 100))).to.not.be.reverted;
     });
@@ -109,13 +111,33 @@ describe("AirSafetyLog", function () {
         .withArgs(key);
     });
 
-    it("rejects an old or equal sequence", async function () {
+    it("accepts unseen sequences out of order and rejects reuse", async function () {
       const { log, submit } = await loadFixture(deployFixture);
-      await submit(makeClaim(DEVICE, 10));
-      await expect(submit(makeClaim(DEVICE, 9)))
-        .to.be.revertedWithCustomError(log, "SequenceNotIncreasing")
-        .withArgs(10n, 9n);
-      await expect(submit(makeClaim(DEVICE, 11))).to.not.be.reverted;
+      const four = makeClaim(DEVICE, 4);
+      const three = makeClaim(DEVICE, 3);
+
+      await expect(submit(four)).to.emit(log, "IncidentLogged");
+      await expect(submit(three)).to.emit(log, "IncidentLogged");
+      expect(await log.sequenceUsed(DEVICE, 4)).to.equal(true);
+      expect(await log.sequenceUsed(DEVICE, 3)).to.equal(true);
+      expect((await log.getDevice(DEVICE)).lastSequence).to.equal(4n);
+
+      await expect(submit(four)).to.be.revertedWithCustomError(log, "IncidentAlreadyLogged");
+      await expect(submit(three)).to.be.revertedWithCustomError(log, "IncidentAlreadyLogged");
+
+      const changedEvidence = makeClaim(DEVICE, 4, { evidenceHash: ethers.id("different evidence") });
+      await expect(submit(changedEvidence)).to.be.revertedWithCustomError(log, "IncidentAlreadyLogged");
+
+      const changedIncident = { ...makeClaim(DEVICE, 4), incidentId: computeIncidentId(DEVICE, 5n) };
+      await expect(submit(changedIncident)).to.be.revertedWithCustomError(log, "IncidentIdMismatch");
+    });
+
+    it("accepts the uint64 maximum and still accepts a lower unseen sequence", async function () {
+      const { log, submit } = await loadFixture(deployFixture);
+      const max = (1n << 64n) - 1n;
+      await expect(submit(makeClaim(DEVICE, max))).to.emit(log, "IncidentLogged");
+      await expect(submit(makeClaim(DEVICE, 1))).to.emit(log, "IncidentLogged");
+      expect((await log.getDevice(DEVICE)).lastSequence).to.equal(max);
     });
 
     it("tracks sequence independently per device", async function () {
@@ -190,7 +212,7 @@ describe("AirSafetyLog", function () {
       await expect(log.connect(manager).revokeDevice(DEVICE)).to.be.revertedWithCustomError(log, "DeviceNotActive");
     });
 
-    it("re-provisioning after revoke requires a new signer and keeps the sequence floor", async function () {
+    it("re-provisioning after explicit revoke requires a new signer and preserves exact sequence history", async function () {
       const { log, manager, owner, submit, deviceKey } = await loadFixture(deployFixture);
       await submit(makeClaim(DEVICE, 20));
       await log.connect(manager).revokeDevice(DEVICE);
@@ -207,8 +229,9 @@ describe("AirSafetyLog", function () {
       // The old key can no longer sign; old incidents are not re-signed.
       await expect(submit(makeClaim(DEVICE, 21))).to.be.revertedWithCustomError(log, "WrongSigner");
       await expect(submit(makeClaim(DEVICE, 20), fresh)).to.be.revertedWithCustomError(log, "IncidentAlreadyLogged");
-      await expect(submit(makeClaim(DEVICE, 15), fresh)).to.be.revertedWithCustomError(log, "SequenceNotIncreasing");
+      await expect(submit(makeClaim(DEVICE, 15), fresh)).to.not.be.reverted;
       await expect(submit(makeClaim(DEVICE, 21), fresh)).to.not.be.reverted;
+      expect((await log.getDevice(DEVICE)).lastSequence).to.equal(21n);
     });
 
     it("rotate switches the signer; the old key is rejected and cannot be reused", async function () {

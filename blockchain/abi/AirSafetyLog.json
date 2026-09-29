@@ -105,6 +105,17 @@
   {
     "inputs": [
       {
+        "internalType": "uint64",
+        "name": "sequence",
+        "type": "uint64"
+      }
+    ],
+    "name": "InvalidSequence",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "uint8",
         "name": "severity",
         "type": "uint8"
@@ -148,9 +159,9 @@
   {
     "inputs": [
       {
-        "internalType": "uint64",
-        "name": "lastSequence",
-        "type": "uint64"
+        "internalType": "bytes32",
+        "name": "deviceIdHash",
+        "type": "bytes32"
       },
       {
         "internalType": "uint64",
@@ -158,7 +169,7 @@
         "type": "uint64"
       }
     ],
-    "name": "SequenceNotIncreasing",
+    "name": "SequenceAlreadyUsed",
     "type": "error"
   },
   {
@@ -1402,6 +1413,30 @@
     "name": "rotateSigner",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "deviceIdHash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint64",
+        "name": "sequence",
+        "type": "uint64"
+      }
+    ],
+    "name": "sequenceUsed",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "used",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {

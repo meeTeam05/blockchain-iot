@@ -128,6 +128,9 @@ contract AirSafetyLog is AccessControl, EIP712 {
 
     mapping(bytes32 deviceIdHash => Device) private _devices;
     mapping(bytes32 incidentKey => Incident) private _incidents;
+    /// @notice Exact anti-reuse history. Delivery order is not a validity rule:
+    ///         an unseen lower sequence remains valid after a higher one arrives.
+    mapping(bytes32 deviceIdHash => mapping(uint64 sequence => bool used)) public sequenceUsed;
     /// @notice A signer key can be bound to a device only once, ever.
     mapping(address signer => bool) public signerUsed;
     /// @notice Critical severity is rejected until a dedicated policy enables it.
@@ -169,12 +172,13 @@ contract AirSafetyLog is AccessControl, EIP712 {
     error DeviceNotActive(bytes32 deviceIdHash);
     error SignerAlreadyUsed(address signer);
     error InvalidSeverity(uint8 severity);
+    error InvalidSequence(uint64 sequence);
     error ZeroEvidenceHash();
     error IncidentIdMismatch(bytes32 expected, bytes32 actual);
     error InvalidSignature();
     error WrongSigner(address expected, address actual);
     error IncidentAlreadyLogged(bytes32 incidentKey);
-    error SequenceNotIncreasing(uint64 lastSequence, uint64 sequence);
+    error SequenceAlreadyUsed(bytes32 deviceIdHash, uint64 sequence);
     error IncidentNotFound(bytes32 incidentKey);
     error NotDeviceOwner(address caller);
     error InvalidStatus(IncidentStatus status);
@@ -193,8 +197,8 @@ contract AirSafetyLog is AccessControl, EIP712 {
     // ---------------------------------------------------------------------
 
     /// @notice Register a new device, or re-provision a revoked one with a
-    ///         fresh signer. `lastSequence` is preserved across re-provisioning,
-    ///         so a reset device must continue with a higher sequence.
+    ///         fresh signer. Exact sequence-use history and the highest-seen
+    ///         sequence metadata are preserved across re-provisioning.
     function registerDevice(bytes32 deviceIdHash, address signer, address owner)
         external
         onlyRole(DEVICE_MANAGER_ROLE)
@@ -225,7 +229,8 @@ contract AirSafetyLog is AccessControl, EIP712 {
         emit DeviceSignerRotated(deviceIdHash, old, newSigner);
     }
 
-    /// @notice Revoke a device signer (factory reset, compromise, retirement).
+    /// @notice Explicitly revoke a device signer after compromise, retirement
+    ///         or decommissioning. Ordinary Wi-Fi/factory reset is not revoke.
     function revokeDevice(bytes32 deviceIdHash) external onlyRole(DEVICE_MANAGER_ROLE) {
         Device storage d = _requireActive(deviceIdHash);
         d.active = false;
@@ -262,6 +267,7 @@ contract AirSafetyLog is AccessControl, EIP712 {
         if (sev != SEVERITY_WARNING && sev != SEVERITY_DANGER && !(sev == SEVERITY_CRITICAL && criticalPolicyEnabled)) {
             revert InvalidSeverity(sev);
         }
+        if (claim.sequence == 0) revert InvalidSequence(claim.sequence);
         if (claim.evidenceHash == bytes32(0)) revert ZeroEvidenceHash();
 
         bytes32 expectedId = computeIncidentId(claim.deviceIdHash, claim.sequence);
@@ -273,11 +279,12 @@ contract AirSafetyLog is AccessControl, EIP712 {
 
         incidentKey = computeIncidentKey(claim.deviceIdHash, claim.incidentId);
         if (_incidents[incidentKey].status != IncidentStatus.None) revert IncidentAlreadyLogged(incidentKey);
-        if (d.hasLogged && claim.sequence <= d.lastSequence) {
-            revert SequenceNotIncreasing(d.lastSequence, claim.sequence);
+        if (sequenceUsed[claim.deviceIdHash][claim.sequence]) {
+            revert SequenceAlreadyUsed(claim.deviceIdHash, claim.sequence);
         }
 
-        d.lastSequence = claim.sequence;
+        sequenceUsed[claim.deviceIdHash][claim.sequence] = true;
+        if (!d.hasLogged || claim.sequence > d.lastSequence) d.lastSequence = claim.sequence;
         d.hasLogged = true;
         _incidents[incidentKey] = Incident({
             deviceIdHash: claim.deviceIdHash,

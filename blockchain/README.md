@@ -37,7 +37,11 @@ Compiler: solc `0.8.28`, optimizer 200 runs, `viaIR: true`, EVM `cancun`
 (verify phải dùng đúng cấu hình này — `scripts/verify.js` lấy từ
 `hardhat.config.js`).
 
-## Deployment Sepolia hiện hành
+## Deployment Sepolia cũ (không tương thích sequence policy mới)
+
+Deployment dưới đây chạy phiên bản high-water-mark cũ. Source hiện tại đã
+chuyển sang exact sequence-use tracking và phải được deploy thành contract mới
+trước E2E. Không dùng address cũ như thể bytecode đã được cập nhật tại chỗ.
 
 | Mục | Giá trị |
 |---|---|
@@ -47,10 +51,10 @@ Compiler: solc `0.8.28`, optimizer 200 runs, `viaIR: true`, EVM `cancun`
 | EIP-712 domain | `AirSafetyLog` / `1` / `11155111` / address ở trên |
 | Admin, relayer, device manager | `0x7Ee5fAD36702a5228E60D8CDE6Be3FE91f5B1a3F` (ví test, tạm thời) |
 
-Chi tiết đầy đủ: [`deployments/sepolia.json`](deployments/sepolia.json); ABI:
-[`abi/AirSafetyLog.json`](abi/AirSafetyLog.json). Firmware (Task 1) và backend
-(Task 3) phải ký/verify digest với `verifyingContract` là address này — vector
-dùng `0xCccc…` chỉ để test.
+Chi tiết deployment cũ: [`deployments/sepolia.json`](deployments/sepolia.json).
+Sau khi deploy source hiện tại, firmware (Task 1) và backend (Task 3) phải được
+chuyển cùng lúc sang address mới. Vector dùng `0xCccc…` chỉ để test. ABI của
+source hiện tại nằm tại [`abi/AirSafetyLog.json`](abi/AirSafetyLog.json).
 
 ## Role
 
@@ -89,8 +93,10 @@ secret của backend; ví admin không bao giờ đặt trên server.
    address contract), chữ ký 65 byte `r||s||v`, `v` 27/28, `s` low-half; signer
    phải là signer hiện tại của device.
 5. Chống replay bằng `incidentKey = keccak256(abi.encode(deviceIdHash, incidentId))`.
-6. `sequence` phải **lớn hơn** `lastSequence` của device (cho phép khoảng trống,
-   sequence đầu tiên có thể là 0).
+6. `sequence` bắt đầu từ 1; 0 được dành riêng và bị từ chối. Mỗi sequence chỉ
+   được dùng một lần cho một device. Sequence hợp lệ chưa dùng vẫn được nhận
+   khi đến lệch thứ tự (ví dụ 4 rồi 3). `lastSequence` chỉ là metadata sequence
+   lớn nhất đã thấy, không phải điều kiện từ chối.
 
 Lưu `Incident { deviceIdHash, incidentId, evidenceHash, sequence, observedAt,
 loggedAt, severity, status, signer }`; trạng thái `Logged → Acknowledged →
@@ -101,10 +107,12 @@ Vòng đời device:
 - `registerDevice(deviceIdHash, signer, owner)` — `deviceIdHash = keccak256(utf8(device_id))`.
 - `rotateSigner` — chỉ thực hiện sau khi firmware flush queue; incident ký bằng
   khóa cũ chưa lên chain sẽ bị từ chối (`WrongSigner`).
-- `revokeDevice` — factory reset/lộ khóa. Dùng lại phải `registerDevice` với
-  signer **mới**: mỗi địa chỉ signer chỉ được gắn một lần (`SignerAlreadyUsed`).
-  `lastSequence` được giữ, nên firmware sau reset phải tiếp tục từ sequence lớn
-  hơn `getDevice(deviceIdHash).lastSequence`.
+- Wi-Fi reset/factory reset thông thường **không** revoke signer: Task 1 giữ
+  signer, sequence và queue trong encrypted NVS.
+- `revokeDevice` — thao tác bảo mật tường minh khi lộ khóa, nghỉ thiết bị hoặc
+  decommission. Dùng lại phải `registerDevice` với signer **mới**: mỗi địa chỉ
+  signer chỉ được gắn một lần (`SignerAlreadyUsed`). Lịch sử sequence đã dùng
+  được giữ; sequence chưa dùng vẫn hợp lệ dù thấp hơn `lastSequence`.
 
 ## Event (cho indexer Task 4)
 

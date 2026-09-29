@@ -155,6 +155,15 @@ describe("Schema v2 test vectors", function () {
       expect((await log.getDevice(vectors[0].evidence.device_id_hash)).lastSequence).to.equal(44n);
     });
 
+    it("accepts the Task 1 vectors when unseen sequences arrive out of order", async function () {
+      for (const v of [...vectors].reverse()) {
+        const claim = claimFromEvidence(evidenceFromVector(v));
+        await expect(log.connect(relayer).logIncident(claim, v.expected.signature)).to.emit(log, "IncidentLogged");
+        expect(await log.sequenceUsed(claim.deviceIdHash, claim.sequence)).to.equal(true);
+      }
+      expect((await log.getDevice(vectors[0].evidence.device_id_hash)).lastSequence).to.equal(44n);
+    });
+
     it("rejects the vector signature when any attestation field is tampered", async function () {
       const v = vectors[0];
       const claim = claimFromEvidence(evidenceFromVector(v));

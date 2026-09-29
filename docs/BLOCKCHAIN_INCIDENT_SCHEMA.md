@@ -149,21 +149,27 @@ IncidentAttestation(bytes32 deviceIdHash,bytes32 incidentId,uint64 sequence,uint
 digest = keccak256("\\x19\\x01" || domainSeparator || attestationStructHash)
 ```
 
-Domain Sepolia hiện tại vẫn là `AirSafetyLog`, version `1`, chain ID `11155111`
-và địa chỉ contract đã provision. Nếu ABI/attestation của contract thay đổi,
-phải deploy contract/domain version mới; không nhận domain qua MQTT.
+Domain Sepolia dùng `AirSafetyLog`, version `1`, chain ID `11155111` và địa chỉ
+contract được deploy. Mỗi thay đổi logic contract cần deployment/address mới;
+không nhận domain qua MQTT.
 
-Contract đã provision trên Sepolia: `AirSafetyLog` tại
-`0x4E6e20bC0601CddD6Cb0C3AE8440e6933839A8Aa` (source verified). Address, tx
-deploy và ABI nằm trong
-[`blockchain/deployments/sepolia.json`](../blockchain/deployments/sepolia.json)
-và [`blockchain/abi/AirSafetyLog.json`](../blockchain/abi/AirSafetyLog.json).
+Deployment Sepolia cũ tại
+`0x4E6e20bC0601CddD6Cb0C3AE8440e6933839A8Aa` (source verified). Address và tx
+deploy cũ nằm trong
+[`blockchain/deployments/sepolia.json`](../blockchain/deployments/sepolia.json);
+ABI của source hiện tại nằm tại
+[`blockchain/abi/AirSafetyLog.json`](../blockchain/abi/AirSafetyLog.json).
 `verifyingContract` trong test vector (`0xCccc…`) chỉ dùng cho test.
+Deployment cũ dùng high-water-mark sequence và không tương thích delivery lệch
+thứ tự; source hiện tại phải được deploy thành address mới trước E2E.
 
-Contract chỉ nhận `sequence` lớn hơn `lastSequence` đã ghi của thiết bị và giữ
-giá trị này qua revoke/register lại. Sau factory reset, provisioning phải đặt
-sequence tiếp theo lớn hơn `getDevice(deviceIdHash).lastSequence`; mỗi địa chỉ
-signer chỉ được đăng ký một lần.
+Contract từ chối `sequence = 0` và lưu lịch sử exact-use theo từng thiết bị.
+Mọi sequence từ 1 trở lên chưa từng dùng đều hợp lệ, kể cả khi đến lệch thứ tự
+(ví dụ 4 rồi 3). `lastSequence` chỉ ghi sequence lớn nhất đã thấy để quan sát,
+không phải high-water mark để từ chối. Lịch sử sequence giữ nguyên qua thao tác
+revoke/register tường minh; mỗi địa chỉ signer chỉ được đăng ký một lần. Wi-Fi
+reset/factory reset thông thường giữ signer, sequence và queue, không tự động
+revoke signer.
 
 Signature là secp256k1 `r || s || v` 65 byte, hex `0x`, `v` là 27 hoặc 28 và
 `s` ở low-half. Không dùng EIP-191 prefix ngoài EIP-712 prefix.
