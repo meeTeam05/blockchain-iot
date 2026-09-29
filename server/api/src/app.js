@@ -22,12 +22,22 @@ import telemetryRoutes from './routes/telemetry.js';
 import notificationsRoutes from './routes/notifications.js';
 import realtimeRoutes from './routes/realtime.js';
 import incidentsRoutes from './routes/incidents.js';
-import { domainFromConfig } from './services/incident-verify.js';
+import { resolveIncidentDomains } from './services/incident-domains.js';
 import { registerCommandTimeoutJob } from './jobs/command-timeout.js';
 import { registerDataRetentionJob } from './jobs/data-retention.js';
 import { registerEmqxCleanupRetryJob } from './jobs/emqx-cleanup-retry.js';
 import { registerRefreshTokenMarkerCleanupJob } from './jobs/refresh-token-marker-cleanup.js';
 import { registerRealtimeEventRetentionJob } from './jobs/realtime-event-retention.js';
+import { registerPendingCommandDispatchJob } from './jobs/pending-command-dispatch.js';
+import { ChainFatalError, assertDomainMatchesChain, createProvider } from './chain/air-safety-log.js';
+
+function withTimeout(promise, ms) {
+    let timer;
+    const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`timed out after ${ms} ms`)), ms);
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
 
 function getSafeClientErrorMessage(error, statusCode) {
     if (error.validation) return 'Invalid request payload';
@@ -50,11 +60,28 @@ if (missingRequiredEnvVars.length > 0) {
     process.exit(1);
 }
 
+let incidentDomains;
 try {
-    domainFromConfig(config.incident);
+    incidentDomains = resolveIncidentDomains(config.incident);
 } catch (err) {
     console.error(`FATAL: invalid incident EIP-712 domain config: ${err.message}`);
     process.exit(1);
+}
+
+// Refuse to verify incidents against a domain the chain does not have (E2E_FIX_PLAN 10).
+// Only a proven mismatch is fatal; an unreachable RPC must not take the API down.
+if (config.chain.rpcUrl && config.chain.requireDomainCheck) {
+    try {
+        await withTimeout(assertDomainMatchesChain(createProvider(config.chain.rpcUrl), incidentDomains.current), 15_000);
+    } catch (err) {
+        if (err instanceof ChainFatalError) {
+            console.error(`FATAL: incident EIP-712 domain does not match the chain: ${err.message}`);
+            process.exit(1);
+        }
+        console.warn(`WARN: could not check the incident domain against the chain (${err.message}); continuing`);
+    }
+} else {
+    console.warn('WARN: CHAIN_RPC_URL not set; incident domain was not checked against the chain');
 }
 
 const fastify = Fastify({
@@ -91,6 +118,7 @@ registerDataRetentionJob(fastify);
 registerEmqxCleanupRetryJob(fastify);
 registerRefreshTokenMarkerCleanupJob(fastify);
 registerRealtimeEventRetentionJob(fastify);
+registerPendingCommandDispatchJob(fastify);
 
 // Rate limiting applied globally, tighter on auth routes.
 await fastify.register(rateLimit, {

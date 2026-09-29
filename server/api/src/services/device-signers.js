@@ -85,3 +85,16 @@ export async function revokeSigner(target, deviceId, reason = 'revoked') {
     );
     return rowCount > 0;
 }
+
+// Every signer ever bound to the device (pending, active, revoked). The intake needs the
+// full history: a record signed by a rotated-away key is still authentic evidence.
+export async function getSignerHistory(target, deviceId) {
+    const { rows } = await queryTarget(target).query(
+        `SELECT signer_address, status, revoke_reason
+         FROM device_signers
+         WHERE device_id = $1
+         ORDER BY id`,
+        [deviceId]
+    );
+    return rows;
+}

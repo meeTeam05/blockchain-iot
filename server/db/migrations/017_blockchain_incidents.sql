@@ -136,8 +136,9 @@ CREATE INDEX IF NOT EXISTS incidents_device_sequence_idx
 CREATE INDEX IF NOT EXISTS incidents_received_at_idx
     ON incidents (received_at DESC);
 
--- Chain submission queue. Task 3 only inserts 'queued'; the chain worker (Task 4)
--- owns every later transition and must submit FIFO by sequence per device.
+-- Chain submission queue. Task 3 inserts the row; the chain worker (Task 4) owns
+-- every later transition. AirSafetyLog tracks exact (device, sequence) use, so rows
+-- are independent and are NOT submitted FIFO-blocking per device (see migration 019).
 CREATE TABLE IF NOT EXISTS blockchain_outbox (
     id                  BIGSERIAL PRIMARY KEY,
     incident_row_id     BIGINT NOT NULL REFERENCES incidents(id),

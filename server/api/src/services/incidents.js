@@ -26,6 +26,8 @@ const INCIDENT_SELECT = `
            o.confirmations AS chain_confirmations,
            o.confirmed_at AS chain_confirmed_at,
            o.last_error AS chain_last_error,
+           o.fail_reason AS chain_fail_reason,
+           o.verifying_contract AS chain_verifying_contract,
            o.updated_at AS chain_updated_at,
            d.owner_address AS owner_address
     FROM incidents i
@@ -72,6 +74,9 @@ function chainFromRow(row) {
         confirmations: row.chain_confirmations ?? null,
         confirmed_at: isoOrNull(row.chain_confirmed_at),
         last_error: row.chain_last_error ?? null,
+        // Why a row is not (yet) on chain: legacy_domain / waiting_signer / stale_signer / failed.
+        fail_reason: row.chain_fail_reason ?? null,
+        verifying_contract: row.chain_verifying_contract ?? null,
         updated_at: isoOrNull(row.chain_updated_at),
     };
 }

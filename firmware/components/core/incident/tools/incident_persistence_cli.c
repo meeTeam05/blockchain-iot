@@ -46,7 +46,7 @@ static void reset_runtime(void)
     strcpy(s_device_id, "aa:bb:cc:dd:ee:ff"); strcpy(s_topic, "device/aa:bb:cc:dd:ee:ff/incident");
 }
 
-static void reset_all(void) { g_sequence_present = false; g_sequence = 0; memset(g_blobs, 0, sizeof(g_blobs)); g_sign_calls = 0; g_mqtt_online = false; reset_runtime(); }
+static void reset_all(void) { g_sequence_present = false; g_sequence = 0; memset(g_blobs, 0, sizeof(g_blobs)); g_sign_calls = 0; g_mqtt_online = false; s_require_sequence_floor = false; reset_runtime(); }
 
 static work_t valid_work(uint8_t before, uint8_t after, uint64_t observed)
 {
@@ -127,6 +127,46 @@ static bool corrupted_record(void)
     incident_retry_pending(); return !load_record(0, &ignored) && g_publish_calls == 0;
 }
 
+/* G: a record in slot 1..N with slot 0 empty must still block rotation. */
+static bool rotate_guard_all_slots(void)
+{
+    reset_all(); if (!rotate_allowed() || pending_count() != 0) return false;
+    work_t a = valid_work(0, 1, 1700000040), b = valid_work(1, 2, 1700000041), c = valid_work(0, 1, 1700000042);
+    process_work(&a); process_work(&b); process_work(&c);
+    if (pending_count() != 3 || erase_record(0) != ESP_OK) return false;
+    queued_record_t r; if (load_record(0, &r) || !load_record(1, &r) || !load_record(2, &r)) return false;
+    if (find_empty() != 0) return false;            /* the old guard looked only at this */
+    if (pending_count() != 2 || rotate_allowed()) return false;
+    erase_record(1); if (rotate_allowed()) return false;
+    erase_record(2); return rotate_allowed() && pending_count() == 0;
+}
+
+/* H: floor is raise-only and the first sequence after it is exactly floor. */
+static bool sequence_floor_raise_only(void)
+{
+    reset_all(); uint64_t v = 0;
+    if (set_sequence_floor(0) != ESP_ERR_INVALID_ARG || g_sequence_present) return false;
+    if (set_sequence_floor(50) != ESP_OK || !g_sequence_present || g_sequence != 49) return false;
+    if (next_sequence(&v) != ESP_OK || v != 50) return false;
+    if (set_sequence_floor(10) != ESP_OK || g_sequence != 50) return false;   /* late/replayed command: no lowering */
+    if (set_sequence_floor(51) != ESP_OK || g_sequence != 50) return false;   /* already >= floor */
+    if (set_sequence_floor(200) != ESP_OK || next_sequence(&v) != ESP_OK || v != 200) return false;
+    reset_all(); return set_sequence_floor(1) == ESP_OK && g_sequence_present && next_sequence(&v) == ESP_OK && v == 1;
+}
+
+/* H: with the gate on, a wiped device signs nothing until it receives a floor,
+ * and afterwards continues above everything the backend/chain already used. */
+static bool sequence_floor_gate(void)
+{
+    reset_all(); s_require_sequence_floor = true; work_t w = valid_work(0, 1, 1700000050);
+    process_work(&w);
+    if (g_sign_calls != 0 || g_publish_calls != 0 || g_sequence_present || pending_count() != 0) return false;
+    if (set_sequence_floor(43) != ESP_OK) return false;
+    process_work(&w); queued_record_t r;
+    bool ok = g_sign_calls == 1 && load_record(0, &r) && r.sequence == 43;
+    s_require_sequence_floor = false; return ok;
+}
+
 static void report(const char *name, bool pass) { printf("%s: %s\n", name, pass ? "PASS" : "FAIL"); }
 
 int main(void)
@@ -134,6 +174,7 @@ int main(void)
     bool init = sequence_initialization(), mono = sequence_monotonic(), reboot_seq = sequence_reboot(), no_reuse = sequence_no_reuse();
     bool commit_fail = sequence_commit_failure(), failures = process_failure_paths(), bytes = roundtrip();
     bool retry = persistence_and_retry(), reboot = reboot_retry(), multi = multi_record_restart(), corrupt = corrupted_record();
+    bool rotate_guard = rotate_guard_all_slots(), floor_raise = sequence_floor_raise_only(), floor_gate = sequence_floor_gate();
     report("SEQUENCE INITIALIZATION", init); report("SEQUENCE MONOTONIC", mono); report("SEQUENCE REBOOT DURABILITY", reboot_seq);
     report("SEQUENCE NO REUSE", no_reuse); report("SEQUENCE COMMIT FAILURE", commit_fail);
     report("PERSIST BEFORE PUBLISH", retry); report("SAVE FAILURE BLOCKS PUBLISH", failures);
@@ -141,7 +182,10 @@ int main(void)
     report("REBOOT RETRY EXACT BYTES", reboot); report("MULTI-RECORD RESTART", multi);
     report("NO RESIGN ON RETRY", retry && reboot); report("NO NEW SEQUENCE ON RETRY", retry && reboot);
     report("CORRUPTED RECORD SAFETY", corrupt);
-    bool pass = init && mono && reboot_seq && no_reuse && commit_fail && failures && bytes && retry && reboot && multi && corrupt;
+    report("ROTATE GUARD CHECKS EVERY SLOT", rotate_guard); report("SEQUENCE FLOOR RAISE ONLY", floor_raise);
+    report("SEQUENCE FLOOR GATE", floor_gate);
+    bool pass = init && mono && reboot_seq && no_reuse && commit_fail && failures && bytes && retry && reboot && multi && corrupt
+        && rotate_guard && floor_raise && floor_gate;
     printf("NVS_REBOOT_RETRY_TEST: %s\n", pass ? "PASS" : "FAIL");
     return pass ? 0 : 1;
 }

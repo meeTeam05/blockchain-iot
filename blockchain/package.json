@@ -8,6 +8,8 @@
     "test": "hardhat test",
     "export-abi": "node scripts/export-abi.js",
     "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
+    "node": "hardhat node",
+    "deploy:localhost": "hardhat run scripts/deploy.js --network localhost",
     "verify:sepolia": "hardhat run scripts/verify.js --network sepolia",
     "roles:sepolia": "hardhat roles --network sepolia"
   },

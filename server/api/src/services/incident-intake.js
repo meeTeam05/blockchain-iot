@@ -1,7 +1,12 @@
 // MQTT intake for device/{id}/incident (Blockchain_task.md, Task 3).
-// Order: dedupe -> stateless verify -> signer registry -> time policy/sequence uniqueness ->
-// one DB transaction (incident + outbox + realtime) -> MQTT packet ack -> ACK publish.
-// Any thrown error leaves the QoS1 packet unacked so EMQX redelivers it.
+// Order: dedupe -> domain-independent verify (format, semantics, hashes, signature format)
+// -> authenticate by (domain, signer) against the device's signer history -> time policy/
+// sequence uniqueness -> one DB transaction (incident + outbox + realtime) -> MQTT packet
+// ack -> ACK publish. Any thrown error leaves the QoS1 packet unacked so EMQX redelivers it.
+//
+// ACK accepted:true means "valid evidence, committed". Whether it can go on-chain is
+// decided here and recorded as outbox.status (queued / waiting_signer / stale_signer /
+// legacy_domain), so firmware never keeps a record in its queue for chain reasons.
 //
 // handleIncident() only builds the ACK; the MQTT plugin publishes it after acking the
 // inbound packet. mqtt.js processes inbound packets one at a time, so awaiting a QoS1
@@ -9,16 +14,21 @@
 import { config } from '../config.js';
 import { advisoryLockId } from '../utils/advisory-lock.js';
 import { createRealtimeEvent } from './realtime-events.js';
-import { getActiveSigner } from './device-signers.js';
+import { AbiCoder, keccak256 } from 'ethers';
+
+import { getSignerHistory } from './device-signers.js';
+import { domainsFromSingle, resolveIncidentDomains } from './incident-domains.js';
 import {
     EVIDENCE_FIELDS,
     INCIDENT_ERROR,
     SECURITY_ERROR_CODES,
+    authenticateIncident,
     buildIncidentAck,
     checkIncidentOrdering,
-    domainFromConfig,
     isBytes32,
-    verifyIncidentPayload,
+    normalizeIncidentDomain,
+    recoverForDomain,
+    verifyIncidentEvidence,
 } from './incident-verify.js';
 
 export const INCIDENT_CREATED_EVENT = 'incident.created';
@@ -38,6 +48,11 @@ function ackIdentity(payload) {
     if (!isPlainObject(payload)) return null;
     const { incident_id: incidentId, evidence_hash: evidenceHash } = payload;
     return isBytes32(incidentId) && isBytes32(evidenceHash) ? { incidentId, evidenceHash } : null;
+}
+
+// AirSafetyLog.computeIncidentKey(deviceIdHash, incidentId).
+export function computeIncidentKey(deviceIdHash, incidentId) {
+    return keccak256(AbiCoder.defaultAbiCoder().encode(['bytes32', 'bytes32'], [deviceIdHash, incidentId]));
 }
 
 function toUnixSeconds(date) {
@@ -67,7 +82,8 @@ async function recordSecurityEvent(db, { deviceId, type, identity, details, rawP
 
 async function findExisting(db, deviceId, incidentId) {
     const { rows } = await db.query(
-        `SELECT evidence_hash, signer_address, raw_payload, received_at
+        `SELECT evidence_hash, signer_address, raw_payload, received_at,
+                domain_name, domain_version, domain_chain_id, domain_verifying_contract
          FROM incidents
          WHERE device_id = $1 AND incident_id = $2`,
         [deviceId, incidentId]
@@ -78,7 +94,9 @@ async function findExisting(db, deviceId, incidentId) {
 // Decides how to answer a delivery whose incident_id is already stored. The claimed
 // evidence_hash alone is not trusted: firmware retries the exact persisted bytes, and any
 // other encoding must verify to the stored evidence and signer before it is re-ACKed.
-function classifyExisting(existing, { identity, payload, rawBuffer, domain }) {
+// A retry is only checked against the domain and signer stored on the row; the domain
+// loop is never re-run, so a legacy_domain incident stays exactly what it was.
+function classifyExisting(existing, { identity, payload, rawBuffer }) {
     if (existing.evidence_hash !== identity.evidenceHash) {
         return {
             kind: 'reject',
@@ -91,7 +109,7 @@ function classifyExisting(existing, { identity, payload, rawBuffer, domain }) {
         return { kind: 'duplicate', existing };
     }
 
-    const check = verifyIncidentPayload(payload, domain);
+    const check = verifyIncidentEvidence(payload);
     if (!check.ok) {
         return {
             kind: 'reject',
@@ -100,18 +118,25 @@ function classifyExisting(existing, { identity, payload, rawBuffer, domain }) {
             extra: check.field ? { field: check.field } : {},
         };
     }
-    if (check.signer !== existing.signer_address) {
+    const storedDomain = normalizeIncidentDomain({
+        name: existing.domain_name,
+        version: existing.domain_version,
+        chainId: String(existing.domain_chain_id),
+        verifyingContract: existing.domain_verifying_contract,
+    });
+    const recovered = recoverForDomain(check, storedDomain);
+    if (!recovered.ok || recovered.signer !== existing.signer_address) {
         return {
             kind: 'reject',
-            errorCode: INCIDENT_ERROR.SIGNER_NOT_ACTIVE,
-            reason: 'retry of a stored incident is signed by a different key',
-            extra: { recovered_signer: check.signer },
+            errorCode: recovered.ok ? INCIDENT_ERROR.SIGNER_NOT_ACTIVE : recovered.errorCode,
+            reason: 'retry of a stored incident does not verify to the stored domain and signer',
+            extra: { domain: existing.domain_verifying_contract },
         };
     }
     return { kind: 'duplicate', existing };
 }
 
-function incidentRealtimePayload(row) {
+function incidentRealtimePayload(row, chainStatus) {
     return {
         incident_id: row.incident_id,
         sequence: String(row.sequence),
@@ -120,12 +145,13 @@ function incidentRealtimePayload(row) {
         co_level: row.co_level,
         no2_level: row.no2_level,
         observed_at: String(row.observed_at),
-        chain_status: 'queued',
+        chain_status: chainStatus,
     };
 }
 
-async function insertIncident(client, { deviceId, verified, domain, rawPayload, payload, receivedAt }) {
-    const { evidence, transport, computed, signer } = verified;
+async function insertIncident(client, { deviceId, verified, auth, rawPayload, payload, receivedAt }) {
+    const { evidence, transport, computed } = verified;
+    const { domain, digest, signer } = auth;
     const evidenceKeys = EVIDENCE_FIELDS.map(([, , key]) => key);
     const columns = [
         'device_id',
@@ -149,7 +175,7 @@ async function insertIncident(client, { deviceId, verified, domain, rawPayload, 
         ...evidenceKeys.map((key) => evidence[key]),
         transport.firmwareVersion,
         computed.evidenceHash,
-        computed.digest,
+        digest,
         transport.signature,
         signer,
         domain.name,
@@ -230,8 +256,10 @@ export async function handleIncident(fastify, deviceId, payload, rawPayload, opt
         return reject(INCIDENT_ERROR.UNKNOWN_DEVICE, 'device is not registered');
     }
 
-    const domain = options.domain ?? domainFromConfig(incidentConfig);
-    const dedupeContext = { identity, payload, rawBuffer, domain };
+    // options.domain (single domain, tests/tools) or options.domains ({ current, legacy }).
+    const domains = options.domains
+        ?? (options.domain ? domainsFromSingle(options.domain) : resolveIncidentDomains(incidentConfig));
+    const dedupeContext = { identity, payload, rawBuffer };
 
     // Dedupe runs before time checks so a retry after reboot still gets its ACK.
     if (identity) {
@@ -243,7 +271,7 @@ export async function handleIncident(fastify, deviceId, payload, rawPayload, opt
         }
     }
 
-    const verified = verifyIncidentPayload(payload, domain);
+    const verified = verifyIncidentEvidence(payload);
     if (!verified.ok) {
         return reject(verified.errorCode, verified.reason, verified.field ? { field: verified.field } : {});
     }
@@ -255,14 +283,10 @@ export async function handleIncident(fastify, deviceId, payload, rawPayload, opt
         const existing = await findExisting(client, deviceId, identity.incidentId);
         if (existing) return classifyExisting(existing, dedupeContext);
 
-        const activeSigner = await getActiveSigner(client, deviceId);
-        if (activeSigner !== verified.signer) {
-            return {
-                kind: 'reject',
-                errorCode: INCIDENT_ERROR.SIGNER_NOT_ACTIVE,
-                reason: activeSigner ? 'signature is not from the active device signer' : 'device has no active signer',
-                extra: { recovered_signer: verified.signer },
-            };
+        const signerHistory = await getSignerHistory(client, deviceId);
+        const auth = authenticateIncident(verified, { domains, signerHistory });
+        if (!auth.ok) {
+            return { kind: 'reject', errorCode: auth.errorCode, reason: auth.reason, extra: auth.security ?? {} };
         }
 
         const ordering = checkIncidentOrdering({
@@ -274,20 +298,31 @@ export async function handleIncident(fastify, deviceId, payload, rawPayload, opt
             return { kind: 'reject', errorCode: ordering.errorCode, reason: ordering.reason };
         }
 
-        const row = await insertIncident(client, { deviceId, verified, domain, rawPayload: rawBuffer, payload, receivedAt });
+        const row = await insertIncident(client, { deviceId, verified, auth, rawPayload: rawBuffer, payload, receivedAt });
         await client.query(
-            `INSERT INTO blockchain_outbox (incident_row_id, device_id, incident_id, sequence, status)
-             VALUES ($1, $2, $3, $4, 'queued')`,
-            [row.id, deviceId, row.incident_id, row.sequence]
+            `INSERT INTO blockchain_outbox
+                 (incident_row_id, device_id, incident_id, sequence, status,
+                  verifying_contract, signer_address, incident_key)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+            [
+                row.id,
+                deviceId,
+                row.incident_id,
+                row.sequence,
+                auth.outboxStatus,
+                auth.domain.verifyingContract.toLowerCase(),
+                auth.signer,
+                computeIncidentKey(verified.computed.deviceIdHash, verified.computed.incidentId),
+            ]
         );
         await createRealtimeEvent(client, {
             type: INCIDENT_CREATED_EVENT,
             deviceId,
             occurredAt: row.received_at,
-            payload: incidentRealtimePayload(row),
+            payload: incidentRealtimePayload(row, auth.outboxStatus),
             idempotencyKey: `${INCIDENT_CREATED_EVENT}:${deviceId}:${row.incident_id}`,
         });
-        return { kind: 'stored', row };
+        return { kind: 'stored', row, auth };
     });
 
     if (outcome.kind === 'duplicate') return acceptDuplicate(outcome.existing);
@@ -296,8 +331,14 @@ export async function handleIncident(fastify, deviceId, payload, rawPayload, opt
     // ACK is only built after COMMIT.
     const ack = buildIncidentAck({ ...identity, accepted: true, receivedAtSec });
     fastify.log.info(
-        { deviceId, incidentId: identity.incidentId, sequence: verified.evidence.sequence },
-        'incident stored and queued for chain'
+        {
+            deviceId,
+            incidentId: identity.incidentId,
+            sequence: verified.evidence.sequence,
+            chainStatus: outcome.auth.outboxStatus,
+            domain: outcome.auth.domainKind,
+        },
+        'incident stored'
     );
     return { accepted: true, errorCode: null, ack, duplicate: false };
 }

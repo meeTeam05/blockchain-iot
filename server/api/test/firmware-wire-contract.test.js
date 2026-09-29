@@ -7,6 +7,10 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 import { handleIncident } from '../src/services/incident-intake.js';
+import { TypedDataEncoder } from 'ethers';
+
+import { INCIDENT_DEPLOYMENTS } from '../src/generated/incident-deployments.js';
+import { resolveIncidentDomains } from '../src/services/incident-domains.js';
 import { domainFromConfig, verifyIncidentPayload } from '../src/services/incident-verify.js';
 import {
     DEVICE_ID,
@@ -71,12 +75,40 @@ test('exact Task 1 firmware wire payload verifies, authorizes, persists and retu
 });
 
 test('backend EIP-712 domain configuration exactly matches Task 1 firmware', async () => {
+    // Firmware and backend are both generated from spec/incident/deployments; nothing
+    // may hard-code a verifying contract or chain id any more.
     const incidentSource = await readFile(path.join(REPO, 'firmware/components/core/incident/incident.c'), 'utf8');
+    const header = await readFile(path.join(REPO, 'firmware/components/core/incident/include/incident_domain.h'), 'utf8');
     const overlay = await readFile(path.join(REPO, 'firmware/sdkconfig.incident'), 'utf8');
-    assert.match(incidentSource, /keccak256\("AirSafetyLog",12,name\)/);
-    assert.match(incidentSource, /keccak256\("1",1,version\)/);
-    assert.match(incidentSource, /abi_u\(chain,11155111\)/);
-    assert.match(overlay, new RegExp(`CONFIG_SA_INCIDENT_VERIFYING_CONTRACT="${DOMAIN.verifyingContract}"`));
+    assert.match(incidentSource, /#include "incident_domain.h"/);
+    assert.match(incidentSource, /keccak256\(INCIDENT_DOMAIN_NAME,strlen\(INCIDENT_DOMAIN_NAME\),name\)/);
+    assert.match(incidentSource, /keccak256\(INCIDENT_DOMAIN_VERSION,strlen\(INCIDENT_DOMAIN_VERSION\),version\)/);
+    assert.match(incidentSource, /abi_u\(chain,INCIDENT_CHAIN_ID\)/);
+    assert.doesNotMatch(overlay, /CONFIG_SA_INCIDENT_VERIFYING_CONTRACT/);
+    assert.match(overlay, /^CONFIG_SA_INCIDENT_ENV_(SEPOLIA|LOCAL)=y$/m);
+    assert.match(header, /#define INCIDENT_DOMAIN_NAME "AirSafetyLog"/);
+    assert.match(header, /#define INCIDENT_DOMAIN_VERSION "1"/);
+
+    const check = spawnSync(process.execPath, [path.join(REPO, 'spec/incident/gen/gen-all.mjs'), '--check'], { encoding: 'utf8' });
+    assert.equal(check.status, 0, `${check.stdout}
+${check.stderr}`);
+
+    assert.ok(Object.keys(INCIDENT_DEPLOYMENTS).length > 0, 'at least one deployment is recorded');
+    for (const deployment of Object.values(INCIDENT_DEPLOYMENTS)) {
+        const domains = resolveIncidentDomains({
+            deployment: deployment.network,
+            domainName: 'AirSafetyLog',
+            domainVersion: '1',
+            chainId: '',
+            verifyingContract: '',
+            legacyVerifyingContracts: null,
+        });
+        const separator = TypedDataEncoder.hashDomain({ ...domains.current, chainId: BigInt(domains.current.chainId) });
+        assert.equal(separator, deployment.domainSeparator);
+        assert.ok(header.includes(`#  define INCIDENT_VERIFYING_CONTRACT "${deployment.address}"`));
+        assert.ok(header.includes(`#  define INCIDENT_DOMAIN_SEPARATOR "${deployment.domainSeparator}"`));
+        assert.ok(header.includes(`#  define INCIDENT_CHAIN_ID ${deployment.chainId}ULL`));
+    }
     assert.deepEqual(domainFromConfig(DOMAIN), {
         name: 'AirSafetyLog',
         version: '1',

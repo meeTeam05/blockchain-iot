@@ -962,6 +962,10 @@ static void init_runtime_control_stage(const char *resolved_id)
     register_command_handler_or_reboot("relay_set", handle_relay_set);
 #endif
     register_command_handler_or_reboot("device_mode", handle_device_mode);
+#if SA_ENABLE_BLOCKCHAIN_INCIDENT
+    /* Backend signer lifecycle sends the sequence floor after on-chain registration. */
+    register_command_handler_or_reboot("signer_activate", incident_handle_signer_activate);
+#endif
 }
 
 static void NETWORK_ONLY_UNUSED start_mqtt_stage(const char *broker_uri, const char *resolved_id, const char *secret_key)

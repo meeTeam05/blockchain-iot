@@ -78,10 +78,22 @@ esp_err_t incident_handle_ack(const char *json_payload);
 /** Retry records previously committed to NVS, preserving their exact bytes. */
 void incident_retry_pending(void);
 
-/** Signer lifecycle. Keys are accepted only with ESP-IDF NVS encryption enabled. */
+/** Signer lifecycle. Keys are accepted only with ESP-IDF NVS encryption enabled.
+ *  incident_rotate_signer() returns ESP_ERR_INVALID_STATE while any queued
+ *  record (in any slot) is still waiting for its ACK. */
 esp_err_t incident_provision_signer(const uint8_t private_key[32]);
 esp_err_t incident_get_signer_address(char out[43]);
 esp_err_t incident_rotate_signer(const uint8_t private_key[32]);
+
+/**
+ * Raise-only sequence floor: the next incident uses a sequence >= floor. Until a
+ * floor was received (or a sequence was already allocated) production firmware
+ * does not sign, so a device with wiped NVS can never reuse (device, sequence).
+ */
+esp_err_t incident_set_sequence_floor(uint64_t floor);
+
+/** MQTT command handler for {"type":"signer_activate","floor":"<uint64>"}. */
+esp_err_t incident_handle_signer_activate(const char *type, const char *json_payload);
 esp_err_t incident_revoke_local_signer(void);
 
 #ifdef __cplusplus

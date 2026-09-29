@@ -215,13 +215,24 @@ menu "Smart Air Configuration"
                 Complete signed payloads retained in NVS. A full queue never
                 blocks local safety alerting.
 
-        config SA_INCIDENT_VERIFYING_CONTRACT
-            string "Provisioned EIP-712 verifying contract"
+        choice SA_INCIDENT_ENV
+            prompt "AirSafetyLog deployment (EIP-712 domain)"
             depends on SA_ENABLE_BLOCKCHAIN_INCIDENT
-            default ""
+            default SA_INCIDENT_ENV_SEPOLIA
             help
-                Lower/upper-case 0x Ethereum address provisioned with this
-                firmware. Incidents are not signed until this is set.
+                Selects the verifying contract, chain ID and domain separator
+                from the generated incident_domain.h, which is produced from
+                spec/incident/deployments/<env>.json by
+                `node spec/incident/gen/gen-all.mjs`. Addresses are never typed
+                by hand. When the selected deployment has not been recorded
+                yet, the firmware logs an error and does not sign incidents.
+
+            config SA_INCIDENT_ENV_SEPOLIA
+                bool "Sepolia (spec/incident/deployments/sepolia.json)"
+
+            config SA_INCIDENT_ENV_LOCAL
+                bool "Local hardhat node (spec/incident/deployments/localhost.json)"
+        endchoice
 
         config SA_INCIDENT_OFFLINE_BENCH
             bool "Offline Board Incident Bench Mode (TEST ONLY)"

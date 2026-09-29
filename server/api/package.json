@@ -6,6 +6,7 @@
   "scripts": {
     "migrate": "node scripts/migrate.js",
     "start": "node src/app.js",
+    "worker": "node src/worker.js",
     "dev": "node --watch src/app.js",
     "test": "node --test"
   },

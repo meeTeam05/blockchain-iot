@@ -18,6 +18,9 @@ module.exports = {
     // Same chain ID as Sepolia so the Schema v2 test vectors (domain chain_id
     // 11155111) verify against the contract in local tests.
     hardhat: { chainId: 11155111 },
+    // `npx hardhat node` serves the hardhat network above (chain 11155111) for
+    // local end-to-end runs; see spec/incident/deployments/localhost.json.
+    localhost: { url: process.env.LOCAL_RPC_URL || "http://127.0.0.1:8545", chainId: 11155111 },
     sepolia: {
       url: SEPOLIA_RPC_URL || "",
       chainId: 11155111,

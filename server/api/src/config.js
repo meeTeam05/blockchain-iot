@@ -11,12 +11,18 @@ export const REQUIRED_RUNTIME_ENV_VARS = [
     'EMQX_API_KEY',
     'EMQX_API_SECRET',
     'EMQX_MQTT_PASSWORD',
-    'AIR_SAFETY_LOG_ADDRESS',
 ];
 
 function env(name, fallback = '') {
     const value = process.env[name];
     return typeof value === 'string' && value.trim() !== '' ? value : fallback;
+}
+
+// Distinguishes "unset" from "explicitly empty" (e.g. clearing legacy domains).
+function envList(name) {
+    const value = process.env[name];
+    if (typeof value !== 'string') return null;
+    return value.split(',').map((item) => item.trim()).filter(Boolean);
 }
 
 function intEnv(name, fallback) {
@@ -119,12 +125,33 @@ export const config = Object.freeze({
     }),
     incident: Object.freeze({
         // EIP-712 domain is provisioned config only; it is never accepted over MQTT.
+        // INCIDENT_DEPLOYMENT selects spec/incident/deployments/<name>.json (via the
+        // generated module); AIR_SAFETY_LOG_ADDRESS, when also set, must match it.
+        get deployment() { return env('INCIDENT_DEPLOYMENT'); },
         get domainName() { return env('INCIDENT_DOMAIN_NAME', 'AirSafetyLog'); },
         get domainVersion() { return env('INCIDENT_DOMAIN_VERSION', '1'); },
-        get chainId() { return env('INCIDENT_CHAIN_ID', '11155111'); },
+        get chainId() { return env('INCIDENT_CHAIN_ID'); },
         get verifyingContract() { return env('AIR_SAFETY_LOG_ADDRESS'); },
+        // Old domains accepted off-chain only (outbox legacy_domain). null = use the
+        // deployment's legacyAddresses; an explicitly empty value disables them.
+        get legacyVerifyingContracts() { return envList('AIR_SAFETY_LOG_LEGACY_ADDRESSES'); },
         get maxPayloadBytes() { return intEnv('INCIDENT_MAX_PAYLOAD_BYTES', 4_096); },
         get clockSkewSeconds() { return intEnv('INCIDENT_CLOCK_SKEW_SECONDS', 600); },
+    }),
+    // Chain worker (relayer + signer lifecycle + indexer) and the API startup domain check.
+    chain: Object.freeze({
+        get rpcUrl() { return env('CHAIN_RPC_URL'); },
+        get relayerPrivateKey() { return env('RELAYER_PRIVATE_KEY'); },
+        get deviceManagerPrivateKey() { return env('DEVICE_MANAGER_PRIVATE_KEY'); },
+        get confirmations() { return intEnv('CHAIN_CONFIRMATIONS', 3); },
+        get pollIntervalMs() { return intEnv('CHAIN_POLL_INTERVAL_MS', 5_000); },
+        get startBlock() { return Number.parseInt(env('CHAIN_START_BLOCK', ''), 10); },
+        get logBatchBlocks() { return intEnv('CHAIN_LOG_BATCH_BLOCKS', 2_000); },
+        get maxAttempts() { return intEnv('CHAIN_MAX_ATTEMPTS', 10); },
+        get maxRetryAgeHours() { return intEnv('CHAIN_MAX_RETRY_AGE_HOURS', 24); },
+        get batchSize() { return intEnv('CHAIN_BATCH_SIZE', 20); },
+        // Refuse to start when the configured domain does not match the chain.
+        get requireDomainCheck() { return env('CHAIN_DOMAIN_CHECK', 'true') !== 'false'; },
     }),
     dataRetention: Object.freeze({
         get commandRetentionDays() { return intEnv('COMMAND_RETENTION_DAYS', 30); },

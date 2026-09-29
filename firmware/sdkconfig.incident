@@ -7,7 +7,8 @@
 CONFIG_SA_ENABLE_AI=y
 CONFIG_SA_ENABLE_BLOCKCHAIN_INCIDENT=y
 CONFIG_SA_INCIDENT_QUEUE_CAPACITY=4
-CONFIG_SA_INCIDENT_VERIFYING_CONTRACT="0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"
+# EIP-712 domain comes from spec/incident/deployments via incident_domain.h.
+CONFIG_SA_INCIDENT_ENV_SEPOLIA=y
 
 # NVS encryption is mandatory before incident signer provisioning is accepted.
 CONFIG_NVS_ENCRYPTION=y

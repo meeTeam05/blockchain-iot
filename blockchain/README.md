@@ -13,6 +13,8 @@ scripts/verify.js             Verify source trên Etherscan
 scripts/roles.js              Task `hardhat roles`: xem/cấp/thu role
 abi/AirSafetyLog.json         ABI bàn giao cho backend (Task 3/4) và app (Task 5)
 deployments/sepolia.json      Address, chain ID, tx deploy, block, domain (sau khi deploy)
+deployments/sepolia.v1-highwater.json  Deployment cũ 0x4E6e… (bytecode high-water-mark, KHÔNG dùng)
+../spec/incident/deployments/ Nguồn domain EIP-712 duy nhất cho firmware + backend (deploy.js ghi)
 ```
 
 ## Lệnh
@@ -25,7 +27,8 @@ npm run export-abi       # sau compile, cập nhật abi/AirSafetyLog.json
 
 cp .env.example .env     # điền SEPOLIA_RPC_URL, DEPLOYER_PRIVATE_KEY, ETHERSCAN_API_KEY…
                          # hardhat.config.js tự đọc .env (dotenv), không cần source
-npm run deploy:sepolia   # ghi deployments/sepolia.json + abi/
+npm run deploy:sepolia   # ghi deployments/sepolia.json + spec/incident/deployments/sepolia.json + abi/
+node ../spec/incident/gen/gen-all.mjs   # sinh lại incident_domain.h + backend module, commit cùng deployment
 npm run verify:sepolia   # verify source, đánh dấu "verified": true
 ```
 
@@ -51,7 +54,7 @@ trước E2E. Không dùng address cũ như thể bytecode đã được cập n
 | EIP-712 domain | `AirSafetyLog` / `1` / `11155111` / address ở trên |
 | Admin, relayer, device manager | `0x7Ee5fAD36702a5228E60D8CDE6Be3FE91f5B1a3F` (ví test, tạm thời) |
 
-Chi tiết deployment cũ: [`deployments/sepolia.json`](deployments/sepolia.json).
+Chi tiết deployment cũ: [`deployments/sepolia.v1-highwater.json`](deployments/sepolia.v1-highwater.json). Deployment này chạy bytecode cũ (high-water-mark sequence) và chỉ còn là legacy domain; cần deploy lại (E2E_FIX_PLAN.md giai đoạn 2).
 Sau khi deploy source hiện tại, firmware (Task 1) và backend (Task 3) phải được
 chuyển cùng lúc sang address mới. Vector dùng `0xCccc…` chỉ để test. ABI của
 source hiện tại nằm tại [`abi/AirSafetyLog.json`](abi/AirSafetyLog.json).

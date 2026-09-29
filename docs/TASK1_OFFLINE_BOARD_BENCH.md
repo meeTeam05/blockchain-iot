@@ -117,7 +117,7 @@ The buzzer is submitted before incident work. Candidate eligibility remains limi
 - Replay, AI, Blockchain Incident v2, buzzer, and offline bench mode enabled.
 - NVS encryption using the board's existing HMAC protection is working.
 - A production signer has already been provisioned through the existing encrypted-NVS lifecycle.
-- `CONFIG_SA_INCIDENT_VERIFYING_CONTRACT` contains the intended valid address.
+- `CONFIG_SA_INCIDENT_ENV_*` selects a deployment that exists in `spec/incident/deployments/` (the boot log prints `incident domain <env> contract <address>`; an error there means nothing will be signed).
 - DS3231 is available and contains a Unix timestamp at or after 2000-01-01. Without approved time, replay and buzzer continue but the production incident gate rejects the candidate.
 - Persistent incident queue capacity is available.
 - Do not erase the default NVS partition between signer provisioning and this test.

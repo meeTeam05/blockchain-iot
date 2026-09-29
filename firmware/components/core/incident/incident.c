@@ -33,11 +33,18 @@ typedef void *SemaphoreHandle_t;
 #ifndef CONFIG_SA_INCIDENT_QUEUE_CAPACITY
 #define CONFIG_SA_INCIDENT_QUEUE_CAPACITY 4
 #endif
-#define CONFIG_SA_INCIDENT_VERIFYING_CONTRACT "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"
+/* Host tools keep the Schema v2 test-vector domain; firmware images take the
+ * domain from the generated incident_domain.h (spec/incident/deployments). */
+#define INCIDENT_DOMAIN_NAME "AirSafetyLog"
+#define INCIDENT_DOMAIN_VERSION "1"
+#define INCIDENT_CHAIN_ID 11155111ULL
+#define INCIDENT_VERIFYING_CONTRACT "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"
+#define INCIDENT_DOMAIN_SEPARATOR ""
 #else
 #include "incident.h"
 
 #include "config.h"
+#include "incident_domain.h"
 #include "cJSON.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
@@ -112,6 +119,9 @@ static QueueHandle_t s_work;
 #endif
 static SemaphoreHandle_t s_lock;
 static uint32_t s_retry_count, s_queue_full_count;
+#ifndef INCIDENT_HOST_TEST
+static bool s_domain_ok;
+#endif
 #endif
 
 /* `config_get_device_id()` resolves this exact lowercase STA-MAC form.  Keep
@@ -155,8 +165,11 @@ static uint32_t record_checksum(const queued_record_t *r)
 
 static void hash_evidence(const evidence_t *e,uint8_t out[32]) { uint8_t h[32],w[32];keccak_t k;keccak256(k_evidence_type,strlen(k_evidence_type),h);keccak_init(&k);abi_hash_field(&k,h);abi_uint_field(&k,e->schema_version);abi_hash_field(&k,e->device_id_hash);abi_hash_field(&k,e->incident_id);abi_uint_field(&k,e->sequence);abi_uint_field(&k,e->observed_at);abi_uint_field(&k,e->time_source);abi_uint_field(&k,e->snapshot.sensor_valid_mask);abi_uint_field(&k,2);abi_i32(w,e->snapshot.temperature_c_x100);keccak_update(&k,w,32);abi_uint_field(&k,e->snapshot.humidity_pct_x100);abi_uint_field(&k,e->snapshot.co_ppm_x1000);abi_uint_field(&k,e->snapshot.no2_ppm_x1000);abi_uint_field(&k,e->snapshot.overall_level);abi_uint_field(&k,e->snapshot.co_level);abi_uint_field(&k,e->snapshot.no2_level);abi_uint_field(&k,e->snapshot.co_alarm_source_mask);abi_uint_field(&k,e->snapshot.no2_alarm_source_mask);abi_uint_field(&k,e->snapshot.derived_valid_mask);abi_uint_field(&k,e->snapshot.co_stel15_ppm_x1000);abi_uint_field(&k,e->snapshot.no2_stel15_ppm_x1000);abi_uint_field(&k,e->snapshot.co_twa8h_ppm_x1000);abi_uint_field(&k,e->snapshot.no2_twa8h_ppm_x1000);abi_uint_field(&k,e->snapshot.co_proj10_ppm_x1000);abi_uint_field(&k,e->snapshot.no2_proj10_ppm_x1000);abi_uint_field(&k,e->snapshot.model_probability_valid_mask);abi_uint_field(&k,e->snapshot.co_model_probability_bps);abi_uint_field(&k,e->snapshot.no2_model_probability_bps);abi_uint_field(&k,e->incident_kind);abi_uint_field(&k,e->severity);abi_hash_field(&k,e->firmware_version_hash);abi_hash_field(&k,e->model_sha256);abi_uint_field(&k,e->calibration_revision);abi_hash_field(&k,e->calibration_hash);keccak_final(&k,out); }
 static void hash_incident_id(const uint8_t device[32],uint64_t seq,uint8_t out[32]) { uint8_t s[8];for(int i=7;i>=0;i--){s[i]=(uint8_t)seq;seq>>=8;}keccak_t k;keccak_init(&k);keccak_update(&k,"AIR-INCIDENT-2",14);keccak_update(&k,device,32);keccak_update(&k,s,8);keccak_final(&k,out); }
-static bool contract_word(uint8_t out[32]) { const char *s=CONFIG_SA_INCIDENT_VERIFYING_CONTRACT; size_t n=strlen(s); memset(out,0,32); if(n!=42||s[0]!='0'||s[1]!='x')return false; for(int i=0;i<20;i++){char a=s[2+i*2],b=s[3+i*2];int hi=(a>='0'&&a<='9')?a-'0':(a>='a'&&a<='f')?a-'a'+10:(a>='A'&&a<='F')?a-'A'+10:-1,lo=(b>='0'&&b<='9')?b-'0':(b>='a'&&b<='f')?b-'a'+10:(b>='A'&&b<='F')?b-'A'+10:-1;if(hi<0||lo<0)return false;out[12+i]=(uint8_t)((hi<<4)|lo);}return true; }
-static bool hash_digest(const evidence_t *e,const uint8_t ev_hash[32],uint8_t out[32]) { uint8_t att[32],domain[32],type[32],name[32],version[32],chain[32],contract[32],sh[32],pre[66];if(!contract_word(contract))return false;keccak256(k_attestation_type,strlen(k_attestation_type),att);const char *domain_type="EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)";keccak256(domain_type,strlen(domain_type),type);keccak256("AirSafetyLog",12,name);keccak256("1",1,version);abi_u(chain,11155111);keccak_t k;keccak_init(&k);abi_hash_field(&k,type);abi_hash_field(&k,name);abi_hash_field(&k,version);keccak_update(&k,chain,32);keccak_update(&k,contract,32);keccak_final(&k,domain);keccak_init(&k);abi_hash_field(&k,att);abi_hash_field(&k,e->device_id_hash);abi_hash_field(&k,e->incident_id);abi_uint_field(&k,e->sequence);abi_uint_field(&k,e->observed_at);abi_uint_field(&k,e->severity);abi_hash_field(&k,ev_hash);keccak_final(&k,sh);pre[0]=0x19;pre[1]=0x01;memcpy(pre+2,domain,32);memcpy(pre+34,sh,32);keccak256(pre,sizeof(pre),out);return true; }
+static bool contract_word(uint8_t out[32]) { const char *s=INCIDENT_VERIFYING_CONTRACT; size_t n=strlen(s); memset(out,0,32); if(n!=42||s[0]!='0'||s[1]!='x')return false; for(int i=0;i<20;i++){char a=s[2+i*2],b=s[3+i*2];int hi=(a>='0'&&a<='9')?a-'0':(a>='a'&&a<='f')?a-'a'+10:(a>='A'&&a<='F')?a-'A'+10:-1,lo=(b>='0'&&b<='9')?b-'0':(b>='a'&&b<='f')?b-'a'+10:(b>='A'&&b<='F')?b-'A'+10:-1;if(hi<0||lo<0)return false;out[12+i]=(uint8_t)((hi<<4)|lo);}return true; }
+/* EIP-712 domain separator for the compiled-in deployment. False when the
+ * selected deployment has no contract yet, so nothing is signed for it. */
+static bool domain_separator(uint8_t out[32]) { uint8_t type[32],name[32],version[32],chain[32],contract[32];if(!contract_word(contract)||INCIDENT_CHAIN_ID==0)return false;const char *domain_type="EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)";keccak256(domain_type,strlen(domain_type),type);keccak256(INCIDENT_DOMAIN_NAME,strlen(INCIDENT_DOMAIN_NAME),name);keccak256(INCIDENT_DOMAIN_VERSION,strlen(INCIDENT_DOMAIN_VERSION),version);abi_u(chain,INCIDENT_CHAIN_ID);keccak_t k;keccak_init(&k);abi_hash_field(&k,type);abi_hash_field(&k,name);abi_hash_field(&k,version);keccak_update(&k,chain,32);keccak_update(&k,contract,32);keccak_final(&k,out);return true; }
+static bool hash_digest(const evidence_t *e,const uint8_t ev_hash[32],uint8_t out[32]) { uint8_t att[32],domain[32],sh[32],pre[66];if(!domain_separator(domain))return false;keccak256(k_attestation_type,strlen(k_attestation_type),att);keccak_t k;keccak_init(&k);abi_hash_field(&k,att);abi_hash_field(&k,e->device_id_hash);abi_hash_field(&k,e->incident_id);abi_uint_field(&k,e->sequence);abi_uint_field(&k,e->observed_at);abi_uint_field(&k,e->severity);abi_hash_field(&k,ev_hash);keccak_final(&k,sh);pre[0]=0x19;pre[1]=0x01;memcpy(pre+2,domain,32);memcpy(pre+34,sh,32);keccak256(pre,sizeof(pre),out);return true; }
 
 static void set_calibration(evidence_t *e) {
     char material[128];
@@ -184,6 +197,28 @@ static esp_err_t save_record(unsigned i,const queued_record_t *r) { nvs_handle_t
 static bool load_record(unsigned i,queued_record_t *r) { nvs_handle_t h;char key[8];key_for_slot(i,key);size_t len=sizeof(*r);if(nvs_open(INCIDENT_NS,NVS_READONLY,&h)!=ESP_OK)return false;esp_err_t e=nvs_get_blob(h,key,r,&len);nvs_close(h);return e==ESP_OK&&len==sizeof(*r)&&r->magic==INCIDENT_MAGIC&&r->len<INCIDENT_PAYLOAD_MAX&&r->payload[r->len]==0&&r->checksum==record_checksum(r); }
 static esp_err_t erase_record(unsigned i) { nvs_handle_t h;char key[8];key_for_slot(i,key);esp_err_t e=nvs_open_rw(&h);if(e==ESP_OK){e=nvs_erase_key(h,key);if(e==ESP_ERR_NVS_NOT_FOUND)e=ESP_OK;if(e==ESP_OK)e=nvs_commit(h);nvs_close(h);}return e; }
 static int find_empty(void) { queued_record_t r;for(unsigned i=0;i<INCIDENT_QUEUE_CAPACITY;i++)if(!load_record(i,&r))return (int)i;return -1; }
+/* Counts every valid slot. find_empty() only reports the first free slot, so it
+ * cannot tell whether later slots still hold records. */
+static unsigned pending_count(void) { queued_record_t *r=calloc(1,sizeof(*r));unsigned n=0;if(!r)return INCIDENT_QUEUE_CAPACITY;for(unsigned i=0;i<INCIDENT_QUEUE_CAPACITY;i++)if(load_record(i,r))n++;free(r);return n; }
+/* A signer key may only be replaced once every queued record has been ACKed:
+ * after rotation the old records no longer match the on-chain signer. */
+static bool rotate_allowed(void) { return pending_count()==0; }
+
+/* Sequence floor. The counter only exists after the backend sent a floor
+ * (signer_activate) or after this device already allocated a sequence. A
+ * device whose NVS was wiped must never restart at 1: the backend/chain have
+ * already used those (device, sequence) pairs. */
+#ifdef INCIDENT_HOST_PERSISTENCE_TEST
+static bool s_require_sequence_floor = false; /* host tests opt in explicitly */
+#elif CONFIG_SA_INCIDENT_OFFLINE_BENCH
+#define s_require_sequence_floor false        /* offline bench has no backend to send a floor */
+#else
+#define s_require_sequence_floor true
+#endif
+static bool sequence_initialized(void) { nvs_handle_t h;uint64_t v=0;if(nvs_open(INCIDENT_NS,NVS_READONLY,&h)!=ESP_OK)return false;esp_err_t e=nvs_get_u64(h,INCIDENT_KEY_SEQ,&v);nvs_close(h);return e==ESP_OK; }
+/* Raise-only: the next allocated sequence becomes at least `floor`. Replayed or
+ * late signer_activate commands can never lower the counter. */
+static esp_err_t set_sequence_floor(uint64_t floor) { if(floor==0)return ESP_ERR_INVALID_ARG;nvs_handle_t h;esp_err_t err=nvs_open_rw(&h);if(err!=ESP_OK)return err;uint64_t cur=0;bool present=true;err=nvs_get_u64(h,INCIDENT_KEY_SEQ,&cur);if(err==ESP_ERR_NVS_NOT_FOUND){present=false;cur=0;err=ESP_OK;}if(err==ESP_OK&&(!present||cur<floor-1)){err=nvs_set_u64(h,INCIDENT_KEY_SEQ,floor-1);if(err==ESP_OK)err=nvs_commit(h);}nvs_close(h);return err; }
 
 #if !defined(INCIDENT_HOST_TEST) && CONFIG_SA_INCIDENT_OFFLINE_BENCH
 static const char *INC_BENCH_TAG = "INC_BENCH";
@@ -539,6 +574,16 @@ static void process_work(const work_t *w)
 #endif
         return;
     }
+#ifndef INCIDENT_HOST_TEST
+    if (!s_domain_ok) {
+        ESP_LOGW(TAG, "incident skipped: EIP-712 domain for %s is not usable", INCIDENT_DEPLOYMENT_NAME);
+        return;
+    }
+#endif
+    if (s_require_sequence_floor && !sequence_initialized()) {
+        ESP_LOGW(TAG, "incident skipped: signer awaiting signer_activate sequence floor");
+        return;
+    }
 
     /* A queued record is 2208 bytes. Keep it off this 6144-byte worker stack:
      * persistence helpers also need a full-record scratch frame. */
@@ -638,9 +683,30 @@ static void process_work(const work_t *w)
 #ifndef INCIDENT_HOST_TEST
 static void incident_task(void *arg) { (void)arg;work_t w;for(;;){if(xQueueReceive(s_work,&w,pdMS_TO_TICKS(60000))==pdTRUE)process_work(&w);incident_retry_pending();} }
 
+/* Recompute the domain separator and compare it with the one recorded at
+ * deployment time. A mismatch means the generated header was edited or the
+ * keccak/ABI code regressed; signing for an unknown domain is refused. */
+static bool domain_self_check(void)
+{
+    uint8_t computed[32], expected[32];
+    char hex[67];
+    if (!domain_separator(computed)) {
+        ESP_LOGE(TAG, "no %s AirSafetyLog deployment compiled in; incidents will not be signed", INCIDENT_DEPLOYMENT_NAME);
+        return false;
+    }
+    hex32(computed, hex);
+    if (!parse_hex32(INCIDENT_DOMAIN_SEPARATOR, expected) || memcmp(computed, expected, 32) != 0) {
+        ESP_LOGE(TAG, "EIP-712 domain separator mismatch (computed %s); incidents will not be signed", hex);
+        return false;
+    }
+    ESP_LOGI(TAG, "incident domain %s contract %s separator %s", INCIDENT_DEPLOYMENT_NAME, INCIDENT_VERIFYING_CONTRACT, hex);
+    return true;
+}
+
 esp_err_t incident_init(const char *device_id)
 {
     if (!valid_device_id(device_id)) return ESP_ERR_INVALID_ARG;
+    s_domain_ok = domain_self_check();
     strlcpy(s_device_id, device_id, sizeof(s_device_id));
     snprintf(s_topic, sizeof(s_topic), "device/%s/incident", device_id);
     s_lock = xSemaphoreCreateMutex();
@@ -745,11 +811,45 @@ esp_err_t incident_get_signer_address(char out[43]) {
     mbedtls_ctr_drbg_free(&rng);mbedtls_entropy_free(&entropy);mbedtls_ecp_point_free(&G);mbedtls_ecp_point_free(&q);mbedtls_mpi_free(&d);mbedtls_ecp_group_free(&g);memset(key,0,sizeof(key));memset(pub,0,sizeof(pub));
     return rc==0?ESP_OK:ESP_FAIL;
 }
-esp_err_t incident_rotate_signer(const uint8_t key[32]) { if(find_empty()!=0)return ESP_ERR_INVALID_STATE;return incident_provision_signer(key); }
+esp_err_t incident_rotate_signer(const uint8_t key[32]) {
+    if(!key)return ESP_ERR_INVALID_ARG;
+    if(s_lock)xSemaphoreTake(s_lock,portMAX_DELAY);
+    esp_err_t e=rotate_allowed()?incident_provision_signer(key):ESP_ERR_INVALID_STATE;
+    if(s_lock)xSemaphoreGive(s_lock);
+    return e;
+}
+esp_err_t incident_set_sequence_floor(uint64_t floor) {
+    if(!s_lock)return set_sequence_floor(floor);
+    xSemaphoreTake(s_lock,portMAX_DELAY);esp_err_t e=set_sequence_floor(floor);xSemaphoreGive(s_lock);return e;
+}
+/* MQTT command {"type":"signer_activate","floor":"<uint64 decimal>"} sent by the
+ * backend signer lifecycle once the signer is registered on-chain. */
+esp_err_t incident_handle_signer_activate(const char *type, const char *json_payload)
+{
+    (void)type;
+    if (!json_payload) return ESP_ERR_INVALID_ARG;
+    cJSON *o = cJSON_ParseWithOpts(json_payload, NULL, true);
+    cJSON *f = cJSON_IsObject(o) ? cJSON_GetObjectItemCaseSensitive(o, "floor") : NULL;
+    uint64_t floor = 0;
+    bool ok = cJSON_IsString(f) && f->valuestring[0] != '\0' && f->valuestring[0] != '0' && strlen(f->valuestring) <= 20;
+    for (const char *c = ok ? f->valuestring : ""; ok && *c; ++c) {
+        if (*c < '0' || *c > '9' || floor > (UINT64_MAX - (uint64_t)(*c - '0')) / 10) ok = false;
+        else floor = floor * 10 + (uint64_t)(*c - '0');
+    }
+    cJSON_Delete(o);
+    if (!ok || floor == 0) {
+        ESP_LOGW(TAG, "signer_activate: floor must be a positive uint64 decimal string");
+        return ESP_ERR_INVALID_ARG;
+    }
+    esp_err_t e = incident_set_sequence_floor(floor);
+    if (e == ESP_OK) ESP_LOGI(TAG, "signer activated; next sequence >= %llu", (unsigned long long)floor);
+    else ESP_LOGE(TAG, "signer_activate failed: %s", esp_err_to_name(e));
+    return e;
+}
 esp_err_t incident_revoke_local_signer(void) { nvs_handle_t h;esp_err_t e=nvs_open_rw(&h);if(e==ESP_OK){e=nvs_erase_key(h,INCIDENT_KEY_SIGNER);if(e==ESP_OK)e=nvs_commit(h);nvs_close(h);}return e; }
 #endif /* !INCIDENT_HOST_TEST: task/API/signer lifecycle */
 #endif /* production or persistence host processing */
 
 #else
-esp_err_t incident_init(const char *device_id){(void)device_id;return ESP_OK;} void incident_set_time_source(incident_time_source_t s){(void)s;} void incident_on_gas_ews_transition(uint8_t a,uint8_t b,const incident_snapshot_t*s){(void)a;(void)b;(void)s;} esp_err_t incident_handle_ack(const char*p){(void)p;return ESP_ERR_NOT_SUPPORTED;} void incident_retry_pending(void){} esp_err_t incident_provision_signer(const uint8_t k[32]){(void)k;return ESP_ERR_NOT_SUPPORTED;} esp_err_t incident_get_signer_address(char o[43]){(void)o;return ESP_ERR_NOT_SUPPORTED;} esp_err_t incident_rotate_signer(const uint8_t k[32]){(void)k;return ESP_ERR_NOT_SUPPORTED;} esp_err_t incident_revoke_local_signer(void){return ESP_ERR_NOT_SUPPORTED;}
+esp_err_t incident_init(const char *device_id){(void)device_id;return ESP_OK;} void incident_set_time_source(incident_time_source_t s){(void)s;} void incident_on_gas_ews_transition(uint8_t a,uint8_t b,const incident_snapshot_t*s){(void)a;(void)b;(void)s;} esp_err_t incident_handle_ack(const char*p){(void)p;return ESP_ERR_NOT_SUPPORTED;} void incident_retry_pending(void){} esp_err_t incident_provision_signer(const uint8_t k[32]){(void)k;return ESP_ERR_NOT_SUPPORTED;} esp_err_t incident_get_signer_address(char o[43]){(void)o;return ESP_ERR_NOT_SUPPORTED;} esp_err_t incident_rotate_signer(const uint8_t k[32]){(void)k;return ESP_ERR_NOT_SUPPORTED;} esp_err_t incident_revoke_local_signer(void){return ESP_ERR_NOT_SUPPORTED;} esp_err_t incident_set_sequence_floor(uint64_t f){(void)f;return ESP_ERR_NOT_SUPPORTED;} esp_err_t incident_handle_signer_activate(const char*t,const char*p){(void)t;(void)p;return ESP_ERR_NOT_SUPPORTED;}
 #endif

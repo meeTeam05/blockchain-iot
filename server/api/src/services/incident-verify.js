@@ -375,8 +375,10 @@ export function computeAttestationDigest(domain, attestation) {
     );
 }
 
-// Returns { ok, signer } or a failure. Enforces r||s||v, v in {27,28}, low-s.
-export function recoverIncidentSigner(digest, signature) {
+// Domain-independent signature checks: 65-byte r||s||v, v in {27,28}, r/s in range,
+// low-s. These never depend on which EIP-712 domain is tried, so the intake runs them
+// once before its domain loop and reports them as INVALID_SIGNATURE, not a signer error.
+export function checkSignatureFormat(signature) {
     if (typeof signature !== 'string' || !SIGNATURE_RE.test(signature)) {
         return fail(INCIDENT_ERROR.INVALID_SIGNATURE, 'signature must be 65-byte 0x-prefixed hex');
     }
@@ -387,17 +389,23 @@ export function recoverIncidentSigner(digest, signature) {
     if (v !== 27 && v !== 28) return fail(INCIDENT_ERROR.INVALID_SIGNATURE, 'signature v must be 27 or 28');
     if (r === 0n || r >= SECP256K1_N) return fail(INCIDENT_ERROR.INVALID_SIGNATURE, 'signature r is out of range');
     if (s === 0n || s > SECP256K1_HALF_N) return fail(INCIDENT_ERROR.INVALID_SIGNATURE, 'signature s must be in the low half order');
+    return { ok: true, signature: `0x${hex}` };
+}
 
+// Returns { ok, signer } or a failure. Enforces r||s||v, v in {27,28}, low-s.
+export function recoverIncidentSigner(digest, signature) {
+    const format = checkSignatureFormat(signature);
+    if (!format.ok) return format;
     try {
-        return { ok: true, signer: recoverAddress(digest, `0x${hex}`) };
+        return { ok: true, signer: recoverAddress(digest, format.signature) };
     } catch {
         return fail(INCIDENT_ERROR.INVALID_SIGNATURE, 'signature does not recover to a public key');
     }
 }
 
-// Full stateless verification: format -> semantics -> hashes -> signature.
-// DB-dependent checks (signer registry, time/sequence policy, dedupe) live in incident-intake.js.
-export function verifyIncidentPayload(payload, domain) {
+// Stateless, domain-independent verification: format -> semantics -> hashes -> signature
+// format. The result has everything needed to try one or more EIP-712 domains.
+export function verifyIncidentEvidence(payload) {
     const parsed = parseIncidentPayload(payload);
     if (!parsed.ok) return parsed;
     const { evidence, transport } = parsed;
@@ -429,7 +437,18 @@ export function verifyIncidentPayload(payload, domain) {
         }
     }
 
-    computed.digest = computeAttestationDigest(domain, {
+    const format = checkSignatureFormat(transport.signature);
+    if (!format.ok) return { ...format, evidence, transport, computed };
+
+    return { ok: true, evidence, transport, computed };
+}
+
+// EIP-712 digest + recovered signer of already-verified evidence under one domain.
+// ECDSA recovery "succeeds" for any digest, so the caller must compare the result
+// with a known signer; a recovered address alone proves nothing about the domain.
+export function recoverForDomain(verified, domain) {
+    const { evidence, transport, computed } = verified;
+    const digest = computeAttestationDigest(domain, {
         deviceIdHash: computed.deviceIdHash,
         incidentId: computed.incidentId,
         sequence: evidence.sequence,
@@ -437,17 +456,87 @@ export function verifyIncidentPayload(payload, domain) {
         severity: evidence.severity,
         evidenceHash: computed.evidenceHash,
     });
+    const recovered = recoverIncidentSigner(digest, transport.signature);
+    return recovered.ok ? { ok: true, digest, signer: recovered.signer.toLowerCase() } : recovered;
+}
 
-    const recovered = recoverIncidentSigner(computed.digest, transport.signature);
-    if (!recovered.ok) return { ...recovered, evidence, transport, computed };
-
+// Full stateless verification against a single domain (read-side re-verification, tests).
+export function verifyIncidentPayload(payload, domain) {
+    const verified = verifyIncidentEvidence(payload);
+    if (!verified.ok) return verified;
+    const recovered = recoverForDomain(verified, domain);
+    if (!recovered.ok) return { ...recovered, ...verified, ok: false };
     return {
-        ok: true,
-        evidence,
-        transport,
-        computed,
-        signer: recovered.signer.toLowerCase(),
+        ...verified,
+        computed: { ...verified.computed, digest: recovered.digest },
+        signer: recovered.signer,
     };
+}
+
+// Chain eligibility decided at intake (E2E_FIX_PLAN.md section 3 matrix).
+export const OUTBOX_STATUS = Object.freeze({
+    QUEUED: 'queued',
+    WAITING_SIGNER: 'waiting_signer',
+    STALE_SIGNER: 'stale_signer',
+    LEGACY_DOMAIN: 'legacy_domain',
+});
+
+// signer row: { signer_address, status: pending|active|revoked, revoke_reason }.
+// Returns the outbox status, or null when this signer may not produce evidence at all.
+export function outboxStatusFor(domainKind, signer) {
+    const rotated = signer.status === 'revoked' && signer.revoke_reason === 'rotated';
+    if (domainKind === 'current') {
+        if (signer.status === 'active') return OUTBOX_STATUS.QUEUED;
+        if (signer.status === 'pending') return OUTBOX_STATUS.WAITING_SIGNER;
+        if (rotated) return OUTBOX_STATUS.STALE_SIGNER;
+        return null;
+    }
+    if (signer.status === 'active' || rotated) return OUTBOX_STATUS.LEGACY_DOMAIN;
+    return null;
+}
+
+// Authenticates verified evidence by (domain, signer): a domain is selected only when
+// the signer recovered under it is a signer registered for this very device. A match on a
+// known-but-ineligible signer stops the search: the domain is then identified, and trying
+// further domains could only produce a coincidental match.
+export function authenticateIncident(verified, { domains, signerHistory }) {
+    const bySigner = new Map(signerHistory.map((row) => [row.signer_address.toLowerCase(), row]));
+    const candidates = [
+        { domain: domains.current, kind: 'current' },
+        ...domains.legacy.map((domain) => ({ domain, kind: 'legacy' })),
+    ];
+    for (const { domain, kind } of candidates) {
+        const recovered = recoverForDomain(verified, domain);
+        if (!recovered.ok) return recovered;
+        const signer = bySigner.get(recovered.signer);
+        if (!signer) continue;
+        const outboxStatus = outboxStatusFor(kind, signer);
+        if (!outboxStatus) {
+            return fail(INCIDENT_ERROR.SIGNER_NOT_ACTIVE, `signature is from a ${signer.status} signer that may not sign`, {
+                security: {
+                    domain: domain.verifyingContract.toLowerCase(),
+                    signer: recovered.signer,
+                    signer_status: signer.status,
+                    revoke_reason: signer.revoke_reason ?? null,
+                },
+            });
+        }
+        return {
+            ok: true,
+            domain,
+            domainKind: kind,
+            digest: recovered.digest,
+            signer: recovered.signer,
+            outboxStatus,
+        };
+    }
+    // Addresses recovered under non-matching domains are meaningless; record only
+    // which domains were tried.
+    return fail(
+        INCIDENT_ERROR.SIGNER_NOT_ACTIVE,
+        signerHistory.length ? 'signature matches no registered signer of this device under any accepted domain' : 'device has no registered signer',
+        { security: { tried_domains: candidates.map(({ domain }) => domain.verifyingContract.toLowerCase()) } }
+    );
 }
 
 // Step 3 (needs receive time): accept delayed signed evidence indefinitely, but

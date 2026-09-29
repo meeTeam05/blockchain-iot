@@ -15,6 +15,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VECTOR_DIR = path.resolve(__dirname, '../../../../docs/test-vectors');
 const MIGRATION_017 = path.resolve(__dirname, '../../../db/migrations/017_blockchain_incidents.sql');
 const MIGRATION_018 = path.resolve(__dirname, '../../../db/migrations/018_task1_task3_wire_compat.sql');
+const MIGRATION_019 = path.resolve(__dirname, '../../../db/migrations/019_outbox_domain_and_signer_gate.sql');
 
 export const VECTOR_FILES = Object.freeze({
     earlyWarning: 'incident-v2-model-early-warning.json',
@@ -72,7 +73,17 @@ CREATE TABLE home_members (
 CREATE TABLE devices (
     id TEXT PRIMARY KEY,
     home_id UUID REFERENCES homes(id),
-    name VARCHAR NOT NULL
+    name VARCHAR NOT NULL,
+    online BOOLEAN DEFAULT FALSE
+);
+CREATE TABLE commands (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    device_id TEXT REFERENCES devices(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id),
+    payload JSONB NOT NULL,
+    status VARCHAR DEFAULT 'pending',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    executed_at TIMESTAMPTZ
 );
 CREATE TABLE realtime_events (
     id BIGSERIAL PRIMARY KEY,
@@ -113,6 +124,7 @@ export async function createIncidentDb({ signerAddress = null } = {}) {
     await pg.exec(BASE_SCHEMA);
     await pg.exec(await readFile(MIGRATION_017, 'utf8'));
     await pg.exec(await readFile(MIGRATION_018, 'utf8'));
+    await pg.exec(await readFile(MIGRATION_019, 'utf8'));
 
     await pg.query('INSERT INTO users (id) VALUES ($1), ($2)', [USER_ID, OUTSIDER_ID]);
     await pg.query('INSERT INTO homes (id) VALUES ($1)', [HOME_ID]);
@@ -130,6 +142,8 @@ export async function createIncidentDb({ signerAddress = null } = {}) {
     return {
         pg,
         db,
+        // Same { query, withTransaction } shape as the worker's pool adapter.
+        query: (sql, params) => db.query(sql, params),
         async withTransaction(fn) {
             return pg.transaction(async (tx) => fn(queryAdapter(tx)));
         },
