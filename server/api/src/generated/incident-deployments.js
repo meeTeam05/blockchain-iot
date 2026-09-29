@@ -12,6 +12,20 @@ export const INCIDENT_DEPLOYMENTS = Object.freeze({
         "legacyAddresses": [],
         "deployTxHash": "0xd966928812f86db483e79c96f68d044db340d6a8b822b474fa2fc5a38f2c0043",
         "blockNumber": 1
+    },
+    "sepolia": {
+        "network": "sepolia",
+        "chainId": "11155111",
+        "name": "AirSafetyLog",
+        "version": "1",
+        "address": "0x45CF175ffd4B1Ad77E87389d1e92945f9Bc88d3A",
+        "domainSeparator": "0x34632810b8dcf18cf8dd255b5d3c1f722d5879ef9535ff95abd5a17048ab485d",
+        "legacyAddresses": [
+            "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC",
+            "0x4E6e20bC0601CddD6Cb0C3AE8440e6933839A8Aa"
+        ],
+        "deployTxHash": "0x40a4f53fe1f5d8b4cbda525e353d8cf36156da0a8777cd1ae1729705195c45b4",
+        "blockNumber": 11810036
     }
 });
 

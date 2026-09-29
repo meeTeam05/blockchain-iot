@@ -1,0 +1,58 @@
+{
+  "contract": "AirSafetyLog",
+  "network": "sepolia",
+  "chainId": "11155111",
+  "address": "0x45CF175ffd4B1Ad77E87389d1e92945f9Bc88d3A",
+  "deployTxHash": "0x40a4f53fe1f5d8b4cbda525e353d8cf36156da0a8777cd1ae1729705195c45b4",
+  "blockNumber": 11810036,
+  "deployer": "0x7Ee5fAD36702a5228E60D8CDE6Be3FE91f5B1a3F",
+  "admin": "0x7Ee5fAD36702a5228E60D8CDE6Be3FE91f5B1a3F",
+  "roleGrants": [
+    {
+      "role": "RELAYER_ROLE",
+      "account": "0xe9426f8AbFf21ddb99a4Ca383c2b71D9AF95197d",
+      "tx": "0xa863edca264fe43df3398806e0a4daadc86062dad86ab7eb33ce78a2ff5e9ef7"
+    },
+    {
+      "role": "DEVICE_MANAGER_ROLE",
+      "account": "0x106ce92E3664AeD1330c183aFdF2D5Ff7618D29A",
+      "tx": "0xbf87475d819602f27cc2e8ccccc22fc8545da25f15cff1147d7db461b50cb981"
+    }
+  ],
+  "eip712Domain": {
+    "name": "AirSafetyLog",
+    "version": "1",
+    "chainId": "11155111",
+    "verifyingContract": "0x45CF175ffd4B1Ad77E87389d1e92945f9Bc88d3A"
+  },
+  "schemaVersion": 2,
+  "compiler": {
+    "version": "0.8.28",
+    "settings": {
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "evmVersion": "cancun",
+      "viaIR": true,
+      "outputSelection": {
+        "*": {
+          "*": [
+            "abi",
+            "evm.bytecode",
+            "evm.deployedBytecode",
+            "evm.methodIdentifiers",
+            "metadata"
+          ],
+          "": [
+            "ast"
+          ]
+        }
+      }
+    }
+  },
+  "verified": true,
+  "explorer": "https://sepolia.etherscan.io/address/0x45CF175ffd4B1Ad77E87389d1e92945f9Bc88d3A",
+  "deployedAt": "2026-09-29T20:54:49.894Z",
+  "verifiedAt": "2026-09-29T20:55:10.269Z"
+}
