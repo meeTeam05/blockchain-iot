@@ -254,7 +254,16 @@ trang, dApp tiếp tục theo dõi thay vì cho gửi lại.
 | `AlreadySettled` | Đã có người xử lý trước |
 | `BondTooLow` | Ký quỹ chưa đủ mức tối thiểu |
 | `CooldownActive` | Chưa hết thời gian chờ rút ký quỹ |
+| `ResolveDeadlinePassed` | Đã quá hạn xử lý, không thể nhận thưởng |
+| `NotAcknowledged` / `NotResolved` | Sự cố chưa được xác nhận / chưa được xử lý trên chain |
+| `IncidentNotCovered` | Sự cố ghi trước khi bật thưởng/phạt, không áp dụng |
+| `BondHeldByOther` | Ký quỹ của chủ cũ chưa rút, chưa thể ký quỹ |
+| `NotStaker` / `NotOperator` | Ví này không giữ khoản ký quỹ này |
+| `NoUnstakeRequest` / `UnstakeAlreadyRequested` | Chưa yêu cầu rút / đã yêu cầu rút rồi |
+| `DeviceNotFound` | Thiết bị chưa đăng ký on-chain |
+| `ZeroAmount` | Số lượng phải lớn hơn 0 |
 | `ERC20InsufficientBalance` | Không đủ ASAFE |
+| `ERC20InsufficientAllowance` | Chưa approve đủ ASAFE (bước 1 của stake) |
 | (RPC/gas) | Mạng Sepolia đang chậm hoặc ví không đủ ETH trả phí |
 
 ## 7. Kịch bản sử dụng và khối xử lý

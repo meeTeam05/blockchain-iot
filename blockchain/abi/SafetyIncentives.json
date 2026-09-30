@@ -979,81 +979,6 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "getParams",
-    "outputs": [
-      {
-        "components": [
-          {
-            "internalType": "uint64",
-            "name": "ackDeadlineWarning",
-            "type": "uint64"
-          },
-          {
-            "internalType": "uint64",
-            "name": "ackDeadlineDanger",
-            "type": "uint64"
-          },
-          {
-            "internalType": "uint64",
-            "name": "resolveDeadline",
-            "type": "uint64"
-          },
-          {
-            "internalType": "uint128",
-            "name": "ownerBond",
-            "type": "uint128"
-          },
-          {
-            "internalType": "uint128",
-            "name": "ackReward",
-            "type": "uint128"
-          },
-          {
-            "internalType": "uint128",
-            "name": "resolveReward",
-            "type": "uint128"
-          },
-          {
-            "internalType": "uint128",
-            "name": "missedAckPenalty",
-            "type": "uint128"
-          },
-          {
-            "internalType": "uint64",
-            "name": "maxRelayDelay",
-            "type": "uint64"
-          },
-          {
-            "internalType": "uint128",
-            "name": "lateRelayPenalty",
-            "type": "uint128"
-          },
-          {
-            "internalType": "uint16",
-            "name": "keeperShareBps",
-            "type": "uint16"
-          },
-          {
-            "internalType": "uint8",
-            "name": "dailyRewardCap",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint64",
-            "name": "unstakeCooldown",
-            "type": "uint64"
-          }
-        ],
-        "internalType": "struct SafetyIncentives.Params",
-        "name": "",
-        "type": "tuple"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "internalType": "bytes32",
@@ -1155,6 +1080,81 @@
           }
         ],
         "internalType": "struct SafetyIncentives.Bond",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "params",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint64",
+            "name": "ackDeadlineWarning",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "ackDeadlineDanger",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "resolveDeadline",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint128",
+            "name": "ownerBond",
+            "type": "uint128"
+          },
+          {
+            "internalType": "uint128",
+            "name": "ackReward",
+            "type": "uint128"
+          },
+          {
+            "internalType": "uint128",
+            "name": "resolveReward",
+            "type": "uint128"
+          },
+          {
+            "internalType": "uint128",
+            "name": "missedAckPenalty",
+            "type": "uint128"
+          },
+          {
+            "internalType": "uint64",
+            "name": "maxRelayDelay",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint128",
+            "name": "lateRelayPenalty",
+            "type": "uint128"
+          },
+          {
+            "internalType": "uint16",
+            "name": "keeperShareBps",
+            "type": "uint16"
+          },
+          {
+            "internalType": "uint8",
+            "name": "dailyRewardCap",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint64",
+            "name": "unstakeCooldown",
+            "type": "uint64"
+          }
+        ],
+        "internalType": "struct SafetyIncentives.Params",
         "name": "",
         "type": "tuple"
       }

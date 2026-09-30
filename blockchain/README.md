@@ -232,7 +232,7 @@ RewardsFunded / ParamsUpdated(Params) / OperatorChanged / TreasuryChanged
 ```
 
 View cho dApp và keeper: `pendingSettlement(key)` (không revert; trả hạn chót, cờ và
-`canRecordAck/canRecordResolve/canSlashMissedAck/canSlashLateRelay`), `getParams()`,
+`canRecordAck/canRecordResolve/canSlashMissedAck/canSlashLateRelay`), `params()`,
 `deviceBond(h)`, `operatorBond()`, `rewardFund()`, `rewardsToday(h, day)`, `currentDay()`.
 
 Custom error: `AckDeadlinePassed`, `AckDeadlineNotPassed`, `ResolveDeadlinePassed`,

@@ -113,7 +113,7 @@ describe("SafetyIncentives", function () {
       expect(await inc.operator()).to.equal(relayer.address);
       expect(await inc.hasRole(ethers.ZeroHash, admin.address)).to.equal(true);
       expect(await inc.activatedAt()).to.be.greaterThan(0n);
-      const p = await inc.getParams();
+      const p = await inc.params();
       for (const [k, v] of Object.entries(DEFAULT_PARAMS)) expect(p[k], k).to.equal(v);
     });
 
@@ -136,7 +136,7 @@ describe("SafetyIncentives", function () {
         "AccessControlUnauthorizedAccount"
       );
       await expect(inc.setParams(next)).to.emit(inc, "ParamsUpdated");
-      expect((await inc.getParams()).ackReward).to.equal(A(7));
+      expect((await inc.params()).ackReward).to.equal(A(7));
 
       for (const bad of [
         { ackDeadlineWarning: 0n },

@@ -86,7 +86,7 @@ async function main() {
   const incAddress = await inc.getAddress();
   console.log(`SafetyIncentives deployed at ${incAddress} (block ${incReceipt.blockNumber})`);
 
-  const p = await inc.getParams();
+  const p = await inc.params();
   const params = Object.fromEntries(Object.keys(p.toObject()).map((k) => [k, p[k].toString()]));
   const explorer = chainId === 11155111n && !LOCAL ? "https://sepolia.etherscan.io/address/" : null;
   const record = {

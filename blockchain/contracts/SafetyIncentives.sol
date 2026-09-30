@@ -408,7 +408,7 @@ contract SafetyIncentives is AccessControl, ReentrancyGuard {
     // Views
     // ---------------------------------------------------------------------
 
-    function getParams() external view returns (Params memory) {
+    function params() external view returns (Params memory) {
         return _params;
     }
 
