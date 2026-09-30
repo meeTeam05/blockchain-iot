@@ -11,7 +11,13 @@
     "node": "hardhat node",
     "deploy:localhost": "hardhat run scripts/deploy.js --network localhost",
     "verify:sepolia": "hardhat run scripts/verify.js --network sepolia",
-    "roles:sepolia": "hardhat roles --network sepolia"
+    "roles:sepolia": "hardhat roles --network sepolia",
+    "coverage": "hardhat coverage",
+    "deploy:incentives:localhost": "hardhat run scripts/deploy-incentives.js --network localhost",
+    "deploy:incentives:sepolia": "hardhat run scripts/deploy-incentives.js --network sepolia",
+    "fund:incentives:localhost": "hardhat run scripts/fund-incentives.js --network localhost",
+    "fund:incentives:sepolia": "hardhat run scripts/fund-incentives.js --network sepolia",
+    "verify:incentives:sepolia": "hardhat run scripts/verify-incentives.js --network sepolia"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",

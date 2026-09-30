@@ -4,9 +4,14 @@
 //   node spec/incident/gen/gen-all.mjs --check  # CI: fail when a generated file is stale
 import { generateBackend } from './gen-backend.mjs';
 import { generateFirmware } from './gen-firmware.mjs';
+import { generateIncentives } from './gen-incentives.mjs';
 
 const check = process.argv.includes('--check');
-const results = { firmware: generateFirmware({ check }), backend: generateBackend({ check }) };
+const results = {
+    firmware: generateFirmware({ check }),
+    backend: generateBackend({ check }),
+    incentives: generateIncentives({ check }),
+};
 const stale = Object.entries(results).filter(([, ok]) => !ok).map(([name]) => name);
 if (stale.length) {
     console.error(`stale generated files: ${stale.join(', ')}; run node spec/incident/gen/gen-all.mjs`);
