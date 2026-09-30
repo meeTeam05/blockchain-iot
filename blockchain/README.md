@@ -11,7 +11,7 @@ test/                         Hardhat test: vector v2, tamper, signer, replay, r
 scripts/deploy.js             Deploy + ghi deployments/<network>.json + ABI
 scripts/verify.js             Verify source trên Etherscan
 scripts/roles.js              Task `hardhat roles`: xem/cấp/thu role
-abi/AirSafetyLog.json         ABI bàn giao cho backend (Task 3/4) và app (Task 5)
+abi/AirSafetyLog.json         ABI bàn giao cho backend (Task 3/4) và dApp web3 (Task 5)
 deployments/sepolia.json      Address, chain ID, tx deploy, block, domain (sau khi deploy)
 deployments/sepolia.v1-highwater.json  Deployment cũ 0x4E6e… (bytecode high-water-mark, KHÔNG dùng)
 ../spec/incident/deployments/ Nguồn domain EIP-712 duy nhất cho firmware + backend (deploy.js ghi)
@@ -66,7 +66,7 @@ source hiện tại nằm tại [`abi/AirSafetyLog.json`](abi/AirSafetyLog.json)
 | `DEFAULT_ADMIN_ROLE` | ví vận hành/multisig (`ADMIN_ADDRESS`) | cấp/thu role, `setCriticalPolicyEnabled` |
 | `DEVICE_MANAGER_ROLE` | ví provisioning | `registerDevice`, `rotateSigner`, `revokeDevice`, `setDeviceOwner` |
 | `RELAYER_ROLE` | relayer wallet của backend | `logIncident` |
-| `ownerAddress` của device | ví người dùng (app) | `acknowledgeIncident`, `resolveIncident` |
+| `ownerAddress` của device | ví người dùng (MetaMask qua dApp web3) | `acknowledgeIncident`, `resolveIncident` |
 
 Admin, manager và relayer **không** thể acknowledge/resolve.
 
@@ -128,7 +128,7 @@ EmergencyTriggered(bytes32 indexed incidentKey, bytes32 indexed deviceIdHash, ui
 DeviceRegistered / DeviceSignerRotated / DeviceRevoked / DeviceOwnerChanged / CriticalPolicyChanged
 ```
 
-## Helper view/pure cho backend & app
+## Helper view/pure cho backend & dApp
 
 `hashEvidence(IncidentEvidence)`, `hashAttestation(IncidentClaim)`,
 `attestationDigest(IncidentClaim)`, `computeIncidentId`, `computeIncidentKey`,

@@ -7,7 +7,7 @@ luyện/suy luận AI và không nằm trên đường cảnh báo an toàn tứ
 
 ```text
 Gas EWS transition tăng mức → ESP32 cảnh báo tại chỗ → incident đã ký
-→ MQTT → backend verify + TimescaleDB → ACK → Sepolia outbox → app
+→ MQTT → backend verify + TimescaleDB → ACK → Sepolia outbox → app mobile + dApp web3
 ```
 
 Nguồn hợp đồng duy nhất là
@@ -22,7 +22,7 @@ clock không hợp lệ hoặc dữ liệu trigger không hợp lệ.
 - Dùng **Sepolia**. Chain chỉ lưu claim tối thiểu và `evidenceHash`; evidence
   đầy đủ lưu, backup và giữ không thời hạn trong TimescaleDB.
 - Backend dùng **relayer wallet** từ secret môi trường/secret manager để gọi
-  `logIncident`. ESP32 chỉ giữ khóa ký thiết bị; app không giữ khóa relayer.
+  `logIncident`. ESP32 chỉ giữ khóa ký thiết bị; app mobile và dApp web3 không giữ khóa relayer.
 - Outbox gửi theo `sequence` tuần tự cho từng thiết bị. Retry exponential
   backoff; quá 10 lần hoặc 24 giờ chuyển `blocked`, báo vận hành và chặn các
   incident chain tiếp theo của thiết bị đó. MQTT ACK, DB và app không bị chặn.
@@ -69,7 +69,7 @@ reboot retry không đổi chữ ký; ACK sai không xóa record.
 - Test vector v2, tamper, signer sai, duplicate, sequence cũ, revoked và role;
   deploy/verify source trên Sepolia, bàn giao ABI, address, chain ID, tx deploy.
 
-**Không làm:** MQTT, DB, app.  
+**Không làm:** MQTT, DB, app, dApp.  
 **Hoàn thành khi:** toàn bộ Hardhat test pass và backend có ABI/address Sepolia
 đã verify để gọi.
 
@@ -87,7 +87,7 @@ reboot retry không đổi chữ ký; ACK sai không xóa record.
 - Tạo `blockchain_outbox` ở `queued`; expose list/detail/verify API có auth,
   cùng realtime warning/danger. Không gửi transaction trong task này.
 
-**Không làm:** worker/relayer, contract, app wallet.  
+**Không làm:** worker/relayer, contract, dApp wallet.  
 **Hoàn thành khi:** hai vector được lưu/ACK idempotent; tamper/timestamp sai bị
 từ chối; API verify trả DB, hash và signature status.
 
@@ -122,7 +122,7 @@ từ chối; API verify trả DB, hash và signature status.
 - Retry RPC/revert có phân loại và backoff; kiểm tra on-chain trước retry. Sau
   10 attempts hoặc 24 giờ, đánh `blocked`, alert, và không vượt sequence device.
 - Index/replay idempotent từ block checkpoint bền vững cho event logged,
-  acknowledged, resolved; DB/indexer là nguồn trạng thái cuối cùng của app.
+  acknowledged, resolved; DB/indexer là nguồn trạng thái cuối cùng của app và dApp.
 - Cung cấp health/metrics: age queued, pending/blocked count, attempts, RPC
   errors, DB-chain lag; runbook cho nạp Sepolia ETH, rotate relayer, unblock item.
 
@@ -130,22 +130,42 @@ từ chối; API verify trả DB, hash và signature status.
 **Hoàn thành khi:** restart/RPC timeout không tạo giao dịch trùng; event replay
 an toàn; blocked item giữ đúng thứ tự và tạo cảnh báo vận hành.
 
-### Task 5 — App: incident, verify và owner action
+### Task 5 — Web3 dApp: incident, verify và owner action
 
-**Phạm vi:** `app_new/` screens, API client, realtime và WalletConnect/deep link.
+Chi tiết khối chức năng, route, state machine giao dịch và kịch bản kiểm thử:
+[`Web3_task.md`](Web3_task.md) (khối B0–B6, mốc M1–M3).
 
-- Hiển thị danh sách/chi tiết theo device: level, source mask, sensor/derived
-  values chỉ khi valid, firmware/model/calibration, verify result và chain status.
-- Nhận realtime warning/danger; hiển thị `pending`, `confirmed`, `failed`,
-  `blocked`, transaction hash/block và link Etherscan Sepolia.
-- Kết nối ví, xác minh ownership với backend, chỉ hiện acknowledge/resolve khi
-  ví khớp `ownerAddress`; app gọi contract trực tiếp, indexer xác nhận kết quả.
-- Test severity/status, invalid fields, offline, wallet reject, transaction
-  failure và user không có quyền. Không lưu private key.
+**Phạm vi:** thư mục mới `web3/`, là một dApp chạy trên trình duyệt (Vite + React +
+TypeScript, `wagmi`/`viem`, ví MetaMask qua injected provider; WalletConnect là
+tùy chọn). ABI và address lấy từ `blockchain/abi/` và
+`spec/incident/deployments/<network>.json`, không gõ tay.
 
-**Không làm:** MQTT trực tiếp, ký evidence ESP32, relayer.  
-**Hoàn thành khi:** user chỉ thấy incident được phép; owner action hoạt động;
-app cập nhật sau event index và mở đúng explorer Sepolia.
+Mọi thao tác với ví và contract chuyển từ app mobile sang dApp. App mobile
+(`app/`, `app_new/`) giữ phần không thể làm trên web: provision BLE/Wi-Fi,
+telemetry, điều khiển thiết bị, thông báo realtime. Màn hình incident trong app
+chỉ hiển thị `chain_status` và mở dApp bằng link
+`<dapp>/incident/<device_id>/<incident_id>`.
+
+- **Kết nối ví:** MetaMask, bắt buộc mạng Sepolia (chain ID `11155111`). Dùng
+  `wallet_switchEthereumChain` khi sai mạng. Không lưu và không yêu cầu private key.
+- **Danh sách/chi tiết incident theo device:** level, source mask, sensor/derived
+  values chỉ khi valid, firmware/model/calibration, `chain_status`
+  (`pending`, `confirmed`, `failed`, `blocked`), tx hash/block và link Etherscan
+  Sepolia. Evidence lấy từ API; trạng thái on-chain đọc **trực tiếp** từ contract
+  (`getIncident`, `getDevice`).
+- **Xác minh phía client:** dApp tự tính lại `evidenceHash` từ evidence của API
+  (bằng `viem`, hoặc gọi view `hashEvidence`) rồi so với giá trị trên chain.
+  Người xem không cần tin backend. Trang verify xem được **không cần kết nối ví**.
+- **Owner action:** chỉ hiện acknowledge/resolve khi ví đang kết nối khớp
+  `getDevice(deviceIdHash).owner` đọc từ chain. dApp gửi tx trực tiếp tới
+  contract; indexer xác nhận kết quả, và dApp cập nhật khi API báo `owner_status` mới.
+- **Test:** severity/status, invalid fields, sai mạng, wallet reject, transaction
+  revert (`NotDeviceOwner`, `InvalidStatus`), user không có quyền, RPC lỗi.
+
+**Không làm:** MQTT trực tiếp, provision BLE, ký evidence ESP32, relayer.  
+**Hoàn thành khi:** user chỉ thấy incident được phép; owner action hoạt động
+bằng MetaMask trên Sepolia; kết quả verify khớp chain; dApp cập nhật sau khi event
+được index và mở đúng explorer Sepolia; app mobile mở đúng trang dApp của incident.
 
 ## Phụ thuộc và bàn giao
 
@@ -153,7 +173,8 @@ app cập nhật sau event index và mở đúng explorer Sepolia.
    vector v2 làm test chung.
 2. Task 1 và Task 3 làm song song bằng mock MQTT/fixtures.
 3. Task 3 bàn giao migrations, outbox và API; Task 4 chỉ xử lý chain, không sửa
-   logic intake. Task 5 bắt đầu với API mock rồi tích hợp API thật.
+   logic intake. Task 5 (dApp web3) bắt đầu với API mock và hardhat node local
+   (`spec/incident/deployments/localhost.json`), rồi tích hợp API thật và Sepolia.
 4. Merge end-to-end chỉ sau khi pass: offline/reboot retry, MQTT duplicate/
    tamper, revoke/rotate signer, backend restart, RPC failure, sequence blocked
    và owner authorization.

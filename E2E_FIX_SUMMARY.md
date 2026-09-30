@@ -1,7 +1,7 @@
 # Tổng kết sửa lỗi E2E (theo `E2E_FIX_PLAN.md`)
 
 Nhánh: `integration/task1-task2-task3` (base `75b6221`). Toàn bộ thay đổi **chưa commit**.
-Luồng: ESP32 (Task 1) → MQTT → intake (Task 3) → outbox/relayer (Task 4) → `AirSafetyLog` (Task 2) → indexer → API/app (Task 5).
+Luồng: ESP32 (Task 1) → MQTT → intake (Task 3) → outbox/relayer (Task 4) → `AirSafetyLog` (Task 2) → indexer → API → dApp web3 (Task 5; app mobile chỉ provision và hiển thị).
 
 ---
 
@@ -136,7 +136,7 @@ Luồng: ESP32 (Task 1) → MQTT → intake (Task 3) → outbox/relayer (Task 4)
 4. Firmware chưa gửi `domain_separator` trong shadow (mục phụ của giai đoạn 1).
 5. Test vector chưa chuyển sang `spec/incident/test-vectors/`. Cố ý giữ ở `docs/test-vectors/` vì nhiều test ở firmware, contract và backend tham chiếu đường dẫn này.
 6. Cổng signer của relayer đọc `getDevice()` trực tiếp từ chain thay vì từ bảng của indexer như plan. Cách này mới hơn nhưng tốn thêm một lần gọi RPC cho mỗi thiết bị trong mỗi vòng.
-7. App (Flutter / `app_new`) chưa hiển thị `chain_status`. API đã trả đủ dữ liệu.
+7. App (Flutter / `app_new`) chưa hiển thị `chain_status`. API đã trả đủ dữ liệu. Owner action (acknowledge/resolve) chuyển sang dApp web3 (Task 5), chưa triển khai.
 
 ---
 
