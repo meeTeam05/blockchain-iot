@@ -1,0 +1,51 @@
+@import 'tailwindcss';
+
+/*
+ * Atmosphere-Web tokens. Ported 1:1 from app_new/src/theme/tokens.ts and
+ * app_new/src/theme/appColors.ts — see docs/ATMOSPHERE_WEB_DESIGN.md for the
+ * full reference. Light mode only for M1-M3 (decision #17); do not add a
+ * dark-mode @theme override here without updating that decision first.
+ *
+ * Tailwind's default spacing scale (0.5=2px, 1=4px, 1.5=6px, 2=8px, 3=12px,
+ * 4=16px, 5=20px, 6=24px, 8=32px) already matches Atmosphere's space2..32
+ * tokens exactly, so no custom spacing scale is defined here — use the
+ * stock padding, gap and margin utilities directly.
+ */
+@theme {
+  --color-brand: #0f6b5c;
+  --color-brand-deep: #0a4f44;
+  --color-brand-tint: #e4f0ec;
+  --color-brand-tint-2: #d5e8e1;
+  --color-accent: #2c6bf0;
+  --color-accent-tint: #e5eefd;
+  --color-warn: #e07a1a;
+  --color-warn-tint: #fff1df;
+  --color-danger: #d9462e;
+  --color-danger-tint: #ffe5e0;
+  --color-amber: #e8a33c;
+  --color-mint: #bfe6d8;
+  --color-online: #1a8767;
+  --color-ink: #0e1f1b;
+  --color-ink-2: #3f5751;
+  --color-ink-3: #6e827d;
+  --color-line: #e3eae7;
+  --color-line-2: #eef3f1;
+  --color-bg: #f5f7f6;
+  --color-paper: #ffffff;
+
+  --radius-input: 16px;
+  --radius-button: 14px;
+  --radius-tile: 20px;
+  --radius-card: 22px;
+  --radius-pill: 999px;
+
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
