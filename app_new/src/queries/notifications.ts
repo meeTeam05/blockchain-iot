@@ -112,6 +112,24 @@ function titleAndBodyForEvent(event: RealtimeEvent): DerivedNotification | null 
     return null;
   }
 
+  if (event.type === 'incident.created') {
+    const severity = event.payload.severity === 'danger' ? 'danger' : event.payload.severity === 'warning' ? 'warning' : null;
+    if (!severity) return null;
+    const level = severity === 'danger' ? 2 : 1;
+    const gases = [
+      event.payload.co_level === level ? 'CO' : null,
+      event.payload.no2_level === level ? 'NO2' : null,
+    ].filter((g): g is string => g !== null);
+    const gasLabel = gases.length > 0 ? gases.join(' and ') : 'Gas';
+
+    return {
+      type: `incident.${severity}`,
+      title: severity === 'danger' ? 'Gas threshold exceeded' : 'Gas early warning',
+      body: severity === 'danger' ? `${gasLabel} exceeded the QCVN 03:2019/BYT limit.` : `${gasLabel} entered early warning.`,
+      severity: severity === 'danger' ? 'danger' : 'warning',
+    };
+  }
+
   if (event.type !== 'command.updated') return null;
 
   const status = typeof event.payload.status === 'string' ? event.payload.status : null;

@@ -1,4 +1,4 @@
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useColors } from '@/theme/useColors';
 import { AppIcons } from '@/theme/icons';
@@ -9,6 +9,7 @@ import { EmptyState } from '@/components/atoms/EmptyState';
 import { useNotifications } from '@/queries/notifications';
 import { NotificationItem } from '@/models/notification';
 import { AtmospherePalette } from '@/theme/palette';
+import { ApiConfig } from '@/config/env';
 
 const ICON_BY_TYPE: Record<string, typeof AppIcons.check> = {
   'device.online': AppIcons.check,
@@ -18,7 +19,19 @@ const ICON_BY_TYPE: Record<string, typeof AppIcons.check> = {
   'command.timeout': AppIcons.warn,
   'ota.failed': AppIcons.close,
   'command.error': AppIcons.close,
+  'incident.warning': AppIcons.warn,
+  'incident.danger': AppIcons.warn,
 };
+
+// Deep link to the Task 5 dApp (decisions #3/#12,
+// tmp/02_decisions/2026-10-01_task5-dapp-incident-decisions.md): always use
+// metamask.app.link, no canOpenURL pre-check -- the universal link itself
+// sends the user to install MetaMask when it isn't present.
+const DAPP_HOST = new URL(ApiConfig.defaultApiBaseUrl).host;
+
+function chainLink(deviceId: string, incidentId: string): string {
+  return `https://metamask.app.link/dapp/${DAPP_HOST}/d/${deviceId}/i/${incidentId}`;
+}
 
 function accentBackground(severity: string, c: AtmospherePalette): string {
   switch (severity) {
@@ -56,6 +69,9 @@ function NotificationTile({ item }: { item: NotificationItem }) {
   const c = useColors();
   const router = useRouter();
   const Icon = ICON_BY_TYPE[item.type] ?? AppIcons.notifications;
+  const incidentId = item.type.startsWith('incident.') && typeof item.payload.incident_id === 'string'
+    ? item.payload.incident_id
+    : null;
 
   return (
     <Pressable
@@ -77,6 +93,14 @@ function NotificationTile({ item }: { item: NotificationItem }) {
           </Text>
           <Text style={AtmosphereTextStyles.caption(c.ink3)}>{formatTime(item.occurredAt)}</Text>
         </View>
+        {incidentId ? (
+          <>
+            <View style={{ height: AtmosphereTokens.space8 }} />
+            <Pressable onPress={() => Linking.openURL(chainLink(item.deviceId, incidentId))}>
+              <Text style={AtmosphereTextStyles.caption(c.brand)}>Xem trên chain</Text>
+            </Pressable>
+          </>
+        ) : null}
       </View>
     </Pressable>
   );
