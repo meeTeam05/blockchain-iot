@@ -213,7 +213,9 @@ export default async function devicesRoutes(fastify) {
                         WHEN lower(s.reported->>'relay_3') IN ('true', 'false')
                             THEN lower(s.reported->>'relay_3') = 'true'
                         ELSE NULL
-                    END AS relay_3
+                    END AS relay_3,
+                    (SELECT COUNT(*)::int FROM incidents i
+                     WHERE i.device_id = d.id AND i.owner_status = 'open') AS open_incident_count
              FROM devices d
              JOIN home_members hm ON hm.home_id = d.home_id
              LEFT JOIN device_shadows s ON s.device_id = d.id
