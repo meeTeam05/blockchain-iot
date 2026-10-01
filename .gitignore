@@ -48,6 +48,8 @@ firmware/**/nvs*.bin
 firmware/**/nvs*.csv
 server/ota-files/*
 !server/ota-files/.gitkeep
+server/dapp-files/*
+!server/dapp-files/.gitkeep
 
 # Python local caches
 __pycache__/
