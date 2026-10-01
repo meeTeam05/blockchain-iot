@@ -11,7 +11,7 @@ Gas EWS transition tăng mức → ESP32 cảnh báo tại chỗ → incident đ
 ```
 
 Nguồn hợp đồng duy nhất là
-[`docs/BLOCKCHAIN_INCIDENT_SCHEMA.md`](docs/BLOCKCHAIN_INCIDENT_SCHEMA.md).
+[`docs/reference/BLOCKCHAIN_INCIDENT_SCHEMA.md`](docs/reference/BLOCKCHAIN_INCIDENT_SCHEMA.md).
 Incident mới bắt buộc dùng Schema v2 và hai vector v2 trong `docs/test-vectors/`.
 Chỉ tạo incident cho `SAFE → EARLY_WARNING`, `SAFE → EXCEEDED`, hoặc
 `EARLY_WARNING → EXCEEDED`; không tạo cho heartbeat, giữ/giảm level, warmup,
@@ -96,7 +96,7 @@ từ chối; API verify trả DB, hash và signature status.
 - Task 1: payload truyền signed `calibration_hash`, không truyền
   `calibration_canonical`; backend không được giả định arrival theo `sequence`.
   ACK thành công dùng `error_code:""`; mã lỗi ACK ở
-  `docs/MQTT_PROTOCOL.md` 4.4. Incident hợp lệ đến muộn được nhận; chỉ
+  `docs/reference/MQTT_PROTOCOL.md` 4.4. Incident hợp lệ đến muộn được nhận; chỉ
   timestamp bằng 0 hoặc ở tương lai quá tolerance bị từ chối.
 - Task 2/4: backend đọc domain từ `AIR_SAFETY_LOG_ADDRESS`/`INCIDENT_CHAIN_ID`;
   signer đăng ký ở `device_signers` (`scripts/device-signer.js`) phải trùng
@@ -106,7 +106,7 @@ từ chối; API verify trả DB, hash và signature status.
   `acknowledged_*`, `resolved_*` và `devices.owner_address`.
 - Task 5: API `GET /api/devices/:id/incidents[/:incidentId[/verify]]`, SSE
   `incident.created`, notification `incident.warning`/`incident.danger`
-  (`docs/API_REFERENCE.md` mục 8a).
+  (`docs/reference/API_REFERENCE.md` mục 8a).
 - Vận hành: chạy `node scripts/sync-device-acl.js` trước khi firmware publish
   incident để thiết bị cũ có ACL `incident`/`incident/ack`.
 - Kiểm thử end-to-end (API + EMQX + TimescaleDB thật từ `server/docker-compose.yml`):

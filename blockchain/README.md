@@ -1,7 +1,7 @@
 # AirSafetyLog — smart contract (Task 2)
 
 Contract Solidity neo incident Gas EWS đã được thiết bị ký lên Sepolia theo
-[`docs/BLOCKCHAIN_INCIDENT_SCHEMA.md`](../docs/BLOCKCHAIN_INCIDENT_SCHEMA.md)
+[`docs/reference/BLOCKCHAIN_INCIDENT_SCHEMA.md`](../docs/reference/BLOCKCHAIN_INCIDENT_SCHEMA.md)
 (Schema v2). Chain chỉ lưu claim tối thiểu + `evidenceHash`; evidence đầy đủ
 nằm ở TimescaleDB.
 

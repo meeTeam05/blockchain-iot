@@ -3,7 +3,7 @@
 // string and encoding order are ported from
 // server/api/src/services/incident-verify.js (EVIDENCE_FIELDS /
 // EVIDENCE_TYPE_STRING / computeEvidenceHash) and
-// docs/BLOCKCHAIN_INCIDENT_SCHEMA.md section 4 -- both must stay in sync if
+// docs/reference/BLOCKCHAIN_INCIDENT_SCHEMA.md section 4 -- both must stay in sync if
 // the schema ever changes.
 import { encodeAbiParameters, keccak256, toBytes } from 'viem'
 

@@ -824,8 +824,8 @@ App action
 
 Các file contract liên quan trực tiếp tới kiến trúc hiện tại:
 
-- `docs/MQTT_PROTOCOL.md`: contract topic/payload MQTT
-- `docs/API_REFERENCE.md`: HTTP contract của API
+- `docs/reference/MQTT_PROTOCOL.md`: contract topic/payload MQTT
+- `docs/reference/API_REFERENCE.md`: HTTP contract của API
 - `server/docker-compose.yml`: runtime topology của server stack
 - `firmware/components/core/sysload/sysload.c`: boot orchestration của firmware
 - `server/api/src/app.js`: plugin và route registration của API

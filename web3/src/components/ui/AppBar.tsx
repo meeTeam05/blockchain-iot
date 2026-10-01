@@ -1,6 +1,6 @@
 // Ported from app_new/src/components/shell/AtmosphereAppBar.tsx. No safe-area
 // inset handling here (that's an RN/iOS notch concern, not a browser one).
-// Only the two variants docs/ATMOSPHERE_WEB_DESIGN.md maps for Task 5 are
+// Only the two variants docs/reference/ATMOSPHERE_WEB_DESIGN.md maps for Task 5 are
 // ported -- `minimal` is not used by any B0-B6 page.
 import type { ReactNode } from 'react'
 import { ArrowLeft } from 'lucide-react'

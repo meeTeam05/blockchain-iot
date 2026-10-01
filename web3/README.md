@@ -1,6 +1,6 @@
 # web3 -- dApp xem/verify/acknowledge/resolve incident (Task 5)
 
-Vite + React + TypeScript + wagmi/viem. Xem `docs/ATMOSPHERE_WEB_DESIGN.md`
+Vite + React + TypeScript + wagmi/viem. Xem `docs/reference/ATMOSPHERE_WEB_DESIGN.md`
 (UI) và `tmp/02_decisions/2026-10-01_task5-dapp-incident-decisions.md` (21
 quyết định kỹ thuật) ở repo root trước khi sửa code ở đây.
 
@@ -27,7 +27,7 @@ server riêng (cổng `5174`, không đụng cổng `5173` bạn đang dùng tay
 `VITE_E2E_MOCK_ACCOUNT` đặt sẵn -- `src/lib/wagmiConfig.ts` khi thấy biến này
 dùng connector `mock()` của wagmi thay vì `injected()`, nên **không cần cài
 MetaMask** để chạy test này (đúng quyết định #9 + mục 9 "E2E UI" của
-`Web3_task.md`: mock connector, không phải MetaMask thật).
+`docs/tasks/Web3_task.md`: mock connector, không phải MetaMask thật).
 
 Cần dựng sẵn trước khi chạy (giống mọi test trong `server/api/test/e2e/*`):
 ```bash

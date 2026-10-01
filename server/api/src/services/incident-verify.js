@@ -1,4 +1,4 @@
-// Incident Schema v2 verification (docs/BLOCKCHAIN_INCIDENT_SCHEMA.md).
+// Incident Schema v2 verification (docs/reference/BLOCKCHAIN_INCIDENT_SCHEMA.md).
 // Pure functions only: no DB, no MQTT. Identity, firmware, evidence and EIP-712
 // hashes are recomputed. calibration_hash is itself signed evidence, but Task 1
 // does not transmit its canonical preimage so it cannot be recomputed alone.
