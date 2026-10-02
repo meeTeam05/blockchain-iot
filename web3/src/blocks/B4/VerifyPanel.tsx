@@ -3,21 +3,29 @@
 // computed in the browser and/or read from chain -- never taken on the
 // API's word alone (Web3_task.md Nguyên tắc 2).
 import { Check, X } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import type { Address, Hex } from 'viem'
 import { useBlockNumber, useReadContract } from 'wagmi'
 import { Card } from '../../components/ui/Card'
 import { activeNetwork } from '../../config/networks'
 import { AIR_SAFETY_LOG_ABI } from '../../generated/incident-deployments'
 import { computeDeviceIdHash, computeIncidentId, computeIncidentKey } from '../../lib/chainIncident'
 import { computeEvidenceHash, evidenceToTuple, type EvidenceRecord } from '../../lib/evidence'
+import {
+  computeIncidentAttestationDigest,
+  recoverIncidentSigner,
+  signerMatchesCanonical,
+} from '../../lib/incidentSignature'
 import type { ApiIncidentDetail } from '../../lib/incidentsApi'
 
 interface VerifyRowProps {
   label: string
   ok: boolean | undefined
-  detail?: string
+  localValue?: string
+  canonicalValue?: string
 }
 
-function VerifyRow({ label, ok, detail }: VerifyRowProps) {
+function VerifyRow({ label, ok, localValue, canonicalValue }: VerifyRowProps) {
   return (
     <div className="flex items-start gap-3 border-b border-line-2 py-3.5 last:border-b-0">
       {ok === undefined ? (
@@ -33,7 +41,8 @@ function VerifyRow({ label, ok, detail }: VerifyRowProps) {
       )}
       <div className="min-w-0">
         <p className="text-[14px] font-medium text-ink">{label}</p>
-        {detail ? <p className="mt-0.5 break-all font-mono text-[12px] text-ink-2">{detail}</p> : null}
+        {localValue ? <p className="mt-0.5 break-all font-mono text-[11px] text-ink-2">local: {localValue}</p> : null}
+        {canonicalValue ? <p className="mt-0.5 break-all font-mono text-[11px] text-ink-3">canonical: {canonicalValue}</p> : null}
       </div>
     </div>
   )
@@ -120,6 +129,22 @@ export function VerifyPanel({ deviceId, incident }: VerifyPanelProps) {
   const incidentKey = computeIncidentKey(deviceIdHash, incidentIdFromEvidence as `0x${string}`)
 
   const localHash = computeEvidenceHash(evidence)
+  const localDigest = computeIncidentAttestationDigest(
+    {
+      name: activeNetwork.name,
+      version: activeNetwork.version,
+      chainId: activeNetwork.chainId,
+      verifyingContract: activeNetwork.address,
+    },
+    evidence,
+    localHash,
+  )
+
+  const recoveredSigner = useQuery({
+    queryKey: ['incident-signer-recovery', localDigest, incident.signature],
+    queryFn: () => recoverIncidentSigner(localDigest, incident.signature as Hex),
+    retry: false,
+  })
 
   const { data: chainHashResult } = useReadContract({
     address: activeNetwork.address,
@@ -138,14 +163,17 @@ export function VerifyPanel({ deviceId, incident }: VerifyPanelProps) {
 
   const deviceIdHashOk = deviceIdHash.toLowerCase() === String(evidence.device_id_hash).toLowerCase()
   const incidentIdOk = incidentIdExpected.toLowerCase() === incidentIdFromEvidence.toLowerCase()
+  const chainRecordExists = chainIncident !== undefined && Number(chainIncident.status) !== 0
   const chainHashOk = chainHashResult !== undefined && chainHashResult.toLowerCase() === localHash.toLowerCase()
   const storedHashOk =
-    chainIncident !== undefined && chainIncident.evidenceHash.toLowerCase() === localHash.toLowerCase()
-  const evidenceHashOk = chainIncident === undefined || chainHashResult === undefined ? undefined : chainHashOk && storedHashOk
+    chainRecordExists && chainIncident.evidenceHash.toLowerCase() === localHash.toLowerCase()
+  const evidenceHashOk = !chainRecordExists || chainHashResult === undefined ? undefined : chainHashOk && storedHashOk
   const signerOk =
-    chainIncident === undefined
+    !chainRecordExists || recoveredSigner.isPending
       ? undefined
-      : chainIncident.signer.toLowerCase() === incident.signer_address.toLowerCase()
+      : recoveredSigner.isError
+        ? false
+        : signerMatchesCanonical(recoveredSigner.data, chainIncident.signer as Address)
 
   const checks = [deviceIdHashOk, incidentIdOk, evidenceHashOk, signerOk]
   const allOk = checks.every((v) => v === true)
@@ -173,8 +201,18 @@ export function VerifyPanel({ deviceId, incident }: VerifyPanelProps) {
       <div className="flex flex-col gap-4 sm:flex-row">
         <VerifyHero state={heroState} passedCount={passedCount} blockNumber={blockNumber} />
         <div className="flex min-w-0 flex-1 flex-col">
-          <VerifyRow label="deviceIdHash khớp device_id" ok={deviceIdHashOk} detail={deviceIdHash} />
-          <VerifyRow label="incidentId khớp (deviceIdHash, sequence)" ok={incidentIdOk} detail={incidentIdExpected} />
+          <VerifyRow
+            label="deviceIdHash khớp device_id"
+            ok={deviceIdHashOk}
+            localValue={deviceIdHash}
+            canonicalValue={String(evidence.device_id_hash)}
+          />
+          <VerifyRow
+            label="incidentId khớp (deviceIdHash, sequence)"
+            ok={incidentIdOk}
+            localValue={incidentIdExpected}
+            canonicalValue={chainIncident?.incidentId ?? incidentIdFromEvidence}
+          />
           <div className="border-b border-line-2 py-3.5">
             <p className="mb-2 text-[14px] font-medium text-ink">evidenceHash — 3 nguồn độc lập</p>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -188,7 +226,16 @@ export function VerifyPanel({ deviceId, incident }: VerifyPanelProps) {
               />
             </div>
           </div>
-          <VerifyRow label="signer trên chain khớp signer đã ký" ok={signerOk} detail={chainIncident?.signer} />
+          <VerifyRow
+            label="Chữ ký EIP-712 khớp signer lịch sử trên chain"
+            ok={signerOk}
+            localValue={recoveredSigner.data}
+            canonicalValue={chainIncident?.signer}
+          />
+          <p className="mt-2 break-all font-mono text-[10px] text-ink-4">
+            digest local: {localDigest} · digest API (tham khảo): {incident.eip712_digest} · signer API (không tin cậy):{' '}
+            {incident.signer_address}
+          </p>
         </div>
       </div>
     </Card>

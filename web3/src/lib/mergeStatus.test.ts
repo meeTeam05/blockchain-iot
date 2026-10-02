@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { mergeIncidentStatus } from './mergeStatus'
+import { deriveIncidentStatus, mergeIncidentStatus } from './mergeStatus'
 
 describe('mergeIncidentStatus (tmp/Web3_task.md B3 table)', () => {
   it('queued/pending + None -> đang đưa lên chain', () => {
@@ -22,5 +22,14 @@ describe('mergeIncidentStatus (tmp/Web3_task.md B3 table)', () => {
   })
   it('legacy_domain + None -> ký cho contract cũ', () => {
     expect(mergeIncidentStatus('legacy_domain', 'None').label).toBe('Ký cho contract cũ, không lên chain')
+  })
+
+  it('never treats an RPC error as on-chain None', () => {
+    expect(deriveIncidentStatus('pending', 'error').label).toBe('Chain không khả dụng')
+    expect(deriveIncidentStatus('pending', 'loading').label).toBe('Đang đọc chain')
+  })
+
+  it('shows an explicit not-on-chain state when both sources have no record', () => {
+    expect(deriveIncidentStatus(null, 'success', 'None').label).toBe('Chưa có trên chain')
   })
 })

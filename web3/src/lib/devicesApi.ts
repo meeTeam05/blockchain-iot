@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query'
-import { apiBaseUrl } from '../config/networks'
 import { useAuth } from './authStore'
 
 export interface ApiDevice {
@@ -21,14 +20,12 @@ export interface ApiDevice {
 }
 
 export function useDevices() {
-  const { accessToken } = useAuth()
+  const { accessToken, request } = useAuth()
   return useQuery({
     queryKey: ['devices'],
     enabled: Boolean(accessToken),
     queryFn: async (): Promise<ApiDevice[]> => {
-      const res = await fetch(`${apiBaseUrl}/devices`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      })
+      const res = await request('/devices')
       if (!res.ok) throw new Error('Không tải được danh sách thiết bị')
       return res.json()
     },

@@ -138,20 +138,22 @@ test.describe('Kich ban A: E2E incident', () => {
   test('connect -> verify -> acknowledge -> resolve', async ({ page }) => {
     // B1: dang nhap API that (LoginForm tren HomePage) -- can thiet truoc, vi
     // IncidentPage doc du lieu incident qua API co JWT, khong chi qua chain.
-    await page.goto('/')
+    // Deep-link thẳng vào incident trước login; auth shell phải giữ route.
+    await page.goto(`/dapp/d/${deviceId}/i/${incidentId}`)
     await page.getByLabel('Email').fill(loginEmail)
     await page.getByLabel('Mật khẩu').fill(loginPassword)
     await page.getByRole('button', { name: 'Đăng nhập' }).click()
-    await expect(page.getByText('Playwright sensor')).toBeVisible({ timeout: 10_000 })
+    await expect(page).toHaveURL(new RegExp(`/d/${deviceId}/i/${incidentId}$`))
+    await expect(page.getByText('sequence 1')).toBeVisible({ timeout: 10_000 })
 
-    // A4: ket noi vi (mock connector, khong can MetaMask that). Nut nay chi
-    // co tren HomePage (AppBar actions), khong co tren trang chi tiet incident.
+    // Kết nối account không phải owner trước: action phải bị chặn.
     await page.getByRole('button', { name: 'Kết nối ví' }).click()
+    await expect(page.getByText('Chỉ chủ sở hữu thiết bị')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Xác nhận' })).toHaveCount(0)
 
-    // Dieu huong bang click that qua UI (react-router client-side nav), khong
-    // dung page.goto() -- goto() lam full reload va mat luon ket noi vi vua xong.
-    await page.getByText('Playwright sensor').click()
-    await page.getByText('sequence 1').click()
+    // Account switch sang owner phải cập nhật quyền trên cùng deep-link.
+    await page.getByRole('button', { name: 'Đổi tài khoản' }).click()
+    await expect(page.getByText('là chủ thiết bị này')).toBeVisible()
 
     // A3: xac minh doc lap, 4 dong check + "Du lieu toan ven".
     await expect(page.getByText('Dữ liệu toàn vẹn')).toBeVisible({ timeout: 15_000 })
@@ -163,6 +165,13 @@ test.describe('Kich ban A: E2E incident', () => {
     // ConfirmDialog never overrides confirmLabel, so both ack and resolve use
     // the same default "Xác nhận" button text -- only the dialog title differs.
     await page.getByRole('dialog').getByRole('button', { name: 'Xác nhận' }).click()
+
+    // Reload trong lúc pending/indexing: app phải resume receipt canonical,
+    // không gửi lại transaction.
+    await page.waitForFunction(() => [...Array(localStorage.length).keys()]
+      .map((i) => localStorage.key(i))
+      .some((key) => key?.startsWith('smartair-pending-incident-tx:')), null, { timeout: 10_000 })
+    await page.reload()
 
     // A7: sau khi acknowledge, nut "Da xu ly" (resolve) phai hien ra.
     const resolveButton = page.getByRole('button', { name: 'Đã xử lý' })
@@ -176,7 +185,7 @@ test.describe('Kich ban A: E2E incident', () => {
     await expect(resolveButton).toHaveCount(0, { timeout: 20_000 })
 
     // A7: tab Lich su on-chain (tren trang device, khong phai trang incident) co du 4 event.
-    await page.goto(`/d/${deviceId}`)
+    await page.goto(`/dapp/d/${deviceId}`)
     await page.getByRole('button', { name: 'Lịch sử on-chain' }).click()
     await expect(page.getByText('DeviceRegistered')).toBeVisible()
     await expect(page.getByText('IncidentLogged')).toBeVisible()

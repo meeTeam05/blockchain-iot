@@ -14,7 +14,10 @@ import { activeNetwork } from '../config/networks'
 // spike and by test/integration/ownerActions.integration.test.tsx. Never on
 // in a normal build; only playwright.config.ts's webServer sets this env var.
 const e2eMockAccount = import.meta.env.VITE_E2E_MOCK_ACCOUNT as `0x${string}` | undefined
-const connector = e2eMockAccount ? mock({ accounts: [e2eMockAccount] }) : injected()
+const e2eWrongAccount = '0x70997970C51812dc3A010C7d01b50e0d17dc79C8' as const
+const connectors = e2eMockAccount
+  ? [mock({ accounts: [e2eWrongAccount] }), mock({ accounts: [e2eMockAccount] })]
+  : [injected()]
 
 export const chain = defineChain({
   id: activeNetwork.chainId,
@@ -30,7 +33,7 @@ export const chain = defineChain({
 
 export const wagmiConfig = createConfig({
   chains: [chain],
-  connectors: [connector],
+  connectors,
   transports: {
     [chain.id]: http(activeNetwork.rpcUrl),
   },

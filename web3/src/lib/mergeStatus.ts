@@ -11,6 +11,18 @@ export interface MergedStatus {
   tone: PillTone
 }
 
+export type ChainReadState = 'loading' | 'error' | 'success'
+
+export function deriveIncidentStatus(
+  apiChainStatus: string | null,
+  chainReadState: ChainReadState,
+  chainStatus: ChainStatusName = 'None',
+): MergedStatus {
+  if (chainReadState === 'loading') return { label: 'Đang đọc chain', tone: 'offline' }
+  if (chainReadState === 'error') return { label: 'Chain không khả dụng', tone: 'offline' }
+  return mergeIncidentStatus(apiChainStatus, chainStatus)
+}
+
 export function mergeIncidentStatus(apiChainStatus: string | null, chainStatus: ChainStatusName): MergedStatus {
   if (chainStatus === 'Logged') return { label: 'Đã ghi on-chain, chờ xử lý', tone: 'danger' }
   if (chainStatus === 'Acknowledged') return { label: 'Đã xác nhận', tone: 'warn' }
@@ -26,5 +38,5 @@ export function mergeIncidentStatus(apiChainStatus: string | null, chainStatus: 
   if (apiChainStatus === 'legacy_domain') {
     return { label: 'Ký cho contract cũ, không lên chain', tone: 'offline' }
   }
-  return { label: 'Đang đưa lên chain', tone: 'accent' }
+  return { label: 'Chưa có trên chain', tone: 'offline' }
 }

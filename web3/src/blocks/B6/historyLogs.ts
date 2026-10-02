@@ -1,68 +1,77 @@
-// B6: on-chain history, read directly via getLogs -- the one page that
-// does NOT trust the API at all (decision #5's documented limitation: B3
-// trusts the API's incident list, only this page is fully trustless).
-// Chunked <=2000 blocks per call per tmp/Web3_task.md, starting from the
-// deployment block already recorded in spec/incident/deployments/*.json.
-//
-// Uses the raw `eth_getLogs` RPC method (via client.request) instead of
-// viem's getLogs() action: that action's typed overloads only support
-// filtering by specific event ABIs/args, not a raw topics array.
-//
-// deviceIdHash sits at a different indexed position per event (topics[1] for
-// Device* events, topics[2] for Incident*/Emergency* events -- it is NOT a
-// fixed topic slot across the contract's event shapes), so there is no single
-// topics filter that matches it everywhere. Fetch all of this contract's logs
-// in range and filter by the decoded arg instead.
-import { decodeEventLog, numberToHex, type Hex, type PublicClient } from 'viem'
+// Trustless device history. Filters are sent to eth_getLogs itself; device
+// events index deviceIdHash at topic[1], incident events at topic[2].
+import { decodeEventLog, numberToHex, toEventSelector, type Hex, type PublicClient, type RpcLog } from 'viem'
 import { AIR_SAFETY_LOG_ABI } from '../../generated/incident-deployments'
 import { activeNetwork } from '../../config/networks'
 
-const MAX_BLOCK_RANGE = 2000n
+export const BLOCKS_PER_CHUNK = 2000n
+
+const DEVICE_TOPICS = [
+  'DeviceRegistered(bytes32,address,address)',
+  'DeviceSignerRotated(bytes32,address,address)',
+  'DeviceRevoked(bytes32,address)',
+  'DeviceOwnerChanged(bytes32,address,address)',
+].map(toEventSelector)
+
+const INCIDENT_TOPICS = [
+  'IncidentLogged(bytes32,bytes32,bytes32,uint64,uint64,uint8,bytes32,address)',
+  'IncidentAcknowledged(bytes32,bytes32,address)',
+  'IncidentResolved(bytes32,bytes32,address)',
+  'EmergencyTriggered(bytes32,bytes32,uint64)',
+].map(toEventSelector)
 
 export interface HistoryEvent {
   eventName: string
   blockNumber: bigint
+  blockHash: Hex
+  logIndex: number
   transactionHash: Hex
+  timestamp: bigint
   args: Record<string, unknown>
 }
 
 export async function fetchDeviceHistory(publicClient: PublicClient, deviceIdHash: Hex): Promise<HistoryEvent[]> {
   const latest = await publicClient.getBlockNumber()
   const fromDeployment = BigInt(activeNetwork.blockNumber)
-  const events: HistoryEvent[] = []
+  const decodedEvents: Omit<HistoryEvent, 'timestamp'>[] = []
+  const seen = new Set<string>()
 
-  for (let from = fromDeployment; from <= latest; from += MAX_BLOCK_RANGE + 1n) {
-    const to = from + MAX_BLOCK_RANGE > latest ? latest : from + MAX_BLOCK_RANGE
-    const logs = await publicClient.request({
+  // Inclusive JSON-RPC ranges: [from, from + 1999] is exactly 2,000 blocks.
+  for (let from = fromDeployment; from <= latest; from += BLOCKS_PER_CHUNK) {
+    const to = from + BLOCKS_PER_CHUNK - 1n > latest ? latest : from + BLOCKS_PER_CHUNK - 1n
+    const filters: (Hex | Hex[] | null)[][] = [
+      [DEVICE_TOPICS, deviceIdHash],
+      [INCIDENT_TOPICS, null, deviceIdHash],
+    ]
+    const batches = await Promise.all(filters.map(async (topics): Promise<RpcLog[]> => publicClient.request({
       method: 'eth_getLogs',
-      params: [
-        {
-          address: activeNetwork.address,
-          fromBlock: numberToHex(from),
-          toBlock: numberToHex(to),
-        },
-      ],
-    })
-    for (const log of logs) {
-      // Historical (non-pending) logs always carry a transactionHash; skip
-      // defensively rather than widen HistoryEvent's type for a case that
-      // shouldn't occur here.
-      if (!log.transactionHash || !log.blockNumber) continue
+      params: [{ address: activeNetwork.address, fromBlock: numberToHex(from), toBlock: numberToHex(to), topics }],
+    })))
+    for (const log of batches.flat()) {
+      if (!log.transactionHash || !log.blockHash || !log.blockNumber || !log.logIndex) continue
+      const dedupKey = `${log.transactionHash}:${log.logIndex}`
+      if (seen.has(dedupKey)) continue
+      seen.add(dedupKey)
       try {
         const decoded = decodeEventLog({ abi: AIR_SAFETY_LOG_ABI, data: log.data, topics: log.topics })
-        const args = decoded.args as Record<string, unknown>
-        if (args.deviceIdHash !== deviceIdHash) continue
-        events.push({
+        decodedEvents.push({
           eventName: decoded.eventName,
           blockNumber: BigInt(log.blockNumber),
+          blockHash: log.blockHash,
+          logIndex: Number(log.logIndex),
           transactionHash: log.transactionHash,
-          args,
+          args: decoded.args as Record<string, unknown>,
         })
       } catch {
-        // Not one of our events (shouldn't happen at our own contract address) -- skip.
+        // Ignore logs that cannot be decoded with the canonical deployment ABI.
       }
     }
   }
 
-  return events.sort((a, b) => Number(b.blockNumber - a.blockNumber))
+  const blockNumbers = [...new Set(decodedEvents.map((event) => event.blockNumber))]
+  const blocks = await Promise.all(blockNumbers.map((blockNumber) => publicClient.getBlock({ blockNumber })))
+  const timestampByBlock = new Map(blocks.map((block) => [block.number, block.timestamp]))
+  return decodedEvents
+    .map((event) => ({ ...event, timestamp: timestampByBlock.get(event.blockNumber) ?? 0n }))
+    .sort((a, b) => a.blockNumber === b.blockNumber ? b.logIndex - a.logIndex : a.blockNumber > b.blockNumber ? -1 : 1)
 }

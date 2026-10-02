@@ -6,6 +6,7 @@ import type { PillTone } from '../../components/ui/Pill'
 import { computeDeviceIdHash } from '../../lib/chainIncident'
 import { chain } from '../../lib/wagmiConfig'
 import { fetchDeviceHistory, type HistoryEvent } from './historyLogs'
+import { ExplorerLink } from '../../components/ExplorerLink'
 
 const EVENT_DISPLAY: Record<string, { icon: typeof AlertTriangle; tone: PillTone; label: string }> = {
   DeviceRegistered: { icon: Settings, tone: 'brand', label: 'Đăng ký thiết bị' },
@@ -18,20 +19,35 @@ const EVENT_DISPLAY: Record<string, { icon: typeof AlertTriangle; tone: PillTone
 }
 
 function eventSub(event: HistoryEvent) {
-  return `block ${event.blockNumber} · ${event.transactionHash.slice(0, 10)}…`
+  return (
+    <span className="flex flex-wrap gap-x-2">
+      <span>{new Date(Number(event.timestamp) * 1000).toLocaleString('vi-VN')}</span>
+      <ExplorerLink kind="block" value={event.blockNumber.toString()} label={`block ${event.blockNumber}`} />
+      <ExplorerLink kind="tx" value={event.transactionHash} label={`${event.transactionHash.slice(0, 10)}…`} />
+    </span>
+  )
 }
 
 export function HistoryTimeline({ deviceId }: { deviceId: string }) {
   const publicClient = usePublicClient({ chainId: chain.id })
   const deviceIdHash = computeDeviceIdHash(deviceId)
 
-  const { data: events, isLoading } = useQuery({
+  const { data: events, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['device-history', deviceId],
     enabled: Boolean(publicClient),
     queryFn: () => fetchDeviceHistory(publicClient!, deviceIdHash),
+    staleTime: 30_000,
   })
 
   if (isLoading) return <p className="text-ink-2">Đang tải lịch sử on-chain…</p>
+  if (isError) {
+    return (
+      <div className="rounded-card border border-danger-bright/40 bg-paper p-4 text-[13px] text-danger">
+        <p>Không đọc được lịch sử on-chain: {error.message}</p>
+        <button type="button" className="mt-2 underline" onClick={() => void refetch()}>Thử lại</button>
+      </div>
+    )
+  }
   if (!events || events.length === 0) return <p className="text-ink-2">Chưa có lịch sử on-chain cho thiết bị này.</p>
 
   return (

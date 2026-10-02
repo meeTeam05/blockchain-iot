@@ -1,61 +1,99 @@
-// B1: API session. JWT kept in memory + sessionStorage (tmp/Web3_task.md
-// bước 5.2), same /api/auth the mobile app already uses.
 import { createContext, useContext, useState, type ReactNode } from 'react'
 import { apiBaseUrl } from '../config/networks'
+import {
+  AuthRequester,
+  loginWithPassword,
+  type AuthSession,
+} from './authClient'
 
 const STORAGE_KEY = 'smartair-web3-auth'
 
-interface StoredAuth {
-  accessToken: string
-  user: { id: string; email: string; full_name: string | null }
-}
-
-interface AuthState extends Partial<StoredAuth> {
+interface AuthState {
+  accessToken?: string
+  user?: AuthSession['user']
   login(email: string, password: string): Promise<void>
-  logout(): void
+  logout(): Promise<void>
+  request(path: string, init?: RequestInit): Promise<Response>
 }
 
 const AuthContext = createContext<AuthState | null>(null)
 
-function readStored(): StoredAuth | null {
+function readStored(): AuthSession | null {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY)
-    return raw ? (JSON.parse(raw) as StoredAuth) : null
+    if (!raw) return null
+    const value = JSON.parse(raw) as Partial<AuthSession>
+    if (
+      typeof value.accessToken !== 'string' ||
+      typeof value.refreshToken !== 'string' ||
+      !value.user ||
+      typeof value.user.id !== 'string'
+    ) {
+      sessionStorage.removeItem(STORAGE_KEY)
+      return null
+    }
+    return value as AuthSession
   } catch {
+    sessionStorage.removeItem(STORAGE_KEY)
     return null
   }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [auth, setAuth] = useState<StoredAuth | null>(() => readStored())
+  const [session, setSessionState] = useState<AuthSession | null>(() => readStored())
 
-  async function login(email: string, password: string) {
-    const res = await fetch(`${apiBaseUrl}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    })
-    const body = await res.json()
-    if (!res.ok) throw new Error(body.error ?? 'Đăng nhập thất bại')
-    const next: StoredAuth = { accessToken: body.accessToken, user: body.user }
+  function setSession(next: AuthSession) {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-    setAuth(next)
+    setSessionState(next)
   }
 
-  function logout() {
+  function clearSession() {
     sessionStorage.removeItem(STORAGE_KEY)
-    setAuth(null)
+    setSessionState(null)
+  }
+
+  const [requester] = useState(() =>
+    new AuthRequester({
+      baseUrl: apiBaseUrl,
+      getSession: () => session,
+      setSession,
+      clearSession,
+    }),
+  )
+
+  async function login(email: string, password: string) {
+    requester.replaceSession(await loginWithPassword(apiBaseUrl, email, password))
+  }
+
+  async function logout() {
+    try {
+      if (requester.hasSession()) {
+        await requester.request('/auth/logout', { method: 'POST' })
+      }
+    } catch {
+      // Local logout is unconditional even if the API/network is unavailable.
+    } finally {
+      requester.clearSession()
+    }
   }
 
   return (
-    <AuthContext.Provider value={{ accessToken: auth?.accessToken, user: auth?.user, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        accessToken: session?.accessToken,
+        user: session?.user,
+        login,
+        logout,
+        request: (path, init) => requester.request(path, init),
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used inside AuthProvider')
-  return ctx
+  const context = useContext(AuthContext)
+  if (!context) throw new Error('useAuth must be used inside AuthProvider')
+  return context
 }

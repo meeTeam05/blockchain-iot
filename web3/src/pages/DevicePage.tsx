@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router'
 import { AppBar } from '../components/ui/AppBar'
 import { IncidentList } from '../blocks/B3/IncidentList'
 import { HistoryTimeline } from '../blocks/B6/HistoryTimeline'
+import { SessionActions } from '../blocks/B1/SessionActions'
 
 type Tab = 'incidents' | 'history'
 
@@ -15,7 +16,7 @@ export function DevicePage() {
 
   return (
     <>
-      <AppBar variant="back" title="Thiết bị" onBack={() => navigate('/')} />
+      <AppBar variant="back" title="Thiết bị" actions={<SessionActions />} onBack={() => navigate('/')} />
       <div className="mx-auto w-full max-w-3xl p-6">
         <div className="mb-4 flex gap-4 border-b border-line">
           <button

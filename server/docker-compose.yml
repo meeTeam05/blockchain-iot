@@ -15,7 +15,9 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./emqx/certs:/etc/nginx/certs:ro # reuse EMQX self-signed cert
       - ./ota-files:/var/www/ota:ro # firmware binaries drop zone
-      - ./dapp-files:/var/www/dapp:ro # web3/dist build output (Task 5)
+      # Deterministic Task 5 artifact: `cd ../web3 && npm run build`, then
+      # compose serves that exact dist tree without a manual copy step.
+      - ../web3/dist:/var/www/dapp:ro
     depends_on:
       api:     { condition: service_healthy }
     healthcheck:

@@ -12,6 +12,25 @@ cp .env.example .env.local   # sửa VITE_NETWORK/VITE_RPC_URL nếu cần
 npm run dev
 ```
 
+Vite dùng cùng canonical base path như production: `http://127.0.0.1:5173/dapp/`.
+
+Các biến runtime bắt buộc của frontend:
+
+```dotenv
+VITE_NETWORK=localhost          # hoặc sepolia
+VITE_RPC_URL=http://127.0.0.1:8545
+VITE_API_BASE_URL=http://127.0.0.1:3000/api
+```
+
+Với local Hardhat, chạy `cd blockchain && npm run node`, deploy canonical
+contract theo workflow của project rồi mở `/dapp/`; MetaMask phải trỏ đúng RPC
+local và import/fund account cần thao tác. Với Sepolia, đặt `VITE_NETWORK=sepolia`
+và dùng RPC Sepolia, nhưng không deploy lại từ dApp. Localhost và Sepolia cố ý
+dùng cùng chain ID `11155111`, nên chain ID **không đủ** để nhận diện mạng:
+dApp còn kiểm tra EIP-712 domain, bytecode và deployment receipt. Nếu thấy banner
+wrong RPC/domain, kiểm tra `VITE_NETWORK`, `VITE_RPC_URL`, địa chỉ deployment và
+xóa/sửa network RPC trùng chain ID trong MetaMask; không bỏ qua guard.
+
 Regenerate `src/generated/incident-deployments.ts` sau khi deploy contract
 mới: `node ../spec/incident/gen/gen-all.mjs` (chạy từ repo root).
 
@@ -19,8 +38,21 @@ mới: `node ../spec/incident/gen/gen-all.mjs` (chạy từ repo root).
 
 ```bash
 npm run test       # Vitest -- unit + smoke render + integration (mock connector, hardhat)
+npm run build && npm run test:deployment # asset + SPA fallback thật dưới /dapp/
 npm run test:e2e   # Playwright -- kịch bản A thật qua trình duyệt (xem dưới)
 ```
+
+Unit/integration suite có các gate P1: EIP-712 recovery độc lập (gồm signer
+rotation và API signer sai), mutation từng field của hai evidence vector, SSE
+reconnect/dedupe/fallback polling, cursor pagination, trạng thái RPC riêng biệt
+và boundary `eth_getLogs` 1.999/2.000/2.001 block.
+
+## Phát hành qua nginx
+
+Không copy artifact bằng tay. Chạy `npm run build` trong `web3/`, sau đó chạy
+`docker compose up -d nginx` trong `server/`. Compose mount read-only chính xác
+`web3/dist` vào `/var/www/dapp`; nginx phục vụ `/dapp/` và fallback mọi route SPA
+về `/dapp/index.html`.
 
 `npm run test:e2e` (`e2e/scenario-a.spec.ts`) tự khởi động một `vite` dev
 server riêng (cổng `5174`, không đụng cổng `5173` bạn đang dùng tay) với
@@ -41,6 +73,11 @@ trong DB, rồi publish một incident ký EIP-712 thật qua MQTT/TLS -- không
 gì bị mock ở tầng backend/chain, chỉ có bước ký ví (B1/B5) dùng mock connector
 thay MetaMask. Nếu không thấy backend sẵn sàng ở `http://127.0.0.1:3000`,
 test tự `skip` với lý do rõ ràng thay vì fail cứng.
+
+Kịch bản browser đi qua deep-link trước login, ví không phải owner, account
+switch sang owner, verify 4 checks, acknowledge, reload khi transaction còn
+pending/indexing, resolve, rồi kiểm tra history. Realtime dùng một SSE stream
+`/api/realtime`; polling 10 giây chỉ là fallback khi stream disconnect.
 
 CORS: thêm `http://127.0.0.1:5174` vào `CORS_ORIGINS` (cùng với `5173`) khi
 chạy test này, nếu không trình duyệt headless sẽ bị chặn gọi API.

@@ -11,9 +11,9 @@ function shortenAddress(address: string) {
 }
 
 export function ConnectWallet() {
-  const { address, isConnected, chainId } = useAccount()
-  const { connect, connectors, isPending } = useConnect()
-  const { disconnect } = useDisconnect()
+  const { address, isConnected, chainId, connector: activeConnector } = useAccount()
+  const { connect, connectAsync, connectors, isPending } = useConnect()
+  const { disconnect, disconnectAsync } = useDisconnect()
   const { switchChain } = useSwitchChain()
   const { data: balance } = useBalance({ address, query: { enabled: isConnected } })
 
@@ -43,6 +43,18 @@ export function ConnectWallet() {
         <Pill tone="online" label={chain.name} />
       )}
       {lowBalance ? <Pill tone="warn" label="ETH thấp" /> : null}
+      {connectors.length > 1 ? (
+        <button
+          type="button"
+          onClick={() => {
+            const next = connectors.find((candidate) => candidate.uid !== activeConnector?.uid)
+            if (next) void disconnectAsync().then(() => connectAsync({ connector: next }))
+          }}
+          className="rounded-pill border border-line px-3 py-1 text-[12px] font-semibold text-ink-2"
+        >
+          Đổi tài khoản
+        </button>
+      ) : null}
       <button
         type="button"
         onClick={() => disconnect()}

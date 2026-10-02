@@ -13,12 +13,12 @@ export default defineConfig({
   fullyParallel: false,
   retries: 0,
   use: {
-    baseURL: `http://127.0.0.1:${PORT}`,
+    baseURL: `http://127.0.0.1:${PORT}/dapp/`,
     trace: 'retain-on-failure',
   },
   webServer: {
     command: `npm run dev -- --port ${PORT} --strictPort`,
-    url: `http://127.0.0.1:${PORT}`,
+    url: `http://127.0.0.1:${PORT}/dapp/`,
     reuseExistingServer: false,
     timeout: 30_000,
     env: {

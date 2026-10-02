@@ -10,6 +10,7 @@ import { useNotifications } from '@/queries/notifications';
 import { NotificationItem } from '@/models/notification';
 import { AtmospherePalette } from '@/theme/palette';
 import { ApiConfig } from '@/config/env';
+import { openIncidentDappLink } from '@/lib/dappLink';
 
 const ICON_BY_TYPE: Record<string, typeof AppIcons.check> = {
   'device.online': AppIcons.check,
@@ -27,12 +28,6 @@ const ICON_BY_TYPE: Record<string, typeof AppIcons.check> = {
 // tmp/02_decisions/2026-10-01_task5-dapp-incident-decisions.md): always use
 // metamask.app.link, no canOpenURL pre-check -- the universal link itself
 // sends the user to install MetaMask when it isn't present.
-const DAPP_HOST = new URL(ApiConfig.defaultApiBaseUrl).host;
-
-function chainLink(deviceId: string, incidentId: string): string {
-  return `https://metamask.app.link/dapp/${DAPP_HOST}/d/${deviceId}/i/${incidentId}`;
-}
-
 function accentBackground(severity: string, c: AtmospherePalette): string {
   switch (severity) {
     case 'success':
@@ -96,7 +91,17 @@ function NotificationTile({ item }: { item: NotificationItem }) {
         {incidentId ? (
           <>
             <View style={{ height: AtmosphereTokens.space8 }} />
-            <Pressable onPress={() => Linking.openURL(chainLink(item.deviceId, incidentId))}>
+            <Pressable
+              onPress={(event) => {
+                void openIncidentDappLink(
+                  event,
+                  ApiConfig.defaultApiBaseUrl,
+                  item.deviceId,
+                  incidentId,
+                  Linking.openURL,
+                );
+              }}
+            >
               <Text style={AtmosphereTextStyles.caption(c.brand)}>Xem trên chain</Text>
             </Pressable>
           </>

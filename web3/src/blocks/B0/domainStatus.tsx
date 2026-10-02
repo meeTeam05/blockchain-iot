@@ -1,46 +1,101 @@
-// B0: shared domain-match flag. <TxButton> (B5) must check useDomainOk()
-// before enabling any send action -- "sai domain thì dApp bị khóa"
-// (tmp/Web3_task.md B0 "Xong khi").
+import { useQuery } from '@tanstack/react-query'
 import { createContext, useContext, type ReactNode } from 'react'
-import { useReadContract } from 'wagmi'
-import { AIR_SAFETY_LOG_ABI } from '../../generated/incident-deployments'
+import { useAccount, useConnectorClient, usePublicClient } from 'wagmi'
 import { activeNetwork } from '../../config/networks'
-import { chain } from '../../lib/wagmiConfig'
+import {
+  validateDeployment,
+  type DeploymentTarget,
+  type DeploymentStatus,
+  type RpcRequest,
+} from '../../lib/deploymentValidation'
 
-// Exported so integration tests can force domainOk=true when testing against
-// a dynamically-deployed contract the real provider's static-address check
-// doesn't know about (decision #13) -- app code should use useDomainOk().
-export const DomainStatusContext = createContext(false)
+export interface DomainStatusValue {
+  publicStatus: DeploymentStatus
+  walletStatus: DeploymentStatus
+}
 
-export function useDomainOk() {
+export const CORRECT_DOMAIN_STATUS: DomainStatusValue = {
+  publicStatus: 'correct',
+  walletStatus: 'correct',
+}
+
+export const DomainStatusContext = createContext<DomainStatusValue>({
+  publicStatus: 'checking',
+  walletStatus: 'disconnected',
+})
+
+export function useDomainStatus() {
   return useContext(DomainStatusContext)
 }
 
+export function useDomainOk() {
+  const status = useDomainStatus()
+  return status.publicStatus === 'correct' && status.walletStatus === 'correct'
+}
+
+const target: DeploymentTarget = {
+  chainId: activeNetwork.chainId,
+  address: activeNetwork.address,
+  name: activeNetwork.name,
+  version: activeNetwork.version,
+  domainSeparator: activeNetwork.domainSeparator,
+  runtimeCodeHash: activeNetwork.runtimeCodeHash,
+  deployTxHash: activeNetwork.deployTxHash,
+  blockNumber: activeNetwork.blockNumber,
+}
+
 export function DomainStatusProvider({ children }: { children: ReactNode }) {
-  const { data, isError } = useReadContract({
-    address: activeNetwork.address,
-    abi: AIR_SAFETY_LOG_ABI,
-    functionName: 'eip712Domain',
-    chainId: chain.id,
+  const publicClient = usePublicClient()
+  const { isConnected, address, chainId, connector } = useAccount()
+  const connectorClient = useConnectorClient()
+  const publicValidation = useQuery({
+    queryKey: ['deployment-guard', 'public', activeNetwork.key],
+    queryFn: () => validateDeployment(publicClient!.request as RpcRequest, target),
+    enabled: Boolean(publicClient),
+    retry: false,
+  })
+  const walletValidation = useQuery({
+    queryKey: ['deployment-guard', 'wallet', connector?.uid, address, chainId],
+    queryFn: () => validateDeployment(connectorClient.data!.request as RpcRequest, target),
+    enabled: isConnected && chainId === target.chainId && Boolean(connectorClient.data),
+    retry: false,
   })
 
-  const domainOk =
-    !isError &&
-    data !== undefined &&
-    data[1] === activeNetwork.name &&
-    data[2] === activeNetwork.version &&
-    Number(data[3]) === activeNetwork.chainId &&
-    data[4].toLowerCase() === activeNetwork.address.toLowerCase()
+  const publicStatus = publicClient
+    ? (publicValidation.data ?? (publicValidation.isError ? 'rpc_unavailable' : 'checking'))
+    : 'rpc_unavailable'
+  const walletStatus = !isConnected
+    ? 'disconnected'
+    : chainId !== target.chainId
+      ? 'wrong_chain'
+    : (walletValidation.data ??
+      (connectorClient.isError || walletValidation.isError ? 'rpc_unavailable' : 'checking'))
+  const value = { publicStatus, walletStatus } satisfies DomainStatusValue
+  return <DomainStatusContext.Provider value={value}>{children}</DomainStatusContext.Provider>
+}
 
-  return <DomainStatusContext.Provider value={domainOk}>{children}</DomainStatusContext.Provider>
+const STATUS_MESSAGE: Record<Exclude<DeploymentStatus, 'correct' | 'disconnected'>, string> = {
+  checking: 'Đang kiểm tra deployment…',
+  wrong_chain: 'Sai chain trong ví.',
+  wrong_rpc: 'RPC ví đang trỏ tới deployment khác dù chain ID trùng.',
+  contract_not_deployed: 'Không tìm thấy AirSafetyLog tại địa chỉ cấu hình.',
+  domain_mismatch: 'EIP-712 domain không khớp deployment cấu hình.',
+  rpc_unavailable: 'Không thể kiểm tra RPC lúc này.',
 }
 
 export function DomainMismatchBanner() {
-  const domainOk = useDomainOk()
-  if (domainOk) return null
+  const { publicStatus, walletStatus } = useDomainStatus()
+  const messages: string[] = []
+  if (publicStatus !== 'correct' && publicStatus !== 'disconnected') {
+    messages.push(`Public RPC: ${STATUS_MESSAGE[publicStatus]}`)
+  }
+  if (walletStatus !== 'correct' && walletStatus !== 'disconnected') {
+    messages.push(`Wallet RPC: ${STATUS_MESSAGE[walletStatus]}`)
+  }
+  if (messages.length === 0) return null
   return (
     <div className="bg-danger px-4 py-3 text-center text-[15px] font-semibold text-paper">
-      Sai domain hoặc sai mạng -- mọi hành động gửi giao dịch đã bị khóa.
+      {messages.join(' ')} Mọi hành động gửi giao dịch đã bị khóa.
     </div>
   )
 }

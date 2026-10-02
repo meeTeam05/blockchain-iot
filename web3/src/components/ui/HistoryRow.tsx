@@ -1,12 +1,13 @@
 // Ported from app_new/src/components/atoms/HistoryRow.tsx. Used for every
 // row in B6 ("Lịch sử on-chain").
 import type { LucideIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { Pill, type PillTone } from './Pill'
 
 interface HistoryRowProps {
   icon: LucideIcon
   label: string
-  sub: string
+  sub: ReactNode
   badgeTone?: PillTone
   badgeLabel?: string
 }

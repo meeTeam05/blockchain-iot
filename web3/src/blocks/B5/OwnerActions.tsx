@@ -1,138 +1,200 @@
-// B5: owner-gated acknowledge/resolve. State machine per tmp/Web3_task.md
-// mục 5: idle -> simulating -> awaiting_wallet -> pending -> confirmed ->
-// indexing -> done (or error at any point before `pending`).
-import { useEffect, useState } from 'react'
-import { useAccount, useSimulateContract, useWaitForTransactionReceipt, useWriteContract } from 'wagmi'
+import { useQueryClient } from '@tanstack/react-query'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useAccount, usePublicClient, useWalletClient } from 'wagmi'
+import type { Hash } from 'viem'
+import { ExplorerLink } from '../../components/ExplorerLink'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { PrimaryButton } from '../../components/ui/PrimaryButton'
 import { activeNetwork } from '../../config/networks'
 import { AIR_SAFETY_LOG_ABI } from '../../generated/incident-deployments'
 import { decodeError } from '../../lib/errors'
-import { useDomainOk } from '../B0/domainStatus'
-
-type Action = 'acknowledgeIncident' | 'resolveIncident'
-type Stage = 'idle' | 'confirming' | 'simulating' | 'awaiting_wallet' | 'pending' | 'confirmed' | 'indexing' | 'done' | 'error'
-
-const INDEXING_TIMEOUT_MS = 2 * 60_000
+import {
+  isTransactionBusy,
+  loadPendingTransaction,
+  pendingStorageKey,
+  resumeIncidentTransaction,
+  runIncidentTransaction,
+  TransactionRevertedError,
+  type IncidentAction,
+  type PendingIncidentTransaction,
+  type TransactionDependencies,
+  type TransactionSnapshot,
+} from '../../lib/incidentTransaction'
+import { useDomainOk, useDomainStatus } from '../B0/domainStatus'
 
 interface OwnerActionsProps {
-  incidentKey: `0x${string}`
+  deviceId: string
+  incidentId: string
+  incidentKey: Hash
   chainStatus: 'None' | 'Logged' | 'Acknowledged' | 'Resolved'
   isOwner: boolean
-  ownerStatus: string
-  onSettled: () => void
+  readOwnerStatus: () => Promise<string | null | undefined>
+  refetchChain: () => Promise<void>
 }
 
-export function OwnerActions({ incidentKey, chainStatus, isOwner, ownerStatus, onSettled }: OwnerActionsProps) {
-  const { isConnected } = useAccount()
+const IDLE: TransactionSnapshot = { stage: 'idle', action: null }
+
+export function OwnerActions({
+  deviceId,
+  incidentId,
+  incidentKey,
+  chainStatus,
+  isOwner,
+  readOwnerStatus,
+  refetchChain,
+}: OwnerActionsProps) {
+  const { address, isConnected } = useAccount()
+  const { data: walletClient } = useWalletClient()
+  const publicClient = usePublicClient()
+  const queryClient = useQueryClient()
   const domainOk = useDomainOk()
-  const [action, setAction] = useState<Action | null>(null)
-  const [stage, setStage] = useState<Stage>('idle')
-  const [message, setMessage] = useState<string | null>(null)
+  const { publicStatus } = useDomainStatus()
+  const [snapshot, setSnapshot] = useState<TransactionSnapshot>(IDLE)
+  const [dialogAction, setDialogAction] = useState<IncidentAction | null>(null)
+  const resuming = useRef(false)
+  const storageKey = useMemo(
+    () => pendingStorageKey(activeNetwork.key, incidentKey),
+    [incidentKey],
+  )
 
-  const { data: simulated, error: simError } = useSimulateContract({
-    address: activeNetwork.address,
-    abi: AIR_SAFETY_LOG_ABI,
-    functionName: action ?? 'acknowledgeIncident',
-    args: [incidentKey],
-    query: { enabled: action !== null && stage === 'simulating' },
-  })
-
-  const { writeContract, data: txHash, error: writeError } = useWriteContract()
-  const { isSuccess: confirmedOnChain } = useWaitForTransactionReceipt({ hash: txHash })
-
-  useEffect(() => {
-    if (stage !== 'simulating') return
-    if (simError) {
-      setMessage(decodeError(simError).message)
-      setStage('error')
-      return
+  function createDependencies(): TransactionDependencies<unknown> | null {
+    if (!publicClient) return null
+    return {
+      simulate: async (action) => {
+        if (!address) throw new Error('Ví chưa kết nối')
+        const result = await publicClient.simulateContract({
+          account: address,
+          address: activeNetwork.address,
+          abi: AIR_SAFETY_LOG_ABI,
+          functionName: action,
+          args: [incidentKey],
+        })
+        return result.request
+      },
+      submit: async (request) => {
+        if (!walletClient) throw new Error('Ví chưa kết nối')
+        return walletClient.writeContract(
+          request as Parameters<typeof walletClient.writeContract>[0],
+        )
+      },
+      waitForReceipt: async (hash) => {
+        const receipt = await publicClient.waitForTransactionReceipt({ hash, confirmations: 1 })
+        return { status: receipt.status }
+      },
+      refetchChain,
+      invalidateQueries: async () => {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['incident', deviceId, incidentId] }),
+          queryClient.invalidateQueries({ queryKey: ['incidents', deviceId] }),
+          queryClient.invalidateQueries({ queryKey: ['device-history', deviceId] }),
+          queryClient.invalidateQueries({ queryKey: ['devices'] }),
+        ])
+      },
+      readOwnerStatus,
+      persist: (pending: PendingIncidentTransaction) => {
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(pending))
+        } catch {
+          // A storage quota/privacy failure must not prevent a valid tx.
+        }
+      },
+      clearPending: () => {
+        try {
+          localStorage.removeItem(storageKey)
+        } catch {
+          // Receipt reconciliation is still complete in memory.
+        }
+      },
+      sleep: (ms) => new Promise((resolve) => window.setTimeout(resolve, ms)),
     }
-    if (simulated) {
-      setStage('awaiting_wallet')
-      // Explicit limit, not just the simulated estimate: wallets sometimes
-      // compute their own (lower) gas for this call and ignore the dapp's
-      // suggestion, which can revert out-of-gas. 100k is well above the
-      // ~34k this call actually costs.
-      writeContract({ ...simulated.request, gas: 100_000n })
-    }
-  }, [stage, simError, simulated, writeContract])
+  }
 
   useEffect(() => {
-    if (writeError) {
-      setMessage(decodeError(writeError).message)
-      setStage('error')
-    } else if (txHash && stage === 'awaiting_wallet') {
-      setStage('pending')
-    }
-  }, [writeError, txHash, stage])
-
-  useEffect(() => {
-    if (confirmedOnChain && stage === 'pending') setStage('confirmed')
-  }, [confirmedOnChain, stage])
-
-  useEffect(() => {
-    if (stage !== 'confirmed') return
-    setStage('indexing')
-    const expected = action === 'acknowledgeIncident' ? 'acknowledged' : 'resolved'
-    const deadline = Date.now() + INDEXING_TIMEOUT_MS
-    const interval = setInterval(() => {
-      onSettled()
-      if (ownerStatus === expected || Date.now() > deadline) {
-        clearInterval(interval)
-        setStage('done')
-        if (ownerStatus !== expected) setMessage('API đang chậm, chain đã ghi')
-      }
-    }, 3000)
-    return () => clearInterval(interval)
+    if (resuming.current || publicStatus !== 'correct') return
+    const pending = loadPendingTransaction(storageKey)
+    if (!pending || pending.deviceId !== deviceId || pending.incidentId !== incidentId) return
+    const dependencies = createDependencies()
+    if (!dependencies) return
+    resuming.current = true
+    void resumeIncidentTransaction(pending, dependencies, setSnapshot).finally(() => {
+      resuming.current = false
+    })
+    // Account/wallet state is intentionally absent: receipt reconciliation
+    // uses the validated public RPC and works even while the wallet is offline.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stage])
+  }, [deviceId, incidentId, publicClient, publicStatus, storageKey])
 
-  function startAction(next: Action) {
-    setAction(next)
-    setStage('confirming')
-  }
-
-  function confirm() {
-    setStage('simulating')
-  }
-
-  function cancel() {
-    setAction(null)
-    setStage('idle')
+  async function submitAction(action: IncidentAction) {
+    setDialogAction(null)
+    if (!domainOk) return
+    const dependencies = createDependencies()
+    if (!dependencies) return
+    const result = await runIncidentTransaction(
+      { action, incidentKey, deviceId, incidentId },
+      dependencies,
+      setSnapshot,
+    )
+    if (result.stage === 'cancelled') setSnapshot(IDLE)
   }
 
   if (!isConnected || !isOwner || !domainOk) return null
 
   const canAcknowledge = chainStatus === 'Logged'
   const canResolve = chainStatus === 'Logged' || chainStatus === 'Acknowledged'
-  const busy = stage !== 'idle' && stage !== 'confirming' && stage !== 'error' && stage !== 'done'
+  const busy = isTransactionBusy(snapshot.stage)
+  const errorMessage = snapshot.error
+    ? snapshot.error instanceof TransactionRevertedError
+      ? snapshot.error.message
+      : decodeError(snapshot.error).message
+    : null
 
   return (
     <div className="flex flex-col gap-2">
       {canAcknowledge ? (
         <PrimaryButton
           label="Xác nhận"
-          loading={busy && action === 'acknowledgeIncident'}
-          onClick={() => startAction('acknowledgeIncident')}
+          loading={busy && snapshot.action === 'acknowledgeIncident'}
+          disabled={busy}
+          onClick={() => {
+            setSnapshot(IDLE)
+            setDialogAction('acknowledgeIncident')
+          }}
         />
       ) : null}
       {canResolve ? (
         <PrimaryButton
           label="Đã xử lý"
-          loading={busy && action === 'resolveIncident'}
-          onClick={() => startAction('resolveIncident')}
+          loading={busy && snapshot.action === 'resolveIncident'}
+          disabled={busy}
+          onClick={() => {
+            setSnapshot(IDLE)
+            setDialogAction('resolveIncident')
+          }}
         />
       ) : null}
-      {stage === 'error' && message ? <p className="text-[13px] text-danger">{message}</p> : null}
-      {stage === 'done' && message ? <p className="text-[13px] text-warn">{message}</p> : null}
+
+      {snapshot.stage === 'simulating' ? <p className="text-[13px] text-ink-2">Đang mô phỏng giao dịch…</p> : null}
+      {snapshot.stage === 'awaiting_wallet' ? <p className="text-[13px] text-ink-2">Đang chờ xác nhận trong ví…</p> : null}
+      {snapshot.stage === 'confirming' ? <p className="text-[13px] text-ink-2">Đã gửi, đang chờ receipt on-chain…</p> : null}
+      {snapshot.stage === 'indexing' ? <p className="text-[13px] text-ink-2">Chain đã xác nhận, đang chờ API đồng bộ…</p> : null}
+      {snapshot.stage === 'error' && errorMessage ? <p className="text-[13px] text-danger">{errorMessage}</p> : null}
+      {snapshot.stage === 'success' && snapshot.apiSyncDelayed ? (
+        <p className="text-[13px] text-warn">API đang chậm, giao dịch đã được ghi nhận trên chain.</p>
+      ) : null}
+      {snapshot.txHash ? (
+        <p className="text-[13px] text-ink-2">
+          Tx: <ExplorerLink kind="tx" value={snapshot.txHash} label={`${snapshot.txHash.slice(0, 10)}…`} />
+        </p>
+      ) : null}
 
       <ConfirmDialog
-        open={stage === 'confirming'}
-        title={action === 'acknowledgeIncident' ? 'Xác nhận sự cố?' : 'Đánh dấu đã xử lý?'}
-        message="Giao dịch sẽ được gửi qua ví đang kết nối."
-        onCancel={cancel}
-        onConfirm={confirm}
+        open={dialogAction !== null}
+        title={dialogAction === 'acknowledgeIncident' ? 'Xác nhận sự cố?' : 'Đánh dấu đã xử lý?'}
+        message="Giao dịch sẽ được mô phỏng trước khi yêu cầu ví ký."
+        onCancel={() => setDialogAction(null)}
+        onConfirm={() => {
+          if (dialogAction) void submitAction(dialogAction)
+        }}
       />
     </div>
   )

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "test:deployment": "node scripts/test-dapp-deployment.mjs",
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",

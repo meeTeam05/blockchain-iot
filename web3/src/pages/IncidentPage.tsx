@@ -1,14 +1,17 @@
+import { useCallback } from 'react'
 import { useAccount, useReadContract } from 'wagmi'
 import { useNavigate, useParams } from 'react-router'
 import { AppBar } from '../components/ui/AppBar'
 import { IncidentSummary } from '../blocks/B3/IncidentSummary'
 import { VerifyPanel } from '../blocks/B4/VerifyPanel'
 import { OwnerActions } from '../blocks/B5/OwnerActions'
+import { SessionActions } from '../blocks/B1/SessionActions'
 import { activeNetwork } from '../config/networks'
 import { AIR_SAFETY_LOG_ABI } from '../generated/incident-deployments'
 import { computeDeviceIdHash, computeIncidentKey } from '../lib/chainIncident'
 import { useIncidentDetail } from '../lib/incidentsApi'
-import { CHAIN_STATUS_NAMES, mergeIncidentStatus } from '../lib/mergeStatus'
+import { CHAIN_STATUS_NAMES, deriveIncidentStatus } from '../lib/mergeStatus'
+import { addressesMatch } from '../lib/ownership'
 
 export function IncidentPage() {
   const { deviceId, incidentId } = useParams<{ deviceId: string; incidentId: string }>()
@@ -19,14 +22,14 @@ export function IncidentPage() {
   const deviceIdHash = deviceId ? computeDeviceIdHash(deviceId) : undefined
   const incidentKey = deviceIdHash && incidentId ? computeIncidentKey(deviceIdHash, incidentId as `0x${string}`) : undefined
 
-  const { data: chainIncident } = useReadContract({
+  const { data: chainIncident, isPending: isChainIncidentPending, isError: isChainIncidentError, refetch: refetchChainIncident } = useReadContract({
     address: activeNetwork.address,
     abi: AIR_SAFETY_LOG_ABI,
     functionName: 'getIncident',
     args: incidentKey ? [incidentKey] : undefined,
     query: { enabled: Boolean(incidentKey) },
   })
-  const { data: chainDevice } = useReadContract({
+  const { data: chainDevice, refetch: refetchChainDevice } = useReadContract({
     address: activeNetwork.address,
     abi: AIR_SAFETY_LOG_ABI,
     functionName: 'getDevice',
@@ -34,21 +37,43 @@ export function IncidentPage() {
     query: { enabled: Boolean(deviceIdHash) },
   })
 
+  const readOwnerStatus = useCallback(async () => (await refetch()).data?.owner_status, [refetch])
+  const refetchChain = useCallback(async () => {
+    await Promise.all([refetchChainIncident(), refetchChainDevice()])
+  }, [refetchChainDevice, refetchChainIncident])
+
   if (!deviceId || !incidentId) return null
 
   const chainStatus = CHAIN_STATUS_NAMES[chainIncident ? Number(chainIncident.status) : 0]
-  const isOwner = Boolean(address && chainDevice?.owner && chainDevice.owner.toLowerCase() === address.toLowerCase())
+  const merged = incident
+    ? deriveIncidentStatus(
+        incident.chain_status,
+        isChainIncidentPending ? 'loading' : isChainIncidentError ? 'error' : 'success',
+        chainStatus,
+      )
+    : undefined
+  const isOwner = addressesMatch(chainDevice?.owner, address)
 
   return (
     <>
-      <AppBar variant="back" title="Sự cố" onBack={() => navigate(`/d/${deviceId}`)} />
+      <AppBar variant="back" title="Sự cố" actions={<SessionActions />} onBack={() => navigate(`/d/${deviceId}`)} />
       <div className="mx-auto w-full max-w-5xl p-6">
         {isLoading ? <p className="text-ink-2">Đang tải…</p> : null}
         {error ? <p className="text-danger">{error.message}</p> : null}
         {incident ? (
           <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[1fr_320px]">
             <div className="flex flex-col gap-4">
-              <IncidentSummary deviceId={deviceId} incident={incident} merged={mergeIncidentStatus(incident.chain_status, chainStatus)} />
+              {isChainIncidentError ? (
+                <p className="rounded-card border border-line bg-paper p-3 text-[13px] text-ink-2">
+                  RPC/chain hiện không khả dụng; trạng thái API bên dưới vẫn được giữ riêng và không bị coi là “None”.
+                </p>
+              ) : null}
+              <IncidentSummary
+                deviceId={deviceId}
+                incident={incident}
+                merged={merged!}
+                loggedAt={chainIncident?.loggedAt}
+              />
               <VerifyPanel deviceId={deviceId} incident={incident} />
             </div>
             <div className="flex flex-col gap-3">
@@ -60,11 +85,13 @@ export function IncidentPage() {
               ) : null}
               {incidentKey ? (
                 <OwnerActions
+                  deviceId={deviceId}
+                  incidentId={incidentId}
                   incidentKey={incidentKey}
                   chainStatus={chainStatus}
                   isOwner={isOwner}
-                  ownerStatus={incident.owner_status}
-                  onSettled={() => void refetch()}
+                  readOwnerStatus={readOwnerStatus}
+                  refetchChain={refetchChain}
                 />
               ) : null}
               {!isOwner ? (

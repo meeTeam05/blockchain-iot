@@ -5,6 +5,10 @@ import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // The dApp is served by the existing nginx origin below /dapp/. Keeping the
+  // same base in dev makes asset URLs and direct-route behaviour identical to
+  // production (Vite redirects / to /dapp/ for convenience).
+  base: '/dapp/',
   plugins: [react(), tailwindcss()],
   test: {
     environment: 'jsdom',

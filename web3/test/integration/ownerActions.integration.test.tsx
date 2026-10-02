@@ -21,7 +21,7 @@ import { loadVector, signIncident } from '../../../server/api/test/helpers/incid
 import { activeNetwork } from '../../src/config/networks'
 import { chain } from '../../src/lib/wagmiConfig'
 import { ConnectWallet } from '../../src/blocks/B1/ConnectWallet'
-import { DomainStatusContext } from '../../src/blocks/B0/domainStatus'
+import { CORRECT_DOMAIN_STATUS, DomainStatusContext } from '../../src/blocks/B0/domainStatus'
 import { OwnerActions } from '../../src/blocks/B5/OwnerActions'
 
 const RPC_URL = process.env.E2E_CHAIN_RPC_URL
@@ -65,14 +65,16 @@ describe.skipIf(!RPC_URL)('OwnerActions against a live hardhat node', () => {
           {/* Real DomainStatusProvider checks the static activeNetwork.address,
               which doesn't exist on this run's dynamically-deployed contract --
               force domainOk=true here since that check is B0's concern, not B5's. */}
-          <DomainStatusContext.Provider value={true}>
+          <DomainStatusContext.Provider value={CORRECT_DOMAIN_STATUS}>
             <ConnectWallet />
             <OwnerActions
+              deviceId="device-1"
+              incidentId={vector.payload.incident_id}
               incidentKey={incidentKey}
               chainStatus="Logged"
               isOwner
-              ownerStatus="open"
-              onSettled={() => {}}
+              readOwnerStatus={async () => 'acknowledged'}
+              refetchChain={async () => {}}
             />
           </DomainStatusContext.Provider>
         </QueryClientProvider>

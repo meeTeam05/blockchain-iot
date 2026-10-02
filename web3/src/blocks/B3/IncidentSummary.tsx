@@ -32,7 +32,21 @@ function MetaColumn({ label, children }: MetaColumnProps) {
   )
 }
 
-export function IncidentSummary({ deviceId, incident, merged }: { deviceId: string; incident: ApiIncidentDetail; merged: MergedStatus }) {
+function valueOrDash(value: unknown, suffix = '') {
+  return value === null || value === undefined || value === '' ? '—' : `${String(value)}${suffix}`
+}
+
+export function IncidentSummary({
+  deviceId,
+  incident,
+  merged,
+  loggedAt,
+}: {
+  deviceId: string
+  incident: ApiIncidentDetail
+  merged: MergedStatus
+  loggedAt?: bigint
+}) {
   return (
     <Card className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
@@ -52,6 +66,28 @@ export function IncidentSummary({ deviceId, incident, merged }: { deviceId: stri
           )}
         </MetaColumn>
       </div>
+      <div className="grid grid-cols-2 gap-3 border-t border-line pt-3 text-[12px] sm:grid-cols-4">
+        <MetaColumn label="Temperature">{valueOrDash(incident.sensors.temperature_c, ' °C')}</MetaColumn>
+        <MetaColumn label="Humidity">{valueOrDash(incident.sensors.humidity_pct, ' %')}</MetaColumn>
+        <MetaColumn label="CO">{valueOrDash(incident.sensors.co_ppm, ' ppm')}</MetaColumn>
+        <MetaColumn label="NO₂">{valueOrDash(incident.sensors.no2_ppm, ' ppm')}</MetaColumn>
+        <MetaColumn label="Kind">{valueOrDash(incident.incident_kind)}</MetaColumn>
+        <MetaColumn label="Time source">{valueOrDash(incident.time_source)}</MetaColumn>
+        <MetaColumn label="Logged on-chain">{loggedAt ? formatObservedAt(loggedAt.toString()) : '—'}</MetaColumn>
+        <MetaColumn label="Fail reason">{valueOrDash(incident.chain.fail_reason ?? incident.chain.last_error)}</MetaColumn>
+      </div>
+      <details className="border-t border-line pt-3 text-[12px] text-ink-2">
+        <summary className="cursor-pointer font-semibold text-ink">Chi tiết dữ liệu đã ký</summary>
+        <pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-canvas p-3 font-mono text-[11px]">
+          {JSON.stringify({
+            derived: incident.derived,
+            model: incident.model,
+            alarm_sources: incident.alarm_sources,
+            firmware: incident.firmware,
+            calibration: incident.calibration,
+          }, null, 2)}
+        </pre>
+      </details>
     </Card>
   )
 }

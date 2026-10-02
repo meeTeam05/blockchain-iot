@@ -8,12 +8,13 @@ import { activeNetwork } from '../../config/networks'
 import { AIR_SAFETY_LOG_ABI } from '../../generated/incident-deployments'
 import { computeDeviceIdHash, computeIncidentKey } from '../../lib/chainIncident'
 import { useIncidents } from '../../lib/incidentsApi'
-import { CHAIN_STATUS_NAMES, mergeIncidentStatus } from '../../lib/mergeStatus'
+import { CHAIN_STATUS_NAMES, deriveIncidentStatus } from '../../lib/mergeStatus'
 
 const SEVERITY_TONE = { warning: 'warn', danger: 'danger', critical: 'danger' } as const
 
 export function IncidentList({ deviceId }: { deviceId: string }) {
-  const { data: incidents, isLoading } = useIncidents(deviceId)
+  const { data, isLoading, isError, error, hasNextPage, fetchNextPage, isFetchingNextPage } = useIncidents(deviceId)
+  const incidents = data?.pages.flat() ?? []
   const deviceIdHash = computeDeviceIdHash(deviceId)
 
   const contracts = (incidents ?? []).map((i) => ({
@@ -22,9 +23,13 @@ export function IncidentList({ deviceId }: { deviceId: string }) {
     functionName: 'getIncident' as const,
     args: [computeIncidentKey(deviceIdHash, i.incident_id as `0x${string}`)] as const,
   }))
-  const { data: chainResults } = useReadContracts({ contracts, query: { enabled: contracts.length > 0 } })
+  const { data: chainResults, isPending: isChainPending, isError: isChainError } = useReadContracts({
+    contracts,
+    query: { enabled: contracts.length > 0 },
+  })
 
   if (isLoading) return <p className="text-ink-2">Đang tải…</p>
+  if (isError) return <p className="text-danger">{error.message}</p>
 
   if (!incidents || incidents.length === 0) {
     return <EmptyState icon={AlertTriangle} title="Chưa có sự cố" body="Thiết bị chưa ghi nhận sự cố nào." />
@@ -33,9 +38,15 @@ export function IncidentList({ deviceId }: { deviceId: string }) {
   return (
     <div className="flex flex-col gap-2">
       {incidents.map((incident, i) => {
-        const chainStatusIndex = chainResults?.[i]?.status === 'success' ? Number(chainResults[i].result.status) : 0
+        const result = chainResults?.[i]
+        const chainReadState = isChainPending
+          ? 'loading'
+          : isChainError || result?.status === 'failure' || !result
+            ? 'error'
+            : 'success'
+        const chainStatusIndex = result?.status === 'success' ? Number(result.result.status) : 0
         const chainStatusName = CHAIN_STATUS_NAMES[chainStatusIndex] ?? 'None'
-        const merged = mergeIncidentStatus(incident.chain_status, chainStatusName)
+        const merged = deriveIncidentStatus(incident.chain_status, chainReadState, chainStatusName)
         const severityTone = incident.severity ? SEVERITY_TONE[incident.severity] : 'offline'
 
         return (
@@ -52,6 +63,16 @@ export function IncidentList({ deviceId }: { deviceId: string }) {
           </Link>
         )
       })}
+      {hasNextPage ? (
+        <button
+          type="button"
+          disabled={isFetchingNextPage}
+          onClick={() => void fetchNextPage()}
+          className="mt-2 rounded-button border border-line px-4 py-2 text-[13px] font-semibold text-ink disabled:opacity-50"
+        >
+          {isFetchingNextPage ? 'Đang tải…' : 'Tải thêm sự cố'}
+        </button>
+      ) : null}
     </div>
   )
 }
