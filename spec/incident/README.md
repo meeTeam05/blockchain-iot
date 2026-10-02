@@ -11,6 +11,8 @@ spec/incident/
   gen/gen-all.mjs              regenerates every derived file (--check for CI)
   gen/gen-firmware.mjs         -> firmware/components/core/incident/include/incident_domain.h
   gen/gen-backend.mjs          -> server/api/src/generated/incident-deployments.js (+ ABI)
+  gen/gen-incentives.mjs       blockchain/deployments/<network>.incentives.json
+                               -> server/api/src/generated/incentives-deployments.js (+ ABI)
 ```
 
 ## Flow after a deployment

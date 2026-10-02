@@ -20,6 +20,7 @@
 8. [Telemetry — Dữ liệu cảm biến](#8-telemetry--dữ-liệu-cảm-biến)
 8a. [Incidents — Bằng chứng sự cố blockchain](#8a-incidents--bằng-chứng-sự-cố-blockchain)
 8b. [Chain worker — Health và metrics vận hành](#8b-chain-worker--health-và-metrics-vận-hành)
+8c. [Incentives — Token thưởng/phạt](#8c-incentives--token-thưởngphạt)
 9. [Realtime — App SSE and Notifications Feed](#9-realtime--app-sse-and-notifications-feed)
 10. [Redis Keys Reference](#10-redis-keys-reference)
 11. [MQTT Bridge — Server-side](#11-mqtt-bridge--server-side)
@@ -69,6 +70,14 @@
 | GET    | `/api/devices/:id/incidents`      |   🔒   |            | Danh sách incident đã ký (Schema v2)                      |
 | GET    | `/api/devices/:id/incidents/:incidentId` | 🔒 |          | Chi tiết incident + trạng thái chain                      |
 | GET    | `/api/devices/:id/incidents/:incidentId/verify` | 🔒 |   | Tính lại hash/chữ ký từ payload gốc đã lưu                |
+| GET    | `/api/devices/:id/incentives`   |   🔒   |            | Stake và lịch sử thưởng/phạt                              |
+| GET    | `/api/incentives/overdue`       |        |   60/min   | Incident có thể phạt                                      |
+| GET    | `/api/incentives/params`        |        |   60/min   | Tham số, quỹ thưởng, stake operator                       |
+| GET    | `/api/incentives/leaderboard`   |        |   60/min   | Bảng thưởng/phạt                                          |
+| GET    | `/api/devices/:id/incentives`     |   🔒   |            | Ký quỹ, lượt thưởng hôm nay, lịch sử thưởng/phạt          |
+| GET    | `/api/incentives/overdue`         |       |   60/min   | Incident có thể `slashMissedAck` / `slashLateRelay`       |
+| GET    | `/api/incentives/params`          |       |   60/min   | Tham số, quỹ thưởng, stake operator                       |
+| GET    | `/api/incentives/leaderboard`     |       |   60/min   | Owner được thưởng nhiều nhất, keeper phạt nhiều nhất      |
 | GET    | `/api/notifications`              |   🔒   |            | Feed thông báo thiết bị theo thời gian                    |
 | GET    | `/api/realtime`                   |   🔒   |            | App realtime stream (SSE)                                 |
 
@@ -1094,6 +1103,7 @@ Trả toàn bộ field summary và thêm:
 | `owner` | thời điểm/ví/tx acknowledge và resolve |
 | `chain` | `{ status, attempts, tx_hash, block_number, confirmations, confirmed_at, last_error, updated_at }` |
 | `evidence` | 33 field evidence nguyên bản đúng như đã ký (uint64 là chuỗi) |
+| `incentive` | thưởng/phạt token của incident: hạn chót, `reward_status`, event on-chain (xem [8b](#incentive-trong-chi-tiết-incident)) |
 
 ### `GET /api/devices/:id/incidents/:incidentId/verify` 🔒
 
@@ -1171,6 +1181,160 @@ Lý do `degraded`: chưa có heartbeat; heartbeat cũ hơn `CHAIN_HEALTH_MAX_TIC
 ### `GET /api/metrics/chain`
 
 `text/plain; version=0.0.4`. Cần quyền ops (`401` khi sai token, `404` khi bị tắt). Các metric: `smartair_chain_healthy`, `smartair_chain_outbox_items{status}`, `smartair_chain_outbox_oldest_queued_age_seconds`, `smartair_chain_outbox_oldest_pending_age_seconds`, `smartair_chain_outbox_max_attempts`, `smartair_chain_device_ops_items{status}`, `smartair_chain_device_ops_oldest_queued_age_seconds`, `smartair_chain_worker_last_tick_age_seconds`, `smartair_chain_worker_consecutive_failures`, `smartair_chain_worker_rpc_errors_total`, `smartair_chain_head_block`, `smartair_chain_indexed_block`, `smartair_chain_index_lag_blocks`, `smartair_chain_relayer_balance_eth`, `smartair_chain_alerts_open`, `smartair_chain_alerts_undelivered`.
+## 8c. Incentives — Token thưởng/phạt
+
+Luật: `Token_incentive_task.md`; contract: `blockchain/contracts/SafetyIncentives.sol`. Chain worker (bật `INCENTIVES_ENABLED=true`) index event của `SafetyIncentives` vào `incentive_events`, `device_bonds`, `incidents.reward_status` và chụp tham số/quỹ vào `incentive_state` (migration `020_incentives.sql`). API **chỉ đọc DB**, không gọi RPC; chain vẫn là nguồn sự thật (dApp đối chiếu bằng `eth_call`).
+
+Quy ước số: số token là **wei dạng chuỗi thập phân** (ASAFE có 18 chữ số thập phân, `"5000000000000000000"` = 5 ASAFE); thời lượng là giây dạng chuỗi; thời điểm là ISO. Khi worker chưa từng index incentives, các route công khai trả `404 { "error": "Incentives are not available" }`.
+
+Keeper của server (bật thêm `KEEPER_ENABLED=true`, ví `KEEPER_PRIVATE_KEY` riêng) tự gọi `recordTimelyAck` / `recordTimelyResolve` cho owner đã ack/resolve đúng hạn và `slashMissedAck` cho incident quá hạn chưa ack. Keeper **không** gọi `slashLateRelay`; mục `slash_late_relay` của `/overdue` dành cho keeper bên ngoài (dApp `/keeper`).
+
+### `GET /api/devices/:id/incentives` 🔒
+
+Quyền: thành viên home của device (`checkDeviceAccess`), nếu không `403`.
+
+| Param       | Default | Max | Mô tả                                        |
+| ----------- | ------- | --- | -------------------------------------------- |
+| `limit`     | `50`    | 200 | Số event lịch sử                             |
+| `before_id` | _(none)_| —   | Cursor: chỉ lấy event có `id` nhỏ hơn         |
+
+**200 OK:**
+```json
+{
+  "device_id": "dc:b4:d9:13:ed:8c",
+  "device_id_hash": "0x…",
+  "enabled": true,
+  "contract": "0x…",
+  "bond": {
+    "staker": "0x4ac8…f30b",
+    "amount": "80000000000000000000",
+    "since": "2026-10-02T01:00:00.000Z",
+    "unstake_requested_at": null,
+    "unstake_available_at": null,
+    "updated_block": "1234"
+  },
+  "rewards_today": { "day": 20363, "count": 2, "cap": 3 },
+  "totals": { "rewarded": "15000000000000000000", "slashed": "20000000000000000000" },
+  "params": { "owner_bond": "100…", "missed_ack_penalty": "20…", "ack_reward": "5…", "resolve_reward": "5…", "daily_reward_cap": 3, "unstake_cooldown": "604800" },
+  "warnings": ["bond_below_owner_bond"],
+  "events": [
+    {
+      "id": "42", "name": "AckRewarded", "incident_key": "0x…", "incident_id": "0x…",
+      "account": "0x4ac8…f30b", "amount": "5000000000000000000", "data": { "incidentKey": "0x…", "owner": "0x…", "amount": "5000000000000000000" },
+      "tx_hash": "0x…", "log_index": 0, "block_number": "1240", "block_time": "2026-10-02T11:40:05.000Z"
+    }
+  ]
+}
+```
+
+- `bond` là `null` khi device chưa stake hoặc đã rút.
+- `rewards_today`: số lần R1 **trả thưởng** trong ngày UTC của chain (`block.timestamp / 1 days`), so với trần `daily_reward_cap`.
+- `warnings`: `no_bond`, `bond_below_owner_bond` (không còn đủ mức nạp tối thiểu), `bond_cannot_cover_penalty` (dưới `missed_ack_penalty`: không còn được thưởng, vẫn bị phạt), `unstake_pending`, `daily_cap_reached`.
+- `events`: `Staked`, `UnstakeRequested`, `Withdrawn`, `AckRewarded`, `ResolveRewarded`, `RewardSkipped` (`data.rule` 1 = R1, 2 = R2; `data.reason_name`: `DailyCap` / `InsufficientFund` / `NoBond` / `AckNotRewarded`), `MissedAckSlashed` (`account` = keeper), `LateRelaySlashed`, `BondExhausted`. Mới nhất trước.
+
+### `GET /api/incentives/overdue`
+
+Công khai, rate limit 60/phút. Chỉ chứa dữ kiện on-chain (key, hạn chót, mức độ, số tiền), **không** có `device_id` hay số đo.
+
+| Param   | Default | Max |
+| ------- | ------- | --- |
+| `limit` | `100`   | 500 |
+
+**200 OK:**
+```json
+{
+  "as_of": "2026-10-02T06:11:30.000Z",
+  "contract": "0x…",
+  "keeper_share_bps": 5000,
+  "slash_missed_ack": [
+    {
+      "incident_key": "0x…", "device_id_hash": "0x…", "severity": 2,
+      "owner_acknowledged_late": false,
+      "logged_at": "2026-10-02T06:01:00.000Z", "deadline_at": "2026-10-02T06:11:00.000Z",
+      "penalty": "20000000000000000000", "bond_available": "100000000000000000000", "bounty": "10000000000000000000"
+    }
+  ],
+  "slash_late_relay": [
+    {
+      "incident_key": "0x…", "device_id_hash": "0x…", "severity": 1,
+      "observed_at": "2026-10-02T11:00:00.000Z", "logged_at": "2026-10-02T11:25:00.000Z",
+      "relay_delay_seconds": "1500", "max_relay_delay": "900",
+      "penalty": "20000000000000000000", "bond_available": "1000000000000000000000", "bounty": "10000000000000000000"
+    }
+  ]
+}
+```
+
+- `slash_missed_ack`: `deadline_at < now`, chưa `TIMELY_ACK`, chưa bị phạt. `owner_acknowledged_late = true` nếu owner đã ack nhưng sau hạn (ack muộn không né được phạt).
+- `slash_late_relay`: `logged_at − observed_at > max_relay_delay`, chưa bị phạt P2.
+- `bounty` = `min(penalty, bond_available) × keeper_share_bps / 10000`. `bond_available = 0` khi ký quỹ không bao incident (chưa stake, hoặc stake sau khi incident được ghi). Danh sách là gợi ý; dApp vẫn phải `simulateContract` trước khi gửi (người khác có thể đã phạt: `AlreadySettled`).
+- `now` = max(giờ server, giờ block trong snapshot gần nhất).
+
+### `GET /api/incentives/params`
+
+Công khai, rate limit 60/phút. Snapshot do worker làm mới khi có event mới hoặc mỗi `INCENTIVES_STATE_REFRESH_MS` (mặc định 60 s).
+
+**200 OK:**
+```json
+{
+  "contract": "0x…", "token": "0x…", "air_safety_log": "0x…", "treasury": "0x…", "operator": "0xe942…197d",
+  "activated_at": "2026-10-02T01:00:00.000Z",
+  "params": {
+    "ack_deadline_warning": "1800", "ack_deadline_danger": "600", "resolve_deadline": "86400",
+    "owner_bond": "100000000000000000000", "ack_reward": "5000000000000000000", "resolve_reward": "5000000000000000000",
+    "missed_ack_penalty": "20000000000000000000", "max_relay_delay": "900", "late_relay_penalty": "20000000000000000000",
+    "keeper_share_bps": 5000, "daily_reward_cap": 3, "unstake_cooldown": "604800"
+  },
+  "reward_fund": "49980000000000000000000",
+  "low_reward_fund": false,
+  "total_bonded": "1060000000000000000000",
+  "operator_bond": { "amount": "980000000000000000000", "unstake_requested_at": null },
+  "current_day": 20363,
+  "block_number": "1300", "block_time": "2026-10-02T13:30:00.000Z", "updated_at": "…",
+  "params_history": [ { "id": "1", "name": "ParamsUpdated", "data": { "params": { "ackDeadlineWarning": "1800", "…": "…" } }, "…": "…" } ]
+}
+```
+
+`low_reward_fund = true` khi quỹ thưởng dưới 1 000 ASAFE (quỹ cạn thì thưởng bị bỏ qua bằng `RewardSkipped`, ack vẫn được ghi nhận).
+
+### `GET /api/incentives/leaderboard`
+
+Công khai, rate limit 60/phút. `limit` mặc định 10, tối đa 100.
+
+```json
+{
+  "contract": "0x…",
+  "owners": [ { "account": "0x4ac8…f30b", "rewarded": "20000000000000000000", "rewards": 4 } ],
+  "keepers": [ { "account": "0x…", "slashed": "20000000000000000000", "slashes": 2 } ]
+}
+```
+
+`keepers.slashed` là tổng bounty keeper thực nhận sau khi áp dụng `keeper_share_bps` tại thời điểm từng lần slash (phần còn lại chuyển treasury).
+
+### `incentive` trong chi tiết incident
+
+`GET /api/devices/:id/incidents/:incidentId` có thêm:
+
+```json
+"incentive": {
+  "incident_key": "0x…",
+  "covered": true,
+  "logged_at": "2026-10-02T02:01:30.000Z",
+  "deadline_at": "2026-10-02T02:31:30.000Z",
+  "resolve_deadline_at": "2026-10-03T02:01:30.000Z",
+  "reward_status": "ack_rewarded",
+  "flags": { "timely_ack": true, "ack_rewarded": true, "resolve_settled": false, "ack_slashed": false, "relay_slashed": false },
+  "events": [ { "name": "AckRewarded", "amount": "5000000000000000000", "…": "…" } ]
+}
+```
+
+- `covered`: `null` khi worker chưa kiểm tra, `false` khi incident được ghi trước lúc bật thưởng/phạt (`activatedAt`), khi đó các hạn chót là `null`.
+- `deadline_at` = `loggedAt + ACK_DEADLINE[severity]` (warning 30 phút, danger 10 phút), đổi theo `ParamsUpdated`.
+- `reward_status`: `none` | `ack_rewarded` | `resolved_rewarded` | `over_cap` (ack đúng hạn nhưng vượt trần ngày) | `slashed` (P1) | `late_relay_slashed` (P2, operator bị phạt). Khi có nhiều kết quả, giữ kết quả quan trọng nhất (`slashed` > `resolved_rewarded` > `ack_rewarded` > `over_cap` > `late_relay_slashed`); `flags` giữ đủ mọi kết quả (ví dụ incident relay trễ vẫn có thể `ack_rewarded`, `flags.relay_slashed = true`).
+
+### Realtime
+
+Mỗi event incentives gắn với một device trong DB phát SSE `incentive.updated` với payload `{ event, incident_id, incident_key, account, amount, reward_status, tx_hash, block_number }`.
 
 ---
 

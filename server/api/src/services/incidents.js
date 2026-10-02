@@ -28,6 +28,7 @@ const INCIDENT_SELECT = `
            o.last_error AS chain_last_error,
            o.fail_reason AS chain_fail_reason,
            o.verifying_contract AS chain_verifying_contract,
+           o.incident_key AS chain_incident_key,
            o.updated_at AS chain_updated_at,
            d.owner_address AS owner_address
     FROM incidents i

@@ -16,6 +16,7 @@ const VECTOR_DIR = path.resolve(__dirname, '../../../../docs/test-vectors');
 const MIGRATION_017 = path.resolve(__dirname, '../../../db/migrations/017_blockchain_incidents.sql');
 const MIGRATION_018 = path.resolve(__dirname, '../../../db/migrations/018_task1_task3_wire_compat.sql');
 const MIGRATION_019 = path.resolve(__dirname, '../../../db/migrations/019_outbox_domain_and_signer_gate.sql');
+const MIGRATION_020_INCENTIVES = path.resolve(__dirname, '../../../db/migrations/020_incentives.sql');
 const MIGRATION_020 = path.resolve(__dirname, '../../../db/migrations/020_positive_incident_sequence_and_bounded_chain_ops.sql');
 const MIGRATION_021 = path.resolve(__dirname, '../../../db/migrations/021_chain_worker_operations.sql');
 
@@ -127,6 +128,7 @@ export async function createIncidentDb({ signerAddress = null, applyLatestMigrat
     await pg.exec(await readFile(MIGRATION_017, 'utf8'));
     await pg.exec(await readFile(MIGRATION_018, 'utf8'));
     await pg.exec(await readFile(MIGRATION_019, 'utf8'));
+    await pg.exec(await readFile(MIGRATION_020_INCENTIVES, 'utf8'));
     if (applyLatestMigration) await pg.exec(await readFile(MIGRATION_020, 'utf8'));
     // 021 is independent of 020's constraints, so tests of 020 itself still get it.
     await pg.exec(await readFile(MIGRATION_021, 'utf8'));

@@ -76,7 +76,13 @@ hoặc chain-worker gọi sau khi index được `IncidentAcknowledged`).
 - `block.timestamp ≤ inc.loggedAt + ACK_DEADLINE[inc.severity]`
 - Incident chưa được ghi nhận
 - Device còn trong trần thưởng của ngày
-- `dev.owner` có stake ≥ `OWNER_BOND`
+- `dev.owner` có stake còn ≥ `MISSED_ACK_PENALTY` (đủ chịu một lần phạt) và không
+  đang chờ rút. `OWNER_BOND` là mức tối thiểu **khi nạp** stake; sau khi bị phạt
+  xuống dưới mức này (ví dụ 80 ở kịch bản) owner vẫn được thưởng.
+
+Nếu không đạt điều kiện stake, trần ngày hoặc quỹ cạn: ack vẫn được ghi nhận
+(`timelyAck` là cờ `TIMELY_ACK` trong `settlementFlags`) nhưng không trả thưởng,
+phát `RewardSkipped`.
 
 Kết quả: đánh dấu `timelyAck[key] = true` và trả `ACK_REWARD` cho `dev.owner`
 (nếu quỹ còn đủ token).
@@ -151,7 +157,7 @@ Mọi giờ tính theo UTC+7.
 |---|---|---|
 | 1 | Admin deploy `AirSafeToken` (1 000 000 ASAFE vào Treasury) và `SafetyIncentives` | — |
 | 2 | Treasury chuyển 50 000 ASAFE vào quỹ thưởng | Quỹ thưởng = 50 000 |
-| 3 | Treasury chuyển 1 000 ASAFE cho operator; operator `stakeOperator(1000)` | Stake operator = 1 000 |
+| 3 | Treasury gọi `depositOperatorBond(1000)` cho operator | Stake operator = 1 000 |
 | 4 | Treasury chuyển 100 ASAFE cho owner; owner `stakeDevice(kit, 100)` | Stake owner = 100, ví owner = 0 |
 
 ### 09:00: Sự cố #1, cảnh báo sớm, phản ứng tốt ✅

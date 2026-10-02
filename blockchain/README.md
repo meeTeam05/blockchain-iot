@@ -144,3 +144,104 @@ device/firmware/calibration hash, incident ID, evidence hash, digest, signer;
 đặt bytecode contract tại `verifying_contract` của vector (chain ID local
 11155111) để `logIncident` chấp nhận đúng chữ ký vector; và kiểm tra sửa bất kỳ
 field evidence/attestation/mask nào đều làm verify thất bại.
+
+## Incentives: token ASAFE thưởng/phạt (Task 6)
+
+Luật đầy đủ: [`Token_incentive_task.md`](../Token_incentive_task.md). Hai contract
+mới **chỉ đọc** `AirSafetyLog` qua `getIncident`/`getDevice`
+([`IAirSafetyLogView.sol`](contracts/IAirSafetyLogView.sol)); `AirSafetyLog`,
+domain EIP-712 và firmware không đổi.
+
+```text
+contracts/AirSafeToken.sol        ERC-20 ASAFE, mint 1 000 000 một lần cho Treasury, không mint/burn/pause
+contracts/SafetyIncentives.sol    Stake, R1/R2 thưởng, P1/P2 phạt (permissionless), AccessControl + ReentrancyGuard + SafeERC20
+contracts/test/ReentrantToken.sol Token giả có hook, chỉ dùng trong test reentrancy
+test/incentives.test.js           Unit: từng luật, đúng hạn/trễ 1 s/gọi 2 lần, stake, đổi owner, quỹ cạn, reentrancy
+test/incentives.scenario.test.js  Kịch bản một ngày (08:00 → cuối ngày), khớp mọi số dư bảng tổng kết
+scripts/deploy-incentives.js      Deploy + ghi deployments/<network>.incentives.json + abi/{AirSafeToken,SafetyIncentives}.json
+scripts/fund-incentives.js        Treasury nạp quỹ thưởng (50 000) và ký quỹ operator (1 000); chạy lại an toàn
+scripts/verify-incentives.js      Verify cả hai contract trên Etherscan
+```
+
+### Lệnh
+
+```bash
+npm test && npm run coverage                 # SafetyIncentives: 100% dòng
+
+# Local (sau `npx hardhat node` và `npm run deploy:localhost`)
+npm run deploy:incentives:localhost
+npm run fund:incentives:localhost
+
+# Sepolia (blockchain/.env có DEPLOYER_PRIVATE_KEY của ví admin = Treasury)
+npm run deploy:incentives:sepolia            # operator mặc định = RELAYER_ROLE trong deployments/sepolia.json
+npm run fund:incentives:sepolia
+npm run verify:incentives:sepolia
+node ../spec/incident/gen/gen-all.mjs        # sinh server/api/src/generated/incentives-deployments.js
+```
+
+Commit `deployments/<network>.incentives.json`, `abi/` và module đã sinh trong cùng một commit.
+
+### Luật trên chain
+
+| Luật | Hàm (ai cũng gọi) | Điều kiện | Kết quả |
+|---|---|---|---|
+| R1 | `recordTimelyAck(key)` | `status ∈ {Acknowledged, Resolved}`, `now ≤ loggedAt + ackDeadline[severity]` | Đặt `TIMELY_ACK`; trả `ackReward` nếu stake hợp lệ, chưa đạt trần ngày và quỹ đủ, ngược lại `RewardSkipped` (không revert) |
+| R2 | `recordTimelyResolve(key)` | Đã `TIMELY_ACK`, `status == Resolved`, `now ≤ loggedAt + resolveDeadline` | Trả `resolveReward` chỉ khi R1 đã **trả thưởng** (trong trần) |
+| P1 | `slashMissedAck(key)` | `now > loggedAt + ackDeadline`, chưa `TIMELY_ACK` | Trừ `missedAckPenalty` vào stake device, chia `keeperShareBps` cho người gọi, còn lại cho Treasury |
+| P2 | `slashLateRelay(key)` | `loggedAt − observedAt > maxRelayDelay` | Trừ `lateRelayPenalty` vào stake operator, chia như P1 |
+
+Hạn ack: warning (1) 30 phút, danger/critical (≥ 2) 10 phút, tính từ `loggedAt`.
+Mỗi luật chạy một lần cho mỗi incident (`settlementFlags`: `TIMELY_ACK=1`,
+`ACK_REWARDED=2`, `RESOLVE_SETTLED=4`, `ACK_SLASHED=8`, `RELAY_SLASHED=16`).
+Ngày của trần thưởng là `block.timestamp / 1 days` (UTC), chỉ đếm lần R1 thật sự trả tiền.
+
+Các quyết định thiết kế cần biết:
+
+- **Quỹ thưởng tách khỏi tiền ký quỹ:** `rewardFund() = balanceOf(this) − totalBonded`.
+  Quỹ cạn chỉ phát `RewardSkipped(reason=InsufficientFund)`; ack vẫn được ghi nhận
+  nên owner không bị phạt.
+- **Điều kiện được thưởng:** stake phải thuộc owner hiện tại, không đang chờ rút và
+  còn ≥ `missedAckPenalty` (đủ chịu một lần phạt). `ownerBond` (100) là mức tối
+  thiểu **khi nạp** stake. Spec ghi "stake ≥ OWNER_BOND" nhưng bảng kịch bản vẫn
+  thưởng #3, #4 khi stake còn 80, nên contract theo bảng kịch bản.
+- **Không phạt hồi tố:** chỉ xét incident có `loggedAt ≥ activatedAt` (thời điểm
+  deploy, nếu không thì `IncidentNotCovered`), và stake của device chỉ chịu incident có
+  `loggedAt ≥ bond.since` (lúc bắt đầu stake). Các incident Sepolia cũ (sequence 6–9)
+  vì vậy không bị phạt.
+- **Đổi owner:** stake cũ vẫn thuộc người đã stake và không chịu phạt cho owner mới;
+  owner mới chỉ stake được sau khi stake cũ đã rút (`BondHeldByOther`).
+- **Stake thêm** khi đang chờ rút sẽ hủy yêu cầu rút. Trong thời gian chờ, stake vẫn bị phạt được nhưng không được thưởng.
+- **Operator bond:** ai cũng nạp được (`depositOperatorBond`), chỉ `operator` rút;
+  `setOperator` chuyển stake sang operator mới và hủy yêu cầu rút đang chờ.
+
+### Event (cho indexer Task 7)
+
+```solidity
+Staked(bytes32 indexed deviceIdHash, address indexed staker, uint256 amount, uint256 total)
+UnstakeRequested(bytes32 indexed deviceIdHash, address indexed staker, uint64 availableAt)
+Withdrawn(bytes32 indexed deviceIdHash, address indexed staker, uint256 amount)
+  // deviceIdHash = 0x00…00 (OPERATOR_BOND_ID) là stake của operator
+AckRewarded(bytes32 indexed incidentKey, address indexed owner, uint256 amount)
+ResolveRewarded(bytes32 indexed incidentKey, address indexed owner, uint256 amount)
+RewardSkipped(bytes32 indexed incidentKey, address indexed owner, uint8 rule, SkipReason reason)
+  // rule 1 = R1, 2 = R2; reason 0 DailyCap, 1 InsufficientFund, 2 NoBond, 3 AckNotRewarded
+MissedAckSlashed(bytes32 indexed incidentKey, bytes32 indexed deviceIdHash, uint256 amount, address indexed keeper)
+LateRelaySlashed(bytes32 indexed incidentKey, uint64 delaySeconds, uint256 amount, address indexed keeper)
+BondExhausted(bytes32 indexed deviceIdHash)
+RewardsFunded / ParamsUpdated(Params) / OperatorChanged / TreasuryChanged
+```
+
+View cho dApp và keeper: `pendingSettlement(key)` (không revert; trả hạn chót, cờ và
+`canRecordAck/canRecordResolve/canSlashMissedAck/canSlashLateRelay`), `params()`,
+`deviceBond(h)`, `operatorBond()`, `rewardFund()`, `rewardsToday(h, day)`, `currentDay()`.
+
+Custom error: `AckDeadlinePassed`, `AckDeadlineNotPassed`, `ResolveDeadlinePassed`,
+`AlreadySettled`, `NotAcknowledged`, `NotResolved`, `NotDeviceOwner`, `NotStaker`,
+`NotOperator`, `BondTooLow`, `BondHeldByOther`, `RelayNotLate`, `CooldownActive`,
+`NoUnstakeRequest`, `UnstakeAlreadyRequested`, `IncidentNotFound`, `IncidentNotCovered`,
+`DeviceNotFound`, `InvalidParams`, `ZeroAmount`, `ZeroAddress`.
+
+### Deployment Sepolia
+
+Chưa deploy. Sau khi chạy các lệnh ở trên, ghi address tại đây
+(nguồn: [`deployments/sepolia.incentives.json`](deployments/)).
