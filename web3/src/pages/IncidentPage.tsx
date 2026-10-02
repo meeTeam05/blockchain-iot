@@ -8,12 +8,12 @@ import { activeNetwork } from '../config/networks'
 import { AIR_SAFETY_LOG_ABI } from '../generated/incident-deployments'
 import { computeDeviceIdHash, computeIncidentKey } from '../lib/chainIncident'
 import { useIncidentDetail } from '../lib/incidentsApi'
-import { CHAIN_STATUS_NAMES } from '../lib/mergeStatus'
+import { CHAIN_STATUS_NAMES, mergeIncidentStatus } from '../lib/mergeStatus'
 
 export function IncidentPage() {
   const { deviceId, incidentId } = useParams<{ deviceId: string; incidentId: string }>()
   const navigate = useNavigate()
-  const { address } = useAccount()
+  const { address, isConnected } = useAccount()
   const { data: incident, isLoading, error, refetch } = useIncidentDetail(deviceId ?? '', incidentId ?? '')
 
   const deviceIdHash = deviceId ? computeDeviceIdHash(deviceId) : undefined
@@ -42,23 +42,40 @@ export function IncidentPage() {
   return (
     <>
       <AppBar variant="back" title="Sự cố" onBack={() => navigate(`/d/${deviceId}`)} />
-      <div className="mx-auto flex w-full max-w-sm flex-col gap-4 p-6">
+      <div className="mx-auto w-full max-w-5xl p-6">
         {isLoading ? <p className="text-ink-2">Đang tải…</p> : null}
         {error ? <p className="text-danger">{error.message}</p> : null}
         {incident ? (
-          <>
-            <IncidentSummary incident={incident} />
-            <VerifyPanel deviceId={deviceId} incident={incident} />
-            {incidentKey ? (
-              <OwnerActions
-                incidentKey={incidentKey}
-                chainStatus={chainStatus}
-                isOwner={isOwner}
-                ownerStatus={incident.owner_status}
-                onSettled={() => void refetch()}
-              />
-            ) : null}
-          </>
+          <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[1fr_320px]">
+            <div className="flex flex-col gap-4">
+              <IncidentSummary deviceId={deviceId} incident={incident} merged={mergeIncidentStatus(incident.chain_status, chainStatus)} />
+              <VerifyPanel deviceId={deviceId} incident={incident} />
+            </div>
+            <div className="flex flex-col gap-3">
+              {isOwner ? (
+                <div className="flex items-center gap-2 text-[13px] text-ink-2">
+                  <span className="rounded-pill bg-ink px-2.5 py-1 text-[11px] font-bold text-brand-bright">BẠN</span>
+                  là chủ thiết bị này
+                </div>
+              ) : null}
+              {incidentKey ? (
+                <OwnerActions
+                  incidentKey={incidentKey}
+                  chainStatus={chainStatus}
+                  isOwner={isOwner}
+                  ownerStatus={incident.owner_status}
+                  onSettled={() => void refetch()}
+                />
+              ) : null}
+              {!isOwner ? (
+                <p className="rounded-card border border-line bg-paper p-4 text-[13px] text-ink-2">
+                  {isConnected
+                    ? 'Chỉ chủ sở hữu thiết bị mới acknowledge/resolve được sự cố này.'
+                    : 'Kết nối ví chủ sở hữu thiết bị để acknowledge/resolve sự cố này.'}
+                </p>
+              ) : null}
+            </div>
+          </div>
         ) : null}
       </div>
     </>
