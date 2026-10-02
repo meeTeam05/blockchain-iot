@@ -1,0 +1,757 @@
+Script started on 2026-09-30 21:18:28+07:00 [TERM="xterm-256color" TTY="/dev/pts/2" COLUMNS="145" LINES="25"]
+Executing action: monitor
+Running idf_monitor in directory /home/bao/Documents/Edge_IOT/Blockchain-iot/blockchain-iot/firmware
+Executing "/home/bao/.espressif/python_env/idf5.4_py3.10_env/bin/python /home/bao/esp/esp-idf/tools/idf_monitor.py -p /dev/ttyACM0 -b 115200 --toolchain-prefix xtensa-esp32s3-elf- --target esp32s3 --revision 0 /home/bao/Documents/Edge_IOT/Blockchain-iot/blockchain-iot/firmware/build-incident/smart-air.elf -m '/home/bao/.espressif/python_env/idf5.4_py3.10_env/bin/python' '/home/bao/esp/esp-idf/tools/idf.py' '-B' 'build-incident' '-p' '/dev/ttyACM0'"...
+--- esp-idf-monitor 1.10.0 on /dev/ttyACM0 115200
+--- Quit: Ctrl+] | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H
+ESP-ROM:esp32s3-20210327
+Build:Mar 27 2021
+rst:0x1 (POWERON),boot:0x8 (SPI_FAST_FLASH_BOOT)
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fce2810,len:0x1564
+load:0x403c8700,len:0x4
+load:0x403c8704,len:0xd24
+load:0x403cb700,len:0x2ed4
+entry 0x403c8928
+[0;32mI (27) boot: ESP-IDF v5.4.2 2nd stage bootloader[0m
+[0;32mI (27) boot: compile time Sep 30 2026 15:36:35[0m
+[0;32mI (27) boot: Multicore bootloader[0m
+[0;32mI (27) boot: chip revision: v0.2[0m
+[0;32mI (30) boot: efuse block revision: v1.3[0m
+[0;32mI (33) boot.esp32s3: Boot SPI Speed : 80MHz[0m
+[0;32mI (37) boot.esp32s3: SPI Mode       : DIO[0m
+[0;32mI (41) boot.esp32s3: SPI Flash Size : 16MB[0m
+[0;32mI (45) boot: Enabling RNG early entropy source...[0m
+[0;32mI (49) boot: Partition Table:[0m
+[0;32mI (52) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (58) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (65) boot:  1 otadata          OTA data         01 00 0000f000 00002000[0m
+[0;32mI (71) boot:  2 phy_init         RF data          01 01 00011000 00001000[0m
+[0;32mI (78) boot:  3 calib            WiFi data        01 02 00012000 00006000[0m
+[0;32mI (84) boot:  4 factory          factory app      00 00 00020000 00200000[0m
+[0;32mI (91) boot:  5 ota_0            OTA app          00 10 00220000 00200000[0m
+[0;32mI (97) boot:  6 ota_1            OTA app          00 11 00420000 00200000[0m
+[0;32mI (104) boot:  7 storage          Unknown data     01 82 00620000 009e0000[0m
+[0;32mI (111) boot: End of partition table[0m
+[0;32mI (114) boot: Defaulting to factory image[0m
+[0;32mI (118) esp_image: segment 0: paddr=00020020 vaddr=3c130020 size=73dc4h (474564) map[0m
+[0;32mI (209) esp_image: segment 1: paddr=00093dec vaddr=3fca2800 size=059c8h ( 22984) load[0m
+[0;32mI (214) esp_image: segment 2: paddr=000997bc vaddr=40374000 size=0685ch ( 26716) load[0m
+[0;32mI (220) esp_image: segment 3: paddr=000a0020 vaddr=42000020 size=12b71ch (1226524) map[0m
+[0;32mI (436) esp_image: segment 4: paddr=001cb744 vaddr=4037a85c size=17eb8h ( 97976) load[0m
+[0;32mI (458) esp_image: segment 5: paddr=001e3604 vaddr=50000000 size=00004h (     4) load[0m
+[0;32mI (458) esp_image: segment 6: paddr=001e3610 vaddr=600fe000 size=0001ch (    28) load[0m
+[0;32mI (473) boot: Loaded app from partition at offset 0x20000[0m
+[0;32mI (474) boot: Disabling RNG early entropy source...[0m
+[0;32mI (484) octal_psram: vendor id    : 0x0d (AP)[0m
+[0;32mI (484) octal_psram: dev id       : 0x02 (generation 3)[0m
+[0;32mI (484) octal_psram: density      : 0x03 (64 Mbit)[0m
+[0;32mI (486) octal_psram: good-die     : 0x01 (Pass)[0m
+[0;32mI (490) octal_psram: Latency      : 0x01 (Fixed)[0m
+[0;32mI (495) octal_psram: VCC          : 0x01 (3V)[0m
+[0;32mI (499) octal_psram: SRF          : 0x01 (Fast Refresh)[0m
+[0;32mI (504) octal_psram: BurstType    : 0x01 (Hybrid Wrap)[0m
+[0;32mI (509) octal_psram: BurstLen     : 0x01 (32 Byte)[0m
+[0;32mI (513) octal_psram: Readlatency  : 0x02 (10 cycles@Fixed)[0m
+[0;32mI (518) octal_psram: DriveStrength: 0x00 (1/1)[0m
+[0;32mI (523) esp_psram: Found 8MB PSRAM device[0m
+[0;32mI (526) esp_psram: Speed: 40MHz[0m
+[0;32mI (529) cpu_start: Multicore app[0m
+[0;32mI (1263) esp_psram: SPI SRAM memory test OK[0m
+[0;32mI (1272) cpu_start: Pro cpu start user code[0m
+[0;32mI (1272) cpu_start: cpu freq: 160000000 Hz[0m
+[0;32mI (1272) app_init: Application information:[0m
+[0;32mI (1272) app_init: Project name:     smart-air[0m
+[0;32mI (1277) app_init: App version:      eec1b57-dirty[0m
+[0;32mI (1281) app_init: Compile time:     Sep 30 2026 15:36:29[0m
+[0;32mI (1286) app_init: ELF file SHA256:  3efca6d89...[0m
+[0;32mI (1291) app_init: ESP-IDF:          v5.4.2[0m
+[0;32mI (1295) efuse_init: Min chip rev:     v0.0[0m
+[0;32mI (1298) efuse_init: Max chip rev:     v0.99 [0m
+[0;32mI (1303) efuse_init: Chip rev:         v0.2[0m
+[0;32mI (1307) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (1313) heap_init: At 3FCBB930 len 0002DDE0 (183 KiB): RAM[0m
+[0;32mI (1318) heap_init: At 3FCE9710 len 00005724 (21 KiB): RAM[0m
+[0;32mI (1323) heap_init: At 3FCF0000 len 00008000 (32 KiB): DRAM[0m
+[0;32mI (1329) heap_init: At 600FE01C len 00001FCC (7 KiB): RTCRAM[0m
+[0;32mI (1334) esp_psram: Adding pool of 8192K of PSRAM memory to heap allocator[0m
+[0;32mI (1341) spi_flash: detected chip: mxic[0m
+[0;32mI (1344) spi_flash: flash io: dio[0m
+[0;32mI (1348) sleep_gpio: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (1354) sleep_gpio: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (1360) nvs_sec_provider: NVS Encryption - Registering HMAC-based scheme...[0m
+[0;32mI (1367) coexist: coex firmware version: 7b9a184[0m
+[0;32mI (1384) coexist: coexist rom version e7ae62f[0m
+[0;32mI (1385) main_task: Started on CPU0[0m
+[0;32mI (1395) main_task: Calling app_main()[0m
+[0;32mI (1395) main: System startup[0m
+[0;32mI (1395) led: init OK (GPIO48)[0m
+[0;32mI (1395) gpio: GPIO[0]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (1405) factory_reset: init OK (GPIO0, hold=5000 ms)[0m
+[0;32mI (1405) gpio: GPIO[40]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1415) gpio: GPIO[41]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1425) gpio: GPIO[42]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (1645) ili9225: init OK (176x220 portrait, SPI 10000000 Hz)[0m
+[0;32mI (1725) display_service: init OK[0m
+[0;32mI (1845) nvs: NVS partition "nvs" is encrypted.[0m
+[0;32mI (1845) i2cdev: Initializing I2C bus on port 0 (SDA: GPIO12, SCL: GPIO13, Speed: 400000 Hz)[0m
+[0;32mI (1845) i2cdev: I2C bus initialized successfully on port 0[0m
+[0;32mI (1855) sht3x: Initializing SHT3x[0m
+[0;32mI (1855) sht3x: SHT3x initialized on port 0 (addr: 0x44, SDA: GPIO12, SCL: GPIO13)[0m
+[0;32mI (1865) i2cdev: Device 0x44 added successfully (speed: 400000 Hz)[0m
+[0;32mI (1865) ds3231: Initializing DS3231[0m
+[0;32mI (1865) ds3231: DS3231 initialized on port 0 (SDA: GPIO12, SCL: GPIO13)[0m
+[0;32mI (1875) i2cdev: Device 0x68 added successfully (speed: 400000 Hz)[0m
+[0;32mI (1885) adc_bus: ADC1 initialized (12-bit, curve-fitting calibration enabled)[0m
+[0;32mI (1885) adc_bus: ADC1 channel 8 configured (atten=3)[0m
+[0;32mI (1895) gm702b: CO sensor initialized on ADC1 channel 8 (RL=10000 ohm, VC=3.3V)[0m
+[0;32mI (1905) config: load_gas_r0(co): R0 = 501890 ohm[0m
+[0;32mI (1905) mqtt: Command handler registered: type=calibrate_co[0m
+[0;32mI (1915) adc_bus: ADC1 channel 9 configured (atten=3)[0m
+[0;32mI (1915) gm102b: NO2 sensor initialized on ADC1 channel 9 (RL=10000 ohm, VC=3.3V)[0m
+[0;32mI (1925) config: load_gas_r0(no2): R0 = 389187 ohm[0m
+[0;32mI (1925) mqtt: Command handler registered: type=calibrate_no2[0m
+[0;32mI (1935) sysload: calibration_task started[0m
+[0;32mI (1935) pp: pp rom version: e7ae62f[0m
+[0;32mI (1945) net80211: net80211 rom version: e7ae62f[0m
+[0;32mI (1955) wifi:wifi driver task: 3fcd09dc, prio:23, stack:6656, core=0[0m
+[0;32mI (1985) wifi:wifi firmware version: bea31f3[0m
+[0;32mI (1985) wifi:wifi certification version: v7.0[0m
+[0;32mI (1985) wifi:config NVS flash: enabled[0m
+[0;32mI (1985) wifi:config nano formatting: disabled[0m
+[0;32mI (1995) wifi:Init data frame dynamic rx buffer num: 32[0m
+[0;32mI (1995) wifi:Init static rx mgmt buffer num: 5[0m
+[0;32mI (2005) wifi:Init management short buffer num: 32[0m
+[0;32mI (2005) wifi:Init dynamic tx buffer num: 32[0m
+[0;32mI (2005) wifi:Init static tx FG buffer num: 2[0m
+[0;32mI (2015) wifi:Init static rx buffer size: 1600[0m
+[0;32mI (2015) wifi:Init static rx buffer num: 10[0m
+[0;32mI (2025) wifi:Init dynamic rx buffer num: 32[0m
+[0;32mI (2025) wifi_init: rx ba win: 6[0m
+[0;32mI (2025) wifi_init: accept mbox: 6[0m
+[0;32mI (2035) wifi_init: tcpip mbox: 32[0m
+[0;32mI (2035) wifi_init: udp mbox: 6[0m
+[0;32mI (2035) wifi_init: tcp mbox: 6[0m
+[0;32mI (2045) wifi_init: tcp tx win: 5760[0m
+[0;32mI (2045) wifi_init: tcp rx win: 5760[0m
+[0;32mI (2045) wifi_init: tcp mss: 1440[0m
+[0;32mI (2045) wifi_init: WiFi IRAM OP enabled[0m
+[0;32mI (2055) wifi_init: WiFi RX IRAM OP enabled[0m
+[0;32mI (2055) phy_init: phy_version 701,f4f1da3a,Mar  3 2025,15:50:10[0m
+[0;32mI (2115) wifi:mode : sta (dc:b4:d9:13:ed:8c)[0m
+[0;32mI (2115) wifi:enable tsf[0m
+[0;32mI (2125) wifi_sta: Wi-Fi station initialized[0m
+[0;32mI (2125) sysload: Connecting to Wi-Fi SSID: D6-701[0m
+[0;32mI (2135) wifi:new:<3,1>, old:<1,0>, ap:<255,255>, sta:<3,1>, prof:1, snd_ch_cfg:0x0[0m
+[0;32mI (2135) wifi:state: init -> auth (0xb0)[0m
+[0;32mI (2155) wifi:state: auth -> assoc (0x0)[0m
+[0;32mI (2165) wifi:state: assoc -> run (0x10)[0m
+[0;32mI (2275) wifi:connected with D6-701, aid = 16, channel 3, 40U, bssid = a8:74:84:e4:50:dc[0m
+[0;32mI (2275) wifi:security: WPA2-PSK, phy: bgn, rssi: -28[0m
+[0;32mI (2285) wifi:pm start, type: 1[0m
+
+[0;32mI (2285) wifi:dp: 1, bi: 102400, li: 3, scale listen interval from 307200 us to 307200 us[0m
+[0;32mI (2285) wifi:set rx beacon pti, rx_bcn_pti: 14, bcn_timeout: 25000, mt_pti: 14, mt_time: 10000[0m
+[0;32mI (2345) wifi:AP's beacon interval = 102400 us, DTIM period = 1[0m
+[0;32mI (4395) wifi:<ba-add>idx:0 (ifx:0, a8:74:84:e4:50:dc), tid:0, ssn:2, winSize:64[0m
+[0;32mI (5415) esp_netif_handlers: sta ip: 192.168.2.7, mask: 255.255.255.0, gw: 192.168.2.1[0m
+[0;32mI (5415) wifi_sta: Got IP: 192.168.2.7[0m
+[0;32mI (5415) wifi_sta: Applied custom DNS on WIFI_STA_DEF: 1.1.1.1[0m
+[0;32mI (5415) config: broker_uri using Kconfig default: wss://minhnhat05.xyz/mqtt[0m
+[0;32mI (5425) httpd: HTTP server started on port 80 (device: dc:b4:d9:13:ed:8c)[0m
+[0;32mI (5435) sysload: System clock updated from rtc: 1790777914[0m
+[0;32mI (5435) sysload: Starting best-effort SNTP sync: server=pool.ntp.org timeout=10000ms[0m
+[0;32mI (9825) wifi:<ba-add>idx:1 (ifx:0, a8:74:84:e4:50:dc), tid:1, ssn:1, winSize:64[0m
+[0;32mI (10125) sysload: System clock updated from sntp: 1790777919[0m
+[0;32mI (10125) ds3231: Setting time: 2026-09-30 14:18:39[0m
+[0;32mI (10125) sysload: DS3231 time updated from SNTP: 1790777919[0m
+[0;32mI (10125) sysload: Local timezone configured: ICT-7[0m
+[0;32mI (10135) buzzer: init OK (GPIO11, 2000 Hz)[0m
+[0;32mI (10135) gpio: GPIO[8]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (10145) gpio: GPIO[17]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (10155) gpio: GPIO[18]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (10165) relay: init OK (pins=17,18,8 state=[off,off,off])[0m
+[0;32mI (10165) device_mode: init OK (mode=on)[0m
+[0;32mI (10175) incident: incident domain sepolia contract 0x45CF175ffd4B1Ad77E87389d1e92945f9Bc88d3A separator 0x34632810b8dcf18cf8dd255b5d3c1f722d5879ef9535ff95abd5a17048ab485d[0m
+[0;32mI (10185) mqtt: Command handler registered: type=relay_set[0m
+[0;32mI (10195) mqtt: Command handler registered: type=device_mode[0m
+[0;32mI (10195) mqtt: Command handler registered: type=signer_activate[0m
+[0;32mI (10205) mqtt: Starting MQTT client (id=dc:b4:d9:13:ed:8c, broker=wss://minhnhat05.xyz/mqtt)[0m
+[0;32mI (10215) ota: ota_task started (topic: device/dc:b4:d9:13:ed:8c/ota/progress)[0m
+[0;32mI (10215) sensor_task: sensor_task started[0m
+[0;32mI (10215) sensor_task: Telemetry topic: device/dc:b4:d9:13:ed:8c/telemetry[0m
+[0;32mI (10335) gas_ews_model: gas_ews model ready: 20896 B flatbuffer, arena used 7692/16384 B in PSRAM, in scale=0.019346 zp=-71; self-test OK[0m
+[0;32mI (10335) ai: gas_ews_model_init (AllocateTensors + 2-window self-test): 109995 us[0m
+[0;33mW (10335) ai: AI REPLAY MODE: scenario 'co_event', 866 samples (~72 min) at x60 -- the AI ignores the real sensors[0m
+[0;32mI (10345) ai: ai started: QCVN 03:2019/BYT CO STEL/TWA 34.9/17.5 ppm, NO2 5.31/2.66 ppm; model window 120 steps x 10s; topic=device/dc:b4:d9:13:ed:8c/ai/state[0m
+[0;32mI (10365) mqtt: Command handler registered: type=ai_set[0m
+[0;32mI (12785) esp-x509-crt-bundle: Certificate validated[0m
+[0;33mW (20345) ai: replay 'co_event' start: 866 samples (72 min simulated) at x60[0m
+[0;32mI (20505) ai: RS,10,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[1;31mE (24345) mqtt_client: esp_mqtt_connect: mqtt_message_receive() returned 0[0m
+[1;31mE (24345) mqtt_client: MQTT connect failed[0m
+[0;33mW (24345) mqtt: Disconnected; reconnecting automatically[0m
+[0;32mI (24355) sensor_task: telemetry published (msg_id=8736): {"device_id":"dc:b4:d9:13:ed:8c","mode":"on","ts":1790777924,"temperature":31.326009750366211,"humidity":71.4381637573242,"co_ppm":0,"no2_ppm":1.4986488819122314}[0m
+[0;32mI (24365) sensor_task: shadow published (msg_id=24232): {"mode":"on","temperature":31.326009750366211,"humidity":71.4381637573242,"co_ppm":0,"no2_ppm":1.4986488819122314,"ts":1790777924}[0m
+[0;32mI (24385) sensor_task: sensor_task stack watermark: 1556 words (1556 bytes) free[0m
+[0;32mI (24405) ai: RS,20,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (24425) ai: RS,30,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (24445) ai: RS,40,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (24465) ai: RS,50,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (24575) ai: RS,60,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (24595) ai: RS,70,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (24615) ai: RS,80,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (24635) ai: RS,90,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (24655) ai: RS,100,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (24675) ai: RS,110,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (24695) ai: RS,120,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (24715) ai: RS,130,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (24735) ai: RS,140,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (24755) ai: RS,150,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (24775) ai: RS,160,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (24795) ai: RS,170,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (24815) ai: RS,180,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (24835) ai: RS,190,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (24855) ai: RS,200,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (24875) ai: RS,210,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (24895) ai: RS,220,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (24915) ai: RS,230,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (24935) ai: RS,240,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (24955) ai: RS,250,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (24975) ai: RS,260,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (25125) ai: RS,270,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (25145) ai: RS,280,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (25175) ai: RS,290,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (25365) ai: RS,300,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (25365) ai: replay 'co_event': sample 60/866 (5 min)[0m
+[0;32mI (25505) ai: RS,310,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (25675) ai: RS,320,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (25865) ai: RS,330,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (26005) ai: RS,340,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (26175) ai: RS,350,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (26365) ai: RS,360,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (26615) ai: RS,370,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (26675) ai: RS,380,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (26865) ai: RS,390,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (27115) ai: RS,400,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (27175) ai: RS,410,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (27345) ai: RS,420,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (27615) ai: RS,430,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (27675) ai: RS,440,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (27865) ai: RS,450,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (28115) ai: RS,460,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (28175) ai: RS,470,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (28375) ai: RS,480,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (28615) ai: RS,490,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (28675) ai: RS,500,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (28865) ai: RS,510,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (29005) ai: RS,520,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (29175) ai: RS,530,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (29375) ai: RS,540,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (29415) sensor_task: telemetry published (msg_id=15745): {"device_id":"dc:b4:d9:13:ed:8c","mode":"on","ts":1790777938,"temperature":31.352712631225586,"humidity":71.7494430541992,"co_ppm":0,"no2_ppm":1.4240653514862061}[0m
+[0;32mI (29425) sensor_task: shadow published (msg_id=19478): {"mode":"on","temperature":31.352712631225586,"humidity":71.7494430541992,"co_ppm":0,"no2_ppm":1.4240653514862061,"ts":1790777938}[0m
+[0;32mI (29615) ai: RS,550,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (29675) ai: RS,560,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (29865) ai: RS,570,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (30005) ai: RS,580,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (30175) ai: RS,590,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (30375) ai: RS,600,nan,nan,0,nan,nan,0,nan,nan,0,nan,nan,0,1[0m
+[0;32mI (30375) ai: replay 'co_event': sample 120/866 (10 min)[0m
+[0;32mI (30615) ai: RS,610,2.7,nan,0.0009375,nan,nan,0,0.169,nan,5.8681e-05,nan,nan,0,0[0m
+[0;32mI (30675) ai: RS,620,0,nan,0.0009375,nan,nan,0,0.1235,nan,0.00010156,nan,nan,0,0[0m
+[0;32mI (30865) ai: RS,630,0,nan,0.0009375,nan,nan,0,0.0735,nan,0.00012708,nan,nan,0,0[0m
+[0;32mI (31115) ai: RS,640,0,nan,0.0009375,nan,nan,0,0.058,nan,0.00014722,nan,nan,0,0[0m
+[0;32mI (31175) ai: RS,650,0,nan,0.0009375,nan,nan,0,0.1205,nan,0.00018906,nan,nan,0,0[0m
+[0;32mI (31365) ai: RS,660,0,0.45,0.0009375,nan,nan,0,0.1285,0.11217,0.00023368,nan,nan,0,0[0m
+[0;32mI (31505) ai: RS,670,0,0.38571,0.0009375,nan,nan,0,0,0.096143,0.00023368,nan,nan,0,0[0m
+[0;32mI (31675) ai: RS,680,3.4,0.7625,0.0021181,nan,nan,0,0.145,0.10225,0.00028403,nan,nan,0,0[0m
+[0;32mI (31875) ai: RS,690,0,0.67778,0.0021181,nan,nan,0,0.1095,0.10306,0.00032205,nan,nan,0,0[0m
+[0;32mI (32005) ai: RS,700,0,0.61,0.0021181,nan,nan,0,0.068,0.09955,0.00034566,nan,nan,0,0[0m
+[0;32mI (32175) ai: RS,710,0,0.55455,0.0021181,nan,nan,0,0.2235,0.11082,0.00042326,nan,nan,0,0[0m
+[0;32mI (32345) ai: RS,720,0,0.50833,0.0021181,nan,nan,0,0.1335,0.11271,0.00046962,nan,nan,0,0[0m
+[0;32mI (32615) ai: RS,730,0,0.46923,0.0021181,nan,nan,0,0.13,0.11404,0.00051476,nan,nan,0,0[0m
+[0;32mI (32675) ai: RS,740,0,0.43571,0.0021181,nan,nan,0,0,0.10589,0.00051476,nan,nan,0,0[0m
+[0;32mI (32865) ai: RS,750,0,0.40667,0.0021181,nan,nan,0,0.051,0.10223,0.00053247,nan,nan,0,0[0m
+[0;32mI (33005) ai: RS,760,5.9,0.75,0.0041667,nan,nan,0,0.172,0.10659,0.00059219,nan,nan,0,0[0m
+[0;32mI (33175) ai: RS,770,0,0.70588,0.0041667,nan,nan,0,0.0555,0.10359,0.00061146,nan,nan,0,0[0m
+[0;32mI (33365) ai: RS,780,0,0.66667,0.0041667,nan,nan,0,0.607,0.13156,0.00082222,nan,nan,0,0[0m
+[0;32mI (33505) ai: RS,790,3.55,0.81842,0.0053993,nan,nan,0,0,0.12463,0.00082222,nan,nan,0,0[0m
+[0;32mI (33675) ai: RS,800,0,0.7775,0.0053993,nan,nan,0,0.0765,0.12223,0.00084878,nan,nan,0,0[0m
+[0;32mI (33865) ai: RS,810,3.55,0.90952,0.0066319,nan,nan,0,0.302,0.13079,0.00095365,nan,nan,0,0[0m
+[0;32mI (34165) ai: RS,820,0,0.86818,0.0066319,nan,nan,0,0.145,0.13143,0.001004,nan,nan,0,0[0m
+[0;32mI (34185) ai: RS,830,0,0.83043,0.0066319,nan,nan,0,0.0735,0.12891,0.0010295,nan,nan,0,0[0m
+[0;32mI (36235) esp-x509-crt-bundle: Certificate validated[0m
+[0;32mI (36695) ai: RS,840,3.15,0.92708,0.0077257,nan,nan,0,0.065,0.12625,0.0010521,nan,nan,0,0[0m
+[0;32mI (37135) ai: RS,850,0,0.89,0.0077257,nan,nan,0,0,0.1212,0.0010521,nan,nan,0,0[0m
+[0;32mI (37155) ai: RS,860,3,0.97115,0.0087674,nan,nan,0,0.125,0.12135,0.0010955,nan,nan,0,0[0m
+[0;32mI (37175) ai: RS,870,0,0.93519,0.0087674,nan,nan,0,0.2115,0.12469,0.0011689,nan,nan,0,0[0m
+[0;32mI (37195) ai: RS,880,3.55,1.0286,0.01,nan,nan,0,0.191,0.12705,0.0012352,nan,nan,0,0[0m
+[0;32mI (37215) ai: RS,890,0,0.9931,0.01,nan,nan,0,0.093,0.12588,0.0012675,nan,nan,0,0[0m
+[0;32mI (37235) ai: RS,900,5.5,1.1433,0.01191,1.72,nan,0,0.0535,0.12347,0.0012861,0.11604,nan,0,0[0m
+[0;32mI (37365) ai: replay 'co_event': sample 180/866 (15 min)[0m
+[0;32mI (37385) ai: RS,910,2.9,1.2,0.012917,2.0444,nan,0,0.0575,0.12134,0.0013061,0.12119,nan,0,0[0m
+[0;32mI (37405) ai: RS,920,2.5,1.2406,0.013785,2.0167,nan,0,0.0895,0.12034,0.0013372,0.11687,nan,0,0[0m
+[0;32mI (37425) ai: RS,930,2.9,1.2909,0.014792,2.3711,nan,0,0.0555,0.11838,0.0013564,0.099339,nan,0,0[0m
+[0;32mI (37445) ai: RS,940,0,1.2529,0.014792,1.9767,nan,0,0.2855,0.12329,0.0014556,0.11237,nan,0,0[0m
+[0;32mI (37465) ai: RS,950,0,1.2171,0.014792,1.9767,nan,0,0.17,0.12463,0.0015146,0.12147,nan,0,0[0m
+[0;32mI (37615) ai: RS,960,0,1.1833,0.014792,1.3656,nan,0,0,0.12117,0.0015146,0.1141,nan,0,0[0m
+[0;32mI (37635) ai: RS,970,0,1.1514,0.014792,1.0433,nan,0,0.114,0.12097,0.0015542,0.12164,nan,0,0[0m
+[0;32mI (37655) ai: RS,980,0,1.1211,0.014792,0.72778,nan,0,0.086,0.12005,0.001584,0.1206,nan,0,0[0m
+[0;32mI (37675) ai: RS,990,3.3,1.1769,0.015937,0.80889,nan,0,0.1285,0.12027,0.0016286,0.12892,nan,0,0[0m
+[0;32mI (37695) ai: RS,1000,0,1.1475,0.015937,0.80889,nan,0,0.1245,0.12037,0.0016719,0.11166,nan,0,0[0m
+[0;32mI (37715) ai: RS,1010,0,1.1195,0.015937,0.80889,nan,0,0.139,0.12083,0.0017201,0.10728,nan,0,0[0m
+[0;32mI (37865) ai: RS,1020,0,1.0929,0.015937,0.80889,nan,0,0.1235,0.12089,0.001763,0.12089,nan,0,0[0m
+[0;32mI (37885) ai: RS,1030,0,1.0674,0.015937,0.80889,nan,0,0.0825,0.12,0.0017917,0.11686,nan,0,0[0m
+[0;32mI (37905) ai: RS,1040,3.15,1.1148,0.017031,1.1939,nan,0,0.0825,0.11915,0.0018203,0.11739,nan,0,0[0m
+[0;32mI (37925) ai: RS,1050,0,1.09,0.017031,0.82722,nan,0,0.1285,0.11936,0.0018649,0.11825,nan,0,0[0m
+[0;32mI (38115) ai: RS,1060,2.5,1.1207,0.017899,1.0672,nan,0,0,0.11676,0.0018649,0.10251,nan,0,0[0m
+[0;32mI (38175) ai: RS,1070,4.35,1.1894,0.01941,1.5989,nan,0,0.1445,0.11735,0.0019151,0.10411,nan,0,0[0m
+[0;32mI (38345) ai: RS,1080,0,1.1646,0.01941,1.5989,nan,0,0.1185,0.11738,0.0019563,0.098122,nan,0,0[0m
+[0;32mI (38615) ai: RS,1090,0,1.1408,0.01941,1.5594,nan,0,0.0895,0.11681,0.0019873,0.099894,nan,0,0[0m
+[0;32mI (38675) ai: RS,1100,2.6,1.17,0.020312,1.5272,nan,0,0,0.11447,0.0019873,0.089878,nan,0,0[0m
+[0;32mI (38865) ai: RS,1110,0,1.1471,0.020312,1.4878,nan,0,0.2205,0.11655,0.0020639,0.099194,nan,0,0[0m
+[0;32mI (39005) ai: RS,1120,0,1.125,0.020312,1.21,nan,0,0.263,0.11937,0.0021552,0.12973,nan,0,0[0m
+[0;32mI (39175) ai: RS,1130,0,1.1038,0.020312,0.72667,nan,0,0,0.11711,0.0021552,0.11286,nan,0,0[0m
+[0;32mI (39375) ai: RS,1140,4.35,1.1639,0.021823,1.2233,nan,0,0,0.11494,0.0021552,0.098967,nan,0,0[0m
+[0;32mI (39615) ai: RS,1150,0,1.1427,0.021823,1.2233,nan,0,0,0.11285,0.0021552,0.089022,nan,0,0[0m
+[0;32mI (39675) ai: RS,1160,0,1.1223,0.021823,0.90111,nan,0,0,0.11084,0.0021552,0.087633,nan,0,0[0m
+[0;32mI (39865) ai: RS,1170,6,1.2079,0.023906,1.6344,nan,0,0.1095,0.11082,0.0021932,0.074167,nan,0,0[0m
+[0;32mI (40005) ai: RS,1180,0,1.1871,0.023906,1.595,nan,0,0.3675,0.11524,0.0023208,0.087739,nan,0,0[0m
+[0;32mI (40025) mqtt: Connected to broker[0m
+[0;32mI (40035) mqtt: Subscribe queued for command topic device/dc:b4:d9:13:ed:8c/command (msg_id=6056)[0m
+[0;32mI (40045) mqtt: Subscribe queued for shadow/get_response topic device/dc:b4:d9:13:ed:8c/shadow/get_response (msg_id=36142)[0m
+[0;32mI (40055) mqtt: Subscribe queued for ota topic device/dc:b4:d9:13:ed:8c/ota/update (msg_id=9885)[0m
+[0;32mI (40065) mqtt: Subscribe queued for incident/ack topic device/dc:b4:d9:13:ed:8c/incident/ack (msg_id=12468)[0m
+[0;32mI (40065) mqtt: Published online status -> device/dc:b4:d9:13:ed:8c/status[0m
+[0;32mI (40085) mqtt: Published shadow/get -> device/dc:b4:d9:13:ed:8c/shadow/get (msg_id=34838)[0m
+[0;32mI (40125) sensor_task: telemetry published (msg_id=5121): {"device_id":"dc:b4:d9:13:ed:8c","mode":"on","ts":1790777943,"temperature":31.283283233642578,"humidity":71.671623229980469,"co_ppm":0,"no2_ppm":1.8572952747344971}[0m
+[0;32mI (40155) sensor_task: shadow published (msg_id=2484): {"mode":"on","temperature":31.283283233642578,"humidity":71.671623229980469,"co_ppm":0,"no2_ppm":1.8572952747344971,"ts":1790777943}[0m
+[0;32mI (40165) ai: RS,1190,0,1.1669,0.023906,1.595,nan,0,0.1505,0.11584,0.0023731,0.1051,nan,0,0[0m
+[0;32mI (40375) ai: RS,1200,0,1.1475,0.023906,1.0506,nan,0,0,0.11391,0.0023731,0.10451,nan,0,0[0m
+[0;32mI (40375) ai: replay 'co_event': sample 240/866 (20 min)[0m
+[0;32mI (40615) ai: RS,1210,0,1.1287,0.023906,1.0183,nan,0,0,0.11204,0.0023731,0.10387,nan,0,0[0m
+[0;32mI (40675) ai: RS,1220,0,1.1105,0.023906,0.99056,nan,0,0.17,0.11298,0.0024321,0.12365,nan,0,0[0m
+[0;32mI (40845) ai: RS,1230,2.8,1.1373,0.024878,0.63389,nan,0,0.097,0.11272,0.0024658,0.12272,nan,0,0[0m
+[0;32mI (41105) ai: RS,1240,0,1.1195,0.024878,0.63389,nan,0,0,0.11096,0.0024658,0.078717,nan,0,0[0m
+[0;32mI (41175) ai: RS,1250,0,1.1023,0.024878,0.63389,nan,0,0,0.10925,0.0024658,0.060106,nan,0,0[0m
+[0;32mI (41365) ai: RS,1260,0,1.0856,0.024878,0.63389,nan,0,0.216,0.11087,0.0025408,0.086506,nan,0,0[0m
+[0;32mI (41505) ai: RS,1270,0,1.0694,0.024878,0.63389,nan,0,0,0.10922,0.0025408,0.085239,nan,0,0[0m
+[0;32mI (41675) ai: RS,1280,0,1.0537,0.024878,0.63389,nan,0,0.342,0.11264,0.0026595,0.10719,nan,0,0[0m
+[0;32mI (41875) ai: RS,1290,3.55,1.0899,0.026111,0.72,nan,0,0.163,0.11337,0.0027161,0.11491,nan,0,0[0m
+[0;32mI (41895) mqtt: Subscribed (msg_id=6056)[0m
+[0;32mI (41905) mqtt: Subscribed (msg_id=36142)[0m
+[0;32mI (41905) mqtt: Subscribed (msg_id=9885)[0m
+[0;32mI (41915) mqtt: Subscribed (msg_id=12468)[0m
+[0;32mI (41935) mqtt: RX [device/dc:b4:d9:13:ed:8c/shadow/get_response]: {"desired":{},"delta":{},"ts":1790777950}[0m
+[0;32mI (41935) sysload: shadow/get_response: delta has no mode/relay changes to apply[0m
+[0;32mI (42115) ai: RS,1300,3.4,1.1229,0.027292,1.1356,nan,0,0.165,0.11411,0.0027734,0.13369,nan,0,0[0m
+[0;32mI (42175) ai: RS,1310,0,1.107,0.027292,1.1356,nan,0,0.262,0.11619,0.0028644,0.16417,nan,0,0[0m
+[0;32mI (42375) ai: RS,1320,2.8,1.1306,0.028264,1.4778,nan,0,0,0.11458,0.0028644,0.1388,nan,0,0[0m
+[0;32mI (42615) ai: RS,1330,0,1.1151,0.028264,1.4778,nan,0,0,0.11301,0.0028644,0.13788,nan,0,0[0m
+[0;32mI (42675) ai: RS,1340,0,1.1,0.028264,1.4428,nan,0,0.1095,0.11296,0.0029024,0.11235,nan,0,0[0m
+[0;32mI (42865) ai: RS,1350,2.8,1.1227,0.029236,1.3906,nan,0,0.101,0.1128,0.0029375,0.10516,nan,0,0[0m
+[0;32mI (43005) ai: RS,1360,3.15,1.1493,0.03033,1.37,nan,0,0.0795,0.11236,0.0029651,0.096539,nan,0,0[0m
+[0;32mI (43175) ai: RS,1370,2.6,1.1682,0.031233,1.6394,nan,0,0.1335,0.11264,0.0030115,0.082139,nan,0,0[0m
+[0;32mI (43345) ai: RS,1380,5.3,1.2212,0.033073,1.9761,nan,0,0.0765,0.11217,0.003038,0.090172,nan,0,0[0m
+[0;32mI (43615) ai: RS,1390,2.6,1.2386,0.033976,2.2939,nan,0,0.097,0.11198,0.0030717,0.10103,nan,0,0[0m
+[0;32mI (43675) ai: RS,1400,2.7,1.2569,0.034913,2.595,nan,0,0.051,0.11122,0.0030894,0.0951,nan,0,0[0m
+[0;32mI (43865) ai: RS,1410,2.7,1.2747,0.035851,2.6139,nan,0,0.1285,0.11143,0.003134,0.097133,nan,0,0[0m
+[0;32mI (44115) ai: RS,1420,4.5,1.314,0.037413,2.8139,nan,0,0.268,0.11334,0.0032271,0.11813,nan,0,0[0m
+[0;32mI (44175) ai: RS,1430,2.8,1.3319,0.038385,2.8672,nan,0,0.3435,0.11611,0.0033464,0.14528,nan,0,0[0m
+[0;32mI (44375) ai: RS,1440,4.5,1.3696,0.039948,2.78,nan,0,0.2375,0.11756,0.0034288,0.16581,nan,0,0[0m
+[0;32mI (44505) ai: RS,1450,3.3,1.3924,0.041094,2.8944,nan,0,0,0.11618,0.0034288,0.15503,nan,0,0[0m
+[0;32mI (44675) ai: RS,1460,4,1.4227,0.042483,3.0833,nan,0,0.1095,0.1161,0.0034668,0.16275,nan,0,0[0m
+[0;32mI (44865) ai: RS,1470,2.7,1.4374,0.04342,3.0467,nan,0,0,0.11476,0.0034668,0.14726,nan,0,0[0m
+[0;32mI (45005) ai: RS,1480,7.7,1.5085,0.046094,3.4878,nan,0,0,0.11346,0.0034668,0.11339,nan,0,0[0m
+[0;32mI (45175) ai: RS,1490,0,1.4916,0.046094,3.1767,nan,0,0.139,0.11375,0.0035151,0.090544,nan,0,0[0m
+[0;32mI (45195) sensor_task: telemetry published (msg_id=39259): {"device_id":"dc:b4:d9:13:ed:8c","mode":"on","ts":1790777954,"temperature":31.1871509552002,"humidity":71.9676513671875,"co_ppm":0,"no2_ppm":1.57870888710022}[0m
+[0;32mI (45205) sensor_task: shadow published (msg_id=59920): {"mode":"on","temperature":31.1871509552002,"humidity":71.9676513671875,"co_ppm":0,"no2_ppm":1.57870888710022,"ts":1790777954}[0m
+[0;32mI (45345) ai: RS,1500,3.55,1.5144,0.047326,3.1106,nan,0,0,0.11248,0.0035151,0.064156,nan,0,0[0m
+[0;32mI (45365) ai: replay 'co_event': sample 300/866 (25 min)[0m
+[0;32mI (45615) ai: RS,1510,2.6,1.5133,0.048229,3.0617,nan,0,0,0.11061,0.0035151,0.064156,nan,0,0[0m
+[0;32mI (45675) ai: RS,1520,3.15,1.5483,0.049323,3.0022,nan,0,0.1235,0.11061,0.003558,0.065194,nan,0,0[0m
+[0;32mI (45865) ai: RS,1530,0,1.5483,0.049323,2.6711,nan,0,0.1445,0.11139,0.0036082,0.081778,nan,0,0[0m
+[0;32mI (46005) ai: RS,1540,4.7,1.6006,0.050955,2.39,nan,0,0.2235,0.11323,0.0036858,0.10909,nan,0,0[0m
+[0;32mI (46175) ai: RS,1550,0,1.6006,0.050955,2.39,nan,0,0.2325,0.11448,0.0037665,0.12207,nan,0,0[0m
+[0;32mI (46365) ai: RS,1560,5.4,1.6606,0.05283,2.6556,nan,0,0,0.11305,0.0037665,0.11967,nan,0,0[0m
+[0;32mI (46615) ai: RS,1570,3.4,1.6983,0.05401,2.7822,nan,0,0.1085,0.11426,0.0038042,0.13293,nan,0,0[0m
+[0;32mI (46675) ai: RS,1580,2.7,1.6906,0.054948,2.7622,nan,0,0.281,0.11577,0.0039017,0.14975,nan,0,0[0m
+[0;32mI (46865) ai: RS,1590,2.6,1.7194,0.055851,3.0406,nan,0,0,0.11455,0.0039017,0.13188,nan,0,0[0m
+[0;32mI (47115) ai: RS,1600,4.5,1.7694,0.057413,3.0306,nan,0,0,0.11379,0.0039017,0.10522,nan,0,0[0m
+[0;32mI (47175) ai: RS,1610,3.85,1.8122,0.05875,3.5011,nan,0,0,0.11131,0.0039017,0.076472,nan,0,0[0m
+[0;32mI (47375) ai: RS,1620,4,1.8567,0.060139,3.3589,nan,0,0.184,0.11187,0.0039656,0.098961,nan,0,0[0m
+[0;32mI (47505) ai: RS,1630,0,1.8567,0.060139,2.9811,nan,0,0,0.11043,0.0039656,0.086906,nan,0,0[0m
+[0;32mI (47675) ai: RS,1640,6.65,1.9306,0.062448,3.4939,nan,0,0.184,0.11247,0.0040295,0.076956,nan,0,0[0m
+[0;32mI (47845) ai: RS,1650,7,2.0083,0.064878,4.0294,nan,0,0,0.11191,0.0040295,0.075833,nan,0,0[0m
+[0;32mI (48115) ai: RS,1660,7.8,2.0294,0.067587,4.4478,nan,0,0.0795,0.11088,0.0040571,0.084667,nan,0,0[0m
+[0;32mI (48175) ai: RS,1670,5.7,2.0928,0.069566,4.6878,nan,0,0,0.11026,0.0040571,0.083183,nan,0,0[0m
+[0;32mI (48375) ai: RS,1680,7,2.1706,0.071997,5.04,nan,0,0.184,0.10556,0.004121,0.084378,nan,0,0[0m
+[0;32mI (48505) ai: RS,1690,6.45,2.2028,0.074236,5.7994,nan,0,0.105,0.10673,0.0041575,0.096133,nan,0,0[0m
+[0;32mI (48675) ai: RS,1700,6.4,2.2739,0.076458,5.8128,nan,0,0,0.10588,0.0041575,0.075122,nan,0,0[0m
+[0;32mI (48875) ai: RS,1710,3.3,2.2711,0.077604,5.4083,nan,0,0.184,0.10457,0.0042214,0.096183,nan,0,0[0m
+[0;32mI (49115) ai: RS,1720,7.5,2.3544,0.080208,5.4083,nan,0,0,0.10296,0.0042214,0.084372,nan,0,0[0m
+[0;32mI (49175) ai: RS,1730,6.45,2.4261,0.082448,5.5322,nan,0,0.2095,0.10447,0.0042941,0.10616,nan,0,0[0m
+[0;32mI (49365) ai: RS,1740,2.8,2.4222,0.08342,5.0467,nan,0,0.1415,0.10532,0.0043432,0.10037,nan,0,0[0m
+[0;32mI (49615) ai: RS,1750,3.4,2.46,0.084601,4.7089,nan,0,0.086,0.10627,0.0043731,0.099217,nan,0,0[0m
+[0;32mI (49675) ai: RS,1760,10.2,2.54,0.088142,5.2,nan,0,0.1835,0.10692,0.0044368,0.12043,nan,0,0[0m
+[0;32mI (49875) ai: RS,1770,8.05,2.6294,0.090938,5.7872,nan,0,0,0.10457,0.0044368,0.099983,nan,0,0[0m
+[0;32mI (50115) ai: RS,1780,8.8,2.6878,0.093993,5.9439,nan,0,0,0.10245,0.0044368,0.099983,nan,0,0[0m
+[0;32mI (50175) ai: RS,1790,11.5,2.8156,0.097986,6.6328,nan,0,0.1635,0.10323,0.0044936,0.095144,nan,0,0[0m
+[0;32mI (50255) sensor_task: telemetry published (msg_id=43526): {"device_id":"dc:b4:d9:13:ed:8c","mode":"on","ts":1790777959,"temperature":31.1871509552002,"humidity":72.10498046875,"co_ppm":0,"no2_ppm":1.4986488819122314}[0m
+[0;32mI (50275) sensor_task: shadow published (msg_id=24378): {"mode":"on","temperature":31.1871509552002,"humidity":72.10498046875,"co_ppm":0,"no2_ppm":1.4986488819122314,"ts":1790777959}[0m
+[0;32mI (50385) ai: first inference at 49 s after boot (step 180): 4068 us; stack high-water mark: 5032 bytes free[0m
+[0;32mI (50385) ai: RS,1800,9.45,2.8594,0.10127,7.4372,0.027344,0,0.0895,0.10363,0.0045247,0.090361,0,0,0[0m
+[0;32mI (50405) ai: replay 'co_event': sample 360/866 (30 min)[0m
+[0;32mI (50615) ai: RS,1810,7.9,2.915,0.10401,7.9961,0.027344,0,0.211,0.10534,0.0045979,0.10659,0,0,0[0m
+[0;32mI (50685) ai: RS,1820,10.85,3.0078,0.10778,8.1539,0.023438,0,0.1335,0.10583,0.0046443,0.10115,0,0,0[0m
+[0;32mI (50865) ai: RS,1830,4.35,3.0239,0.10929,7.7911,0.0039062,0,0,0.10521,0.0046443,0.099544,0,0,0[0m
+[0;32mI (51115) ai: RS,1840,11.7,3.1539,0.11335,8.1911,0.0078125,0,0.1965,0.10422,0.0047125,0.12108,0,0,0[0m
+[0;32mI (51185) ai: RS,1850,8.5,3.2483,0.1163,7.9522,0.0039062,0,0,0.10233,0.0047125,0.10033,0,0,0[0m
+[0;32mI (51355) ai: RS,1860,8.4,3.3417,0.11922,7.8689,0.0039062,0,0,0.10233,0.0047125,0.090383,0,0,0[0m
+[0;32mI (51515) ai: RS,1870,10.8,3.4617,0.12297,8.2733,0.0078125,0,0.1765,0.10303,0.0047738,0.087306,0,0,0[0m
+[0;32mI (51685) ai: RS,1880,11.35,3.5878,0.12691,8.425,0.011719,0,0.105,0.10324,0.0048102,0.082183,0,0,0[0m
+[0;32mI (51885) ai: RS,1890,12.2,3.6867,0.13115,9.4039,0.015625,0,0.1565,0.10355,0.0048646,0.10131,0,0,0[0m
+[0;32mI (52015) ai: RS,1900,9.25,3.7894,0.13436,9.1844,0.015625,0,0.051,0.10273,0.0048823,0.085711,0,0,0[0m
+[0;32mI (52185) ai: RS,1910,12.6,3.9294,0.13873,9.7372,0.019531,0,0,0.10119,0.0048823,0.085711,0,0,0[0m
+[0;32mI (52365) ai: RS,1920,10.85,4.05,0.1425,10.086,0.0078125,0,0.2435,0.10252,0.0049668,0.11343,0,0,0[0m
+[0;32mI (52615) ai: RS,1930,12.4,4.1878,0.14681,10.401,0.015625,0,0.236,0.10423,0.0050488,0.12266,0,0,0[0m
+[0;32mI (52685) ai: RS,1940,9.65,4.26,0.15016,10.246,0.0039062,0,0,0.10331,0.0050488,0.10895,0,0,0[0m
+[0;32mI (52885) ai: RS,1950,12.7,4.4011,0.15457,10.364,0.0078125,0,0.1335,0.10337,0.0050951,0.10788,0,0,0[0m
+[0;32mI (53015) ai: RS,1960,12,4.5067,0.15873,10.717,0.0039062,0,0.224,0.10586,0.0051729,0.12871,0,0,0[0m
+[0;32mI (53185) ai: RS,1970,11.05,4.5811,0.16257,10.604,0.0039062,0,0.1185,0.10557,0.0052141,0.14319,0,0,0[0m
+[0;32mI (53365) ai: RS,1980,12.5,4.72,0.16691,10.848,0.0039062,0,0.184,0.10629,0.005278,0.13658,0,0,0[0m
+[0;32mI (53515) ai: RS,1990,12.15,4.855,0.17113,10.884,0.0039062,0,0.0575,0.10594,0.0052979,0.11622,0,0,0[0m
+[0;32mI (53685) ai: RS,2000,11.65,4.9556,0.17517,11.164,0.0039062,0,0.1635,0.10776,0.0053547,0.1362,0,0,0[0m
+[0;32mI (53855) ai: RS,2010,11.5,5.0833,0.17917,11.122,0,0,0.1565,0.10704,0.005409,0.13845,0,0,0[0m
+[0;32mI (54115) ai: RS,2020,14,5.2389,0.18403,11.417,0.0039062,0,0.139,0.10567,0.0054573,0.13055,0,0,0[0m
+[0;32mI (54185) ai: RS,2030,13.8,5.3922,0.18882,11.804,0.0078125,0,0.114,0.10693,0.0054969,0.12899,0,0,0[0m
+[0;32mI (54365) ai: RS,2040,15.35,5.5144,0.19415,12.26,0.019531,0,0,0.10693,0.0054969,0.10697,0,0,0[0m
+[0;32mI (54615) ai: RS,2050,17.45,5.7083,0.20021,13.005,0.042969,0,0.0625,0.10763,0.0055186,0.10727,0,0,0[0m
+[0;32mI (54685) ai: RS,2060,18.2,5.9106,0.20653,13.822,0.25,0,0.0705,0.10841,0.0055431,0.095678,0,0,0[0m
+[0;32mI (54865) ai: RS,2070,17.55,6.0389,0.21262,14.599,0.21094,0,0,0.10719,0.0055431,0.078289,0,0,0[0m
+[0;32mI (55015) ai: RS,2080,16.5,6.2222,0.21835,14.963,0.29297,0,0,0.10311,0.0055431,0.062844,0,0,0[0m
+[0;32mI (55185) ai: RS,2090,15.85,6.3983,0.22385,15.239,0.21094,0,0.2435,0.10414,0.0056276,0.078122,0,0,0[0m
+[0;32mI (55355) sensor_task: telemetry published (msg_id=13630): {"device_id":"dc:b4:d9:13:ed:8c","mode":"on","ts":1790777964,"temperature":31.2138557434082,"humidity":71.9920654296875,"co_ppm":0,"no2_ppm":1.4986488819122314}[0m
+[0;32mI (55375) sensor_task: shadow published (msg_id=29819): {"mode":"on","temperature":31.2138557434082,"humidity":71.9920654296875,"co_ppm":0,"no2_ppm":1.4986488819122314,"ts":1790777964}[0m
+[0;32mI (55385) ai: RS,2100,19,6.6094,0.23045,15.751,0.17578,0,0,0.10414,0.0056276,0.077128,0,0,0[0m
+[0;32mI (55385) ai: replay 'co_event': sample 420/866 (35 min)[0m
+[0;32mI (55625) ai: RS,2110,17.45,6.8033,0.23651,15.857,0.25,0,0.0735,0.10496,0.0056531,0.076822,0,0,0[0m
+[0;32mI (55675) ai: RS,2120,18.5,7.0089,0.24293,15.975,0.21094,0,0,0.10307,0.0056531,0.067506,0,0,0[0m
+[0;32mI (55875) ai: RS,2130,19.7,7.1967,0.24977,16.384,0.25,0,0.1235,0.10337,0.005696,0.0826,0,0,0[0m
+[0;32mI (56015) ai: RS,2140,18.95,7.4072,0.25635,16.737,0.29297,0,0,0.10337,0.005696,0.080417,0,0,0[0m
+[0;32mI (56185) ai: RS,2150,19.35,7.6222,0.26307,17.247,0.33984,0,0,0.10337,0.005696,0.053361,0,0,0[0m
+[0;32mI (56365) ai: RS,2160,19.2,7.8356,0.26974,17.389,0.25,0,0.053,0.10156,0.0057144,0.059839,0,0,0[0m
+[0;32mI (56615) ai: RS,2170,17.45,8.0294,0.2758,17.463,0.12109,0,0,0.10156,0.0057144,0.049711,0,0,0[0m
+[0;32mI (56685) ai: RS,2180,22.7,8.2817,0.28368,18.056,0.17578,0,0.0765,0.098606,0.005741,0.057894,0,0,0[0m
+[0;32mI (56885) ai: RS,2190,20.5,8.47,0.2908,18.237,0.25,0,0.0765,0.097644,0.0057675,0.051783,0,0,0[0m
+[0;32mI (57015) ai: RS,2200,21.05,8.6661,0.29811,18.601,0.21094,0,0.065,0.096533,0.0057901,0.059161,0,0,0[0m
+[0;32mI (57185) ai: RS,2210,22.6,8.9172,0.30595,19.073,0.33984,0,0,0.093622,0.0057901,0.059161,0,0,0[0m
+[0;32mI (57385) ai: RS,2220,22.25,9.1333,0.31368,19.539,0.33984,0,0,0.093622,0.0057901,0.050567,0,0,0[0m
+[0;32mI (57515) ai: RS,2230,22.6,9.3844,0.32153,20.224,0.39062,0,0.053,0.094211,0.0058085,0.054422,0,0,0[0m
+[0;32mI (57685) ai: RS,2240,22.2,9.6311,0.32924,20.308,0.33984,0,0.216,0.095394,0.0058835,0.072322,0,0,0[0m
+[0;32mI (57875) ai: RS,2250,22,9.8444,0.33687,20.578,0.29297,0,0.114,0.095539,0.0059231,0.076272,0,0,0[0m
+[0;32mI (58015) ai: RS,2260,27.75,10.118,0.34651,21.498,0.55469,0,0,0.094656,0.0059231,0.066561,0,0,0[0m
+[0;32mI (58185) ai: RS,2270,24.55,10.362,0.35503,21.864,0.60938,0,0.1565,0.094911,0.0059774,0.084372,0,0,0[0m
+[0;32mI (58385) ai: RS,2280,26.65,10.599,0.36429,22.511,0.78906,0,0,0.094061,0.0059774,0.082328,0,0,0[0m
+[0;32mI (58515) ai: RS,2290,24.5,10.842,0.3728,22.859,0.78906,0,0,0.092983,0.0059774,0.0758,0,0,0[0m
+[0;32mI (58685) ai: RS,2300,28.35,11.127,0.38264,23.728,0.87891,0,0.0735,0.093233,0.006003,0.058967,0,0,0[0m
+[0;32mI (58885) ai: RS,2310,27.25,11.4,0.3921,24.486,0.91797,0,0,0.091806,0.006003,0.044561,0,0,0[0m
+[0;32mI (59015) ai: RS,2320,26.05,11.639,0.40115,24.431,0.85156,0,0,0.088828,0.006003,0.043017,0,0,0[0m
+[0;32mI (59175) ai: RS,2330,27.7,11.916,0.41076,24.936,0.87891,0,0,0.085011,0.006003,0.024361,0,0,0[0m
+[0;32mI (59375) ai: RS,2340,26.65,12.162,0.42002,25.061,0.78906,0,0,0.082372,0.006003,0.024361,0,0,0[0m
+[0;32mI (59615) ai: RS,2350,27.15,12.427,0.42944,25.463,0.66016,0,0.2385,0.085022,0.0060858,0.052817,0,0,0[0m
+[0;32mI (59685) ai: RS,2360,29.4,12.709,0.43965,25.704,0.78906,0,0.2495,0.086578,0.0061724,0.074361,0,0,0[0m
+[0;32mI (59895) ai: RS,2370,33.8,13.055,0.45139,26.613,0.85156,0,0.2555,0.089417,0.0062611,0.10559,0,0,0[0m
+[0;32mI (60015) ai: RS,2380,31.85,13.323,0.46245,27.428,0.89844,0,0.1095,0.090633,0.0062991,0.11897,0,0,0[0m
+[0;32mI (60185) ai: RS,2390,32.5,13.684,0.47373,28.146,0.91797,0,0.06,0.089756,0.00632,0.1236,0,0,0[0m
+[0;32mI (60355) ai: RS,2400,32.5,14.006,0.48502,28.946,0.94531,1,0.2245,0.09225,0.0063979,0.15104,0,0,0[0m
+[0;33mW (60355) ai: co: an_toan -> canh_bao_som (ppm=32.50 STEL=14.01 TWA=0.49 proj=28.95 p=0.95)[0m
+[0;32mI (60385) ai: replay 'co_event': sample 480/866 (40 min)[0m
+[0;32mI (60415) sensor_task: telemetry published (msg_id=46792): {"device_id":"dc:b4:d9:13:ed:8c","mode":"on","ts":1790777969,"temperature":31.157777786254883,"humidity":71.98138427734375,"co_ppm":0,"no2_ppm":1.4986488819122314}[0m
+[0;32mI (60435) sensor_task: shadow published (msg_id=38577): {"mode":"on","temperature":31.157777786254883,"humidity":71.98138427734375,"co_ppm":0,"no2_ppm":1.4986488819122314,"ts":1790777969}[0m
+[0;32mI (60665) ai: RS,2410,35.3,14.369,0.49727,30.05,0.96484,1,0.102,0.093383,0.0064333,0.13619,0,0,0[0m
+[0;32mI (60695) ai: RS,2420,35.95,14.734,0.50976,30.972,0.97266,1,0.1285,0.093439,0.006478,0.12417,0,0,0[0m
+[0;32mI (60945) ai: RS,2430,36.6,15.141,0.52247,31.471,0.97656,1,0,0.091833,0.006478,0.094411,0,0,0[0m
+[0;32mI (61205) ai: RS,2440,37.4,15.504,0.53545,32.292,0.98438,1,0.114,0.090617,0.0065175,0.096178,0,0,0[0m
+[0;32mI (61235) ai: RS,2450,39.7,15.945,0.54924,33.318,0.98828,1,0,0.088033,0.0065175,0.089511,0,0,0[0m
+[0;32mI (61375) ai: RS,2460,35.9,16.284,0.5617,33.882,0.98828,1,0,0.088033,0.0065175,0.063978,0,0,0[0m
+[0;32mI (61445) mqtt: RX [device/dc:b4:d9:13:ed:8c/incident/ack]: {"schema_version":2,"incident_id":"0xe2a0f827b91c8bbf37b5104c45b842f0dc7a8321ec1e150ad927b166f1da0a50","evidence_hash":"0x8368885b26f9f25574164311649945bd88d9949ce64f610352048ee8c8a28fd7","accepted":true,"error_code":"","received_at":"1790777970"}[0m
+[0;32mI (61535) mqtt: RX [device/dc:b4:d9:13:ed:8c/incident/ack]: {"schema_version":2,"incident_id":"0xe2a0f827b91c8bbf37b5104c45b842f0dc7a8321ec1e150ad927b166f1da0a50","evidence_hash":"0x8368885b26f9f25574164311649945bd88d9949ce64f610352048ee8c8a28fd7","accepted":true,"error_code":"","received_at":"1790777970"}[0m
+[0;32mI (61655) ai: RS,2470,37.4,16.662,0.57469,34.337,0.98828,1,0,0.086828,0.0065175,0.052644,0,0,0[0m
+[0;32mI (61685) ai: RS,2480,36.65,17.039,0.58741,34.569,0.98438,1,0.1445,0.085311,0.0065677,0.055178,0,0,0[0m
+[0;32mI (61885) ai: RS,2490,39.7,17.451,0.6012,35.127,0.98828,1,0,0.085311,0.0065677,0.054328,0,0,0[0m
+[0;32mI (62015) ai: RS,2500,38.85,17.833,0.61469,35.486,0.98438,1,0.0795,0.086194,0.0065953,0.050656,0,0,0[0m
+[0;32mI (62185) ai: RS,2510,43.9,18.278,0.62993,36.189,0.98828,1,0.157,0.087939,0.0066498,0.069844,0,0,0[0m
+[0;32mI (62385) ai: RS,2520,42.15,18.702,0.64457,37.105,0.98828,1,0.1445,0.0875,0.0067,0.087506,0,0,0[0m
+[0;32mI (62515) ai: RS,2530,43,19.179,0.6595,37.954,0.98828,1,0.2465,0.090239,0.0067856,0.11704,0,0,0[0m
+[0;32mI (62685) ai: RS,2540,49.5,19.656,0.67668,39.685,0.99219,1,0.0825,0.089111,0.0068142,0.10867,0,0,0[0m
+[0;32mI (62865) ai: RS,2550,43.9,20.066,0.69193,40.395,0.99219,1,0,0.089111,0.0068142,0.10741,0,0,0[0m
+[0;32mI (63115) ai: RS,2560,44.7,20.476,0.70745,41.233,0.99219,1,0,0.088228,0.0068142,0.098572,0,0,0[0m
+[0;32mI (63185) ai: RS,2570,43.9,20.9,0.72269,41.448,0.99219,1,0.281,0.09135,0.0069118,0.11373,0,0,0[0m
+[0;32mI (63355) ai: RS,2580,48.45,21.361,0.73951,42.391,0.99609,1,0.101,0.090428,0.0069469,0.11002,0,0,0[0m
+[0;32mI (63515) ai: RS,2590,44.7,21.786,0.75503,42.804,0.99219,1,0.15,0.090928,0.006999,0.10097,0,0,0[0m
+[0;32mI (63685) ai: RS,2600,48.4,22.252,0.77184,42.904,0.99609,1,0.051,0.091494,0.0070167,0.097217,0,0,0[0m
+[0;32mI (63865) ai: RS,2610,49.4,22.764,0.78899,43.762,0.99609,1,0.216,0.09185,0.0070917,0.12362,0,0,0[0m
+[0;32mI (64115) ai: RS,2620,52.5,23.264,0.80722,44.922,0.99609,1,0.1095,0.093067,0.0071297,0.137,0,0,0[0m
+[0;32mI (64185) ai: RS,2630,51.45,23.764,0.82509,46.025,0.99609,1,0.139,0.092283,0.007178,0.12277,0,0,0[0m
+[0;32mI (64365) ai: RS,2640,50.4,24.293,0.84259,46.506,0.99609,1,0.139,0.092256,0.0072262,0.12853,0,0,0[0m
+[0;32mI (64515) ai: RS,2650,53.55,24.851,0.86118,47.782,0.99609,1,0.2275,0.093828,0.0073052,0.13702,0,0,0[0m
+[0;32mI (64685) ai: RS,2660,55.7,25.356,0.88052,48.886,0.99609,1,0,0.091789,0.0073052,0.12858,0,0,0[0m
+[0;32mI (64855) ai: RS,2670,57.95,25.911,0.90064,50.104,0.99609,1,0.234,0.094389,0.0073865,0.13034,0,0,0[0m
+[0;32mI (65015) ai: RS,2680,55.8,26.433,0.92002,50.737,0.99609,1,0.1095,0.095606,0.0074245,0.13034,0,0,0[0m
+[0;32mI (65185) ai: RS,2690,57.25,26.941,0.9399,51.656,0.99609,1,0.114,0.095056,0.0074641,0.12817,0,0,0[0m
+[0;32mI (65355) ai: RS,2700,55.7,27.455,0.95924,52.503,0.99609,1,0,0.094061,0.0074641,0.11023,0,0,0[0m
+[0;32mI (65355) ai: replay 'co_event': sample 540/866 (45 min)[0m
+[0;32mI (65475) sensor_task: telemetry published (msg_id=62181): {"device_id":"dc:b4:d9:13:ed:8c","mode":"on","ts":1790777974,"temperature":31.157777786254883,"humidity":71.97222900390625,"co_ppm":0,"no2_ppm":1.4986488819122314}[0m
+[0;32mI (65495) sensor_task: shadow published (msg_id=52433): {"mode":"on","temperature":31.157777786254883,"humidity":71.97222900390625,"co_ppm":0,"no2_ppm":1.4986488819122314,"ts":1790777974}[0m
+[0;32mI (65635) ai: RS,2710,61.6,28.052,0.98062,53.689,0.99609,1,0.101,0.092839,0.0074991,0.096161,0,0,0[0m
+[0;32mI (65685) ai: RS,2720,59.2,28.589,1.0012,54.337,0.99609,1,0.3155,0.094861,0.0076087,0.13329,0,0,0[0m
+[0;32mI (65865) ai: RS,2730,64.15,29.253,1.0235,55.332,0.99609,1,0.086,0.095817,0.0076385,0.11781,0,0,0[0m
+[0;32mI (66115) ai: RS,2740,64.1,29.836,1.0457,56.551,0.99609,1,0.0575,0.094272,0.0076585,0.1114,0,0,0[0m
+[0;32mI (66185) ai: RS,2750,65.4,30.468,1.0684,57.742,0.99609,1,0.167,0.096128,0.0077165,0.11914,0,0,0[0m
+[0;32mI (66355) ai: RS,2760,65.4,31.101,1.0911,59.147,0.99609,1,0.204,0.098394,0.0077873,0.14408,0,0,0[0m
+[0;32mI (66615) ai: RS,2770,61.75,31.667,1.1126,59.434,0.99609,1,0.051,0.097,0.007805,0.13909,0,0,0[0m
+[0;32mI (66685) ai: RS,2780,62.85,32.239,1.1344,60.131,0.99609,1,0.1995,0.09805,0.0078743,0.12681,0,0,0[0m
+[0;32mI (66865) ai: RS,2790,69.4,32.875,1.1585,61.044,0.99609,1,0.105,0.097478,0.0079108,0.13009,0,0,0[0m
+[0;32mI (67015) ai: RS,2800,70.95,33.561,1.1831,62.162,0.99609,1,0.051,0.097478,0.0079285,0.12905,0,0,0[0m
+[0;32mI (67185) ai: RS,2810,68.05,34.177,1.2068,62.725,0.99609,1,0,0.097478,0.0079285,0.10875,0,0,0[0m
+[0;32mI (67355) ai: RS,2820,70.95,34.844,1.2314,63.662,0.99609,1,0.208,0.097083,0.0080007,0.1099,0,0,0[0m
+[0;32mI (67615) ai: RS,2830,72.3,35.51,1.2565,65.159,0.99609,1,0,0.094461,0.0080007,0.10149,0,0,0[0m
+[0;32mI (67685) ai: RS,2840,73.7,36.222,1.2821,66.634,0.99609,2,0.27,0.097461,0.0080944,0.11141,0,0,0[0m
+[0;33mW (67685) ai: co: canh_bao_som -> vuot_nguong (ppm=73.70 STEL=36.22 TWA=1.28 proj=66.63 p=1.00)[0m
+[0;32mI (68475) ai: RS,2850,75.25,36.917,1.3082,67.632,0.99609,2,0,0.095978,0.0080944,0.099744,0,0,0[0m
+[0;32mI (68505) ai: RS,2860,73.7,37.602,1.3338,68.26,0.99609,2,0,0.093489,0.0080944,0.094078,0,0,0[0m
+[0;32mI (68585) ai: RS,2870,76.85,38.333,1.3605,69.604,0.99609,2,0.194,0.094328,0.0081618,0.11467,0,0,0[0m
+[0;32mI (68615) ai: RS,2880,78.35,39.065,1.3877,70.758,0.99609,2,0.1955,0.094456,0.0082297,0.11433,0,0,0[0m
+[0;32mI (68655) ai: RS,2890,78.35,39.801,1.4149,71.804,0.99609,2,0.0825,0.094733,0.0082583,0.12274,0,0,0[0m
+[0;32mI (68685) ai: RS,2900,81.5,40.577,1.4432,73.039,0.99609,2,0.1565,0.094656,0.0083127,0.11131,0,0,0[0m
+[0;32mI (68845) ai: RS,2910,84.8,41.391,1.4726,74.493,0.99609,2,0,0.092917,0.0083127,0.10891,0,0,0[0m
+[0;32mI (69015) ai: RS,2920,84.8,42.178,1.5021,76.086,0.99609,2,0.0675,0.092122,0.0083361,0.11594,0,0,0[0m
+[0;32mI (69185) ai: RS,2930,83.15,42.948,1.531,77.138,0.99609,2,0,0.090856,0.0083361,0.092839,0,0,0[0m
+[0;32mI (69375) ai: RS,2940,84.8,43.72,1.5604,78.237,0.99609,2,0.114,0.092122,0.0083757,0.083506,0,0,0[0m
+[0;32mI (69615) ai: RS,2950,81.5,44.432,1.5887,78.897,0.99609,2,0.1095,0.092644,0.0084137,0.085194,0,0,0[0m
+[0;32mI (69685) ai: RS,2960,88.2,45.209,1.6193,80.003,0.99609,2,0.086,0.092817,0.0084436,0.078317,0,0,0[0m
+[0;32mI (69865) ai: RS,2970,90,46.014,1.6506,80.937,0.99609,2,0.1235,0.094189,0.0084865,0.090811,0,0,0[0m
+[0;32mI (70125) ai: RS,2980,93.7,46.872,1.6831,82.347,0.99609,2,0.06,0.094856,0.0085073,0.089428,0,0,0[0m
+[0;32mI (70185) ai: RS,2990,84.85,47.639,1.7126,82.842,0.99609,2,0.17,0.094039,0.0085663,0.10894,0,0,0[0m
+[0;32mI (70365) ai: RS,3000,97.55,48.512,1.7464,84.724,0.99609,2,0,0.094039,0.0085663,0.096272,0,0,0[0m
+[0;32mI (70365) ai: replay 'co_event': sample 600/866 (50 min)[0m
+[0;32mI (70515) ai: RS,3010,95.6,49.38,1.7796,86.668,0.99609,2,0.2895,0.096439,0.0086668,0.11837,0,0,0[0m
+[0;32mI (70545) sensor_task: telemetry published (msg_id=50680): {"device_id":"dc:b4:d9:13:ed:8c","mode":"on","ts":1790777979,"temperature":31.157777786254883,"humidity":71.98138427734375,"co_ppm":0,"no2_ppm":1.8572952747344971}[0m
+[0;32mI (70565) sensor_task: shadow published (msg_id=49447): {"mode":"on","temperature":31.157777786254883,"humidity":71.98138427734375,"co_ppm":0,"no2_ppm":1.8572952747344971,"ts":1790777979}[0m
+[0;32mI (70685) ai: RS,3020,95.65,50.237,1.8128,87.901,0.99609,2,0,0.096439,0.0086668,0.10531,0,0,0[0m
+[0;32mI (70885) ai: RS,3030,93.7,51.059,1.8454,88.641,0.99609,2,0.4,0.099511,0.0088057,0.13952,0,0,0[0m
+[0;32mI (71125) ai: RS,3040,97.55,51.933,1.8793,89.44,0.99609,2,0.093,0.10054,0.008838,0.14358,0,0,0[0m
+[0;32mI (71185) ai: RS,3050,97.55,52.802,1.9131,91.208,0.99609,2,0.086,0.1015,0.0088679,0.13334,0,0,0[0m
+[0;32mI (71375) ai: RS,3060,101.5,53.716,1.9484,92.048,0.99609,2,0.1285,0.10234,0.0089125,0.14678,0,0,0[0m
+[0;32mI (71515) ai: RS,3070,95.6,54.584,1.9816,92.424,0.99609,2,0.1185,0.10366,0.0089536,0.12853,0,0,0[0m
+[0;32mI (71685) ai: RS,3080,101.5,55.46,2.0168,93.504,0.99609,2,0,0.10281,0.0089536,0.12632,0,0,0[0m
+[0;32mI (71865) ai: RS,3090,101.7,56.362,2.0521,94.752,0.99609,2,0.1285,0.10338,0.0089983,0.096411,0,0,0[0m
+[0;32mI (72015) ai: RS,3100,110,57.351,2.0903,96.569,0.99609,2,0,0.10266,0.0089983,0.085511,0,0,0[0m
+[0;32mI (72185) ai: RS,3110,110,58.322,2.1285,98.418,0.99609,2,0,0.10266,0.0089983,0.075956,0,0,0[0m
+[0;32mI (72355) ai: RS,3120,103.65,59.226,2.1645,99.021,0.99609,2,0.29,0.10588,0.009099,0.094811,0,0,0[0m
+[0;32mI (72615) ai: RS,3130,112.2,60.222,2.2035,101.31,0.99609,2,0.264,0.10823,0.0091906,0.11391,0,0,0[0m
+[0;32mI (72685) ai: RS,3140,112.25,61.222,2.2424,102.93,0.99609,2,0,0.10583,0.0091906,0.11091,0,0,0[0m
+[0;32mI (72885) ai: RS,3150,114.45,62.249,2.2822,104.78,0.99609,2,0.163,0.10637,0.0092472,0.11656,0,0,0[0m
+[0;32mI (73015) ai: RS,3160,114.45,63.213,2.3219,105.73,0.99609,2,0.353,0.11029,0.0093698,0.1597,0,0,0[0m
+[0;32mI (73185) ai: RS,3170,119.1,64.263,2.3633,107.21,0.99609,2,0,0.10856,0.0093698,0.15754,0,0,0[0m
+[0;32mI (73355) ai: RS,3180,114.45,65.239,2.403,108.81,0.99609,2,0.0675,0.10931,0.0093932,0.1314,0,0,0[0m
+[0;32mI (73615) ai: RS,3190,121.5,66.317,2.4452,110.32,0.99609,2,0.0895,0.1103,0.0094243,0.11209,0,0,0[0m
+[0;32mI (73685) ai: RS,3200,129.05,67.436,2.49,112.72,0.99609,2,0.0795,0.11037,0.0094519,0.12007,0,0,0[0m
+[0;32mI (73865) ai: RS,3210,121.5,68.483,2.5322,113.91,0.99609,2,0.2645,0.11331,0.0095438,0.13428,0,0,0[0m
+[0;32mI (74015) ai: RS,3220,129.25,69.629,2.5771,116.05,0.99609,2,0.086,0.11426,0.0095736,0.10482,0,0,0[0m
+[0;32mI (74185) ai: RS,3230,126.5,70.727,2.621,117.35,0.99609,2,0.1865,0.11633,0.0096384,0.12762,0,0,0[0m
+[0;32mI (74385) ai: RS,3240,131.75,71.895,2.6667,119.8,0.99609,2,0.2255,0.11884,0.0097167,0.14641,0,0,0[0m
+[0;32mI (74515) ai: RS,3250,129.05,73.027,2.7115,121.16,0.99609,2,0.0825,0.11711,0.0097453,0.14533,0,0,0[0m
+[0;32mI (74685) ai: RS,3260,131.75,74.164,2.7573,121.95,0.99609,2,0.2635,0.11726,0.0098368,0.16775,0,0,0[0m
+[0;32mI (74875) ai: RS,3270,137.1,75.312,2.8049,124.21,0.99609,2,0,0.11442,0.0098368,0.13699,0,0,0[0m
+[0;32mI (75015) ai: RS,3280,139.8,76.512,2.8534,125.89,0.99609,2,0.278,0.11629,0.0099333,0.16074,0,0,0[0m
+[0;32mI (75185) ai: RS,3290,142.7,77.736,2.903,128.33,0.99609,2,0,0.11563,0.0099333,0.13813,0,0,0[0m
+[0;32mI (75365) ai: RS,3300,134.3,78.867,2.9496,129.02,0.99609,2,0.065,0.11386,0.0099559,0.12102,0,0,0[0m
+[0;32mI (75375) ai: replay 'co_event': sample 660/866 (55 min)[0m
+[0;32mI (75515) ai: RS,3310,134.3,79.967,2.9962,130.04,0.99609,2,0.1445,0.11433,0.010006,0.1263,0,0,0[0m
+[0;32mI (75625) sensor_task: telemetry published (msg_id=60804): {"device_id":"dc:b4:d9:13:ed:8c","mode":"on","ts":1790777984,"temperature":31.1871509552002,"humidity":72.0286865234375,"co_ppm":0,"no2_ppm":1.7574105262756348}[0m
+[0;32mI (75645) sensor_task: shadow published (msg_id=58654): {"mode":"on","temperature":31.1871509552002,"humidity":72.0286865234375,"co_ppm":0,"no2_ppm":1.7574105262756348,"ts":1790777984}[0m
+[1;31mE (75655) mqtt_client: No PING_RESP, disconnected[0m
+[0;33mW (75655) mqtt: Disconnected; reconnecting automatically[0m
+[0;32mI (75685) ai: RS,3320,137,81.09,3.0438,131.08,0.99609,2,0.0625,0.11359,0.010028,0.10466,0,0,0[0m
+[0;32mI (75885) ai: RS,3330,137,82.206,3.0914,131.55,0.99609,2,0.0705,0.11438,0.010052,0.10883,0,0,0[0m
+[0;32mI (76015) ai: RS,3340,137.1,83.313,3.139,131.69,0.99609,2,0,0.11311,0.010052,0.076911,0,0,0[0m
+[0;32mI (76185) ai: RS,3350,134.3,84.364,3.1856,131.16,0.99609,2,0.097,0.11419,0.010086,0.087811,0,0,0[0m
+[0;32mI (76365) ai: RS,3360,129.05,85.399,3.2304,130.89,0.99609,2,0.211,0.11653,0.010159,0.10495,0,0,0[0m
+[0;32mI (76615) ai: RS,3370,137,86.506,3.278,131.65,0.99609,2,0.234,0.11913,0.01024,0.11618,0,0,0[0m
+[0;32mI (76685) ai: RS,3380,129.05,87.533,3.3228,131.07,0.99609,2,0.4065,0.12204,0.010382,0.15892,0,0,0[0m
+[0;32mI (76865) ai: RS,3390,131.75,88.556,3.3686,130.82,0.99609,2,0.2475,0.12479,0.010468,0.17991,0,0,0[0m
+[0;32mI (77015) ai: RS,3400,137.1,89.647,3.4162,131.12,0.99609,2,0.051,0.12448,0.010485,0.18614,0,0,0[0m
+[0;32mI (77185) ai: RS,3410,131.75,90.623,3.4619,131.08,0.99609,2,0.114,0.124,0.010525,0.18929,0,0,0[0m
+[0;32mI (77365) ai: RS,3420,129.05,91.589,3.5067,131.36,0.99609,2,0.0895,0.12339,0.010556,0.17357,0,0,0[0m
+[0;32mI (77515) ai: RS,3430,131.75,92.575,3.5525,131,0.99609,2,0.327,0.12428,0.010669,0.1846,0,0,0[0m
+[0;32mI (77685) ai: RS,3440,129.05,93.459,3.5973,131.18,0.99609,2,0.233,0.12596,0.01075,0.16791,0,0,0[0m
+[0;32mI (77865) ai: RS,3450,131.75,94.435,3.643,131.38,0.99609,2,0.1285,0.12738,0.010795,0.15431,0,0,0[0m
+[0;32mI (78015) ai: RS,3460,129.25,95.374,3.6879,130.67,0.99609,2,0,0.12738,0.010795,0.14472,0,0,0[0m
+[0;32mI (78185) ai: RS,3470,134.3,96.379,3.7345,131.12,0.99609,2,0.228,0.12679,0.010874,0.15992,0,0,0[0m
+[0;32mI (78365) ai: RS,3480,129.05,97.274,3.7793,131.28,0.99609,2,0.086,0.12663,0.010904,0.15973,0,0,0[0m
+[0;32mI (78515) ai: RS,3490,126.5,98.183,3.8233,130.75,0.99609,2,0,0.12496,0.010904,0.12241,0,0,0[0m
+[0;32mI (78685) ai: RS,3500,124.15,99.025,3.8664,130.15,0.99609,2,0.1285,0.12582,0.010949,0.11134,0,0,0[0m
+[0;32mI (78885) ai: RS,3510,129.05,99.91,3.9112,129.94,0.99609,2,0.1805,0.12543,0.011011,0.11618,0,0,0[0m
+[0;32mI (79015) ai: RS,3520,126.5,100.73,3.9551,129.6,0.99609,2,0.1505,0.12588,0.011064,0.13362,0,0,0[0m
+[0;32mI (79185) ai: RS,3530,121.6,101.51,3.9973,128.14,0.99609,2,0,0.12434,0.011064,0.10622,0,0,0[0m
+[0;32mI (79365) ai: RS,3540,129.05,102.39,4.0421,128.11,0.99609,2,0.214,0.12517,0.011138,0.12031,0,0,0[0m
+[0;32mI (79515) ai: RS,3550,129.05,103.22,4.0869,128.39,0.99609,2,0.323,0.12623,0.01125,0.15887,0,0,0[0m
+[0;32mI (79685) ai: RS,3560,124,103.98,4.13,128.29,0.99609,2,0.184,0.12828,0.011314,0.16416,0,0,0[0m
+[0;32mI (79865) ai: RS,3570,126.55,104.75,4.1739,127.89,0.99609,2,0.097,0.12676,0.011348,0.15596,0,0,0[0m
+[0;32mI (80115) ai: RS,3580,124,105.5,4.217,127.44,0.99609,2,0.2425,0.12823,0.011432,0.16578,0,0,0[0m
+[0;32mI (80175) ai: RS,3590,126.55,106.27,4.2609,127.81,0.99609,2,0.1765,0.12893,0.011493,0.18736,0,0,0[0m
+[0;32mI (80385) ai: RS,3600,121.6,107.01,4.3032,126.84,0.99609,2,0.0625,0.12962,0.011515,0.17049,0,0,0[0m
+[0;32mI (80385) ai: replay 'co_event': sample 720/866 (60 min)[0m
+[0;32mI (80515) ai: RS,3610,126.5,107.73,4.3471,126.47,0.99609,2,0,0.1285,0.011515,0.133,0,0,0[0m
+[0;32mI (80685) ai: RS,3620,119.1,108.39,4.3884,125.73,0.99609,2,0.2855,0.12817,0.011614,0.14676,0,0,0[0m
+[0;32mI (80685) sensor_task: telemetry published (msg_id=20966): {"device_id":"dc:b4:d9:13:ed:8c","mode":"on","ts":1790777989,"temperature":31.1444263458252,"humidity":72.0408935546875,"co_ppm":0,"no2_ppm":1.4986488819122314}[0m
+[0;32mI (80695) sensor_task: shadow published (msg_id=1517): {"mode":"on","temperature":31.1444263458252,"humidity":72.0408935546875,"co_ppm":0,"no2_ppm":1.4986488819122314,"ts":1790777989}[0m
+[0;32mI (80875) ai: RS,3630,121.5,109.03,4.4306,124.99,0.99609,2,0,0.12721,0.011614,0.13519,0,0,0[0m
+[0;32mI (81115) ai: RS,3640,116.7,109.61,4.4711,123.96,0.99609,2,0.0825,0.12749,0.011643,0.11833,0,0,0[0m
+[0;32mI (81175) ai: RS,3650,119.1,110.21,4.5125,122.96,0.99609,2,0.2245,0.12813,0.01172,0.12508,0,0,0[0m
+[0;32mI (81355) ai: RS,3660,121.5,110.83,4.5547,122.86,0.99609,2,0.2795,0.12897,0.011818,0.14996,0,0,0[0m
+[0;32mI (81615) ai: RS,3670,116.7,111.44,4.5952,121.55,0.99609,2,0,0.1284,0.011818,0.14736,0,0,0[0m
+[0;32mI (81675) ai: RS,3680,119.1,112.07,4.6366,121.44,0.99609,2,0,0.12618,0.011818,0.11112,0,0,0[0m
+[0;32mI (81855) ai: RS,3690,119.1,112.62,4.6779,121.03,0.99609,2,0.065,0.12574,0.01184,0.11631,0,0,0[0m
+[0;32mI (82015) ai: RS,3700,114.65,113.11,4.7177,120.56,0.99609,2,0,0.12517,0.01184,0.10658,0,0,0[0m
+[0;32mI (82185) ai: RS,3710,114.45,113.62,4.7575,119.85,0.99609,2,0.2435,0.12788,0.011925,0.11013,0,0,0[0m
+[0;32mI (82365) ai: RS,3720,116.7,114.13,4.798,119.18,0.99609,2,0,0.12557,0.011925,0.078078,0,0,0[0m
+[0;32mI (82515) ai: RS,3730,112.25,114.57,4.837,118.46,0.99609,2,0.0895,0.12656,0.011956,0.085383,0,0,0[0m
+[0;32mI (82685) ai: RS,3740,116.7,115.05,4.8775,118.06,0.99609,2,0.1545,0.12528,0.012009,0.10168,0,0,0[0m
+[0;32mI (82885) ai: RS,3750,114.45,115.49,4.9172,117.35,0.99609,2,0.065,0.126,0.012032,0.10097,0,0,0[0m
+[0;32mI (83015) ai: RS,3760,114.45,115.94,4.957,117.17,0.99609,2,0.1235,0.12737,0.012075,0.11607,0,0,0[0m
+[0;32mI (83185) ai: RS,3770,112.2,116.33,4.9959,116.67,0.99609,2,0.583,0.13169,0.012277,0.15773,0,0,0[0m
+[0;32mI (83375) ai: RS,3780,112.2,116.71,5.0349,115.98,0.99609,2,0.141,0.13109,0.012326,0.17401,0,0,0[0m
+[0;32mI (83965) ai: RS,3790,112.2,117.09,5.0738,115.82,0.99609,2,0,0.13017,0.012326,0.16407,0,0,0[0m
+[0;32mI (84955) ai: RS,3800,114.45,117.45,5.1136,115.46,0.99609,2,0.139,0.12998,0.012374,0.16246,0,0,0[0m
+[0;32mI (85655) esp-x509-crt-bundle: Certificate validated[0m
+[0;32mI (85675) ai: RS,3810,114.45,117.78,5.1533,115.3,0.99609,2,0.2155,0.13237,0.012449,0.17957,0,0,0[0m
+[0;32mI (86465) ai: RS,3820,110,118.06,5.1915,114.62,0.99609,2,0.114,0.13289,0.012489,0.17811,0,0,0[0m
+[0;32mI (86615) ai: RS,3830,110,118.36,5.2297,114.25,0.99609,2,0.065,0.13361,0.012511,0.12128,0,0,0[0m
+[0;32mI (86635) ai: RS,3840,107.85,118.62,5.2672,113.53,0.99609,2,0.105,0.13351,0.012548,0.11607,0,0,0[0m
+[0;32mI (86665) ai: RS,3850,107.8,118.91,5.3046,112.8,0.99609,2,0.2545,0.13512,0.012636,0.14358,0,0,0[0m
+[0;32mI (86695) ai: RS,3860,107.8,119.13,5.342,111.88,0.99609,2,0,0.13417,0.012636,0.12609,0,0,0[0m
+[0;32mI (86745) ai: RS,3870,110,119.35,5.3802,111.21,0.99609,2,0.0795,0.13368,0.012664,0.11079,0,0,0[0m
+[0;32mI (86775) ai: RS,3880,103.5,119.46,5.4161,110.26,0.99609,2,0.2855,0.13618,0.012763,0.13032,0,0,0[0m
+[0;32mI (86805) ai: RS,3890,107.8,119.71,5.4536,109.8,0.99609,2,0.051,0.13486,0.012781,0.12737,0,0,0[0m
+[0;32mI (86905) ai: RS,3900,103.5,119.78,5.4895,109.12,0.99609,2,0.065,0.13558,0.012803,0.12296,0,0,0[0m
+[0;32mI (86905) ai: replay 'co_event': sample 780/866 (65 min)[0m
+[0;32mI (86935) ai: RS,3910,105.65,119.89,5.5262,108.65,0.99609,2,0.387,0.13667,0.012938,0.14198,0,0,0[0m
+[0;32mI (86955) ai: RS,3920,105.65,120,5.5629,108.26,0.99609,2,0.1995,0.13888,0.013007,0.16319,0,0,0[0m
+[0;32mI (87125) ai: RS,3930,103.5,120.11,5.5988,107.34,0.99609,2,0.1185,0.13576,0.013048,0.16884,0,0,0[0m
+[0;32mI (87145) ai: RS,3940,101.5,120.15,5.6341,106.95,0.99609,2,0.321,0.13829,0.01316,0.17543,0,0,0[0m
+[0;32mI (87155) mqtt: Connected to broker[0m
+[0;32mI (87165) mqtt: Subscribe queued for command topic device/dc:b4:d9:13:ed:8c/command (msg_id=18794)[0m
+[0;32mI (87165) mqtt: Subscribe queued for shadow/get_response topic device/dc:b4:d9:13:ed:8c/shadow/get_response (msg_id=60773)[0m
+[0;32mI (87175) mqtt: Subscribe queued for ota topic device/dc:b4:d9:13:ed:8c/ota/update (msg_id=32930)[0m
+[0;32mI (87185) ai: RS,3950,105.65,120.24,5.6707,106.56,0.99609,2,0,0.13733,0.01316,0.16727,0,0,0[0m
+[0;32mI (87185) mqtt: Subscribe queued for incident/ack topic device/dc:b4:d9:13:ed:8c/incident/ack (msg_id=38405)[0m
+[0;32mI (87205) mqtt: Published online status -> device/dc:b4:d9:13:ed:8c/status[0m
+[0;32mI (87215) mqtt: Published shadow/get -> device/dc:b4:d9:13:ed:8c/shadow/get (msg_id=13913)[0m
+[0;32mI (87225) sensor_task: telemetry published (msg_id=47904): {"device_id":"dc:b4:d9:13:ed:8c","mode":"on","ts":1790777994,"temperature":31.115053176879883,"humidity":72.0653076171875,"co_ppm":0,"no2_ppm":1.57870888710022}[0m
+[0;32mI (87235) sensor_task: shadow published (msg_id=38325): {"mode":"on","temperature":31.115053176879883,"humidity":72.0653076171875,"co_ppm":0,"no2_ppm":1.57870888710022,"ts":1790777994}[0m
+[0;32mI (87255) ai: RS,3960,107.8,120.31,5.7082,106.88,0.99609,2,0.0555,0.13652,0.013179,0.16373,0,0,0[0m
+[0;32mI (87395) ai: RS,3970,107.8,120.45,5.7456,107.02,0.99609,2,0.1565,0.13694,0.013233,0.13986,0,0,0[0m
+[0;32mI (87415) ai: RS,3980,103.5,120.47,5.7815,106.61,0.99609,2,0.1185,0.13826,0.013274,0.13217,0,0,0[0m
+[0;32mI (87455) ai: RS,3990,107.8,120.54,5.819,106.96,0.99609,2,0.277,0.13991,0.01337,0.15214,0,0,0[0m
+[0;32mI (87485) ai: RS,4000,97.55,120.4,5.8528,106.33,0.99609,2,0,0.13991,0.01337,0.11647,0,0,0[0m
+[0;32mI (87515) ai: RS,4010,101.5,120.31,5.8881,105.73,0.99609,2,0.1745,0.14185,0.013431,0.13509,0,0,0[0m
+[0;32mI (87545) ai: RS,4020,97.55,120.24,5.922,104.38,0.99609,2,0.0705,0.13941,0.013456,0.13754,0,0,0[0m
+[0;32mI (87625) ai: RS,4030,95.6,120.05,5.9552,102.84,0.99609,2,0,0.13648,0.013456,0.11916,0,0,0[0m
+[0;32mI (87675) ai: RS,4040,101.5,119.93,5.9904,102.45,0.99609,2,0.1565,0.13822,0.01351,0.12341,0,0,0[0m
+[0;32mI (87885) ai: RS,4050,101.5,119.79,6.0256,101.6,0.99609,2,0.1915,0.13853,0.013576,0.11531,0,0,0[0m
+[0;32mI (87955) mqtt: Subscribed (msg_id=18794)[0m
+[0;32mI (87965) mqtt: Subscribed (msg_id=60773)[0m
+[0;32mI (87965) mqtt: Subscribed (msg_id=32930)[0m
+[0;32mI (87985) mqtt: Subscribed (msg_id=38405)[0m
+[0;32mI (87995) mqtt: RX [device/dc:b4:d9:13:ed:8c/shadow/get_response]: {"desired":{},"delta":{},"ts":1790777996}[0m
+[0;32mI (87995) sysload: shadow/get_response: delta has no mode/relay changes to apply[0m
+[0;32mI (88015) ai: RS,4060,99.5,119.62,6.0602,101.65,0.99609,2,0,0.13461,0.013576,0.11394,0,0,0[0m
+[0;32mI (88185) ai: RS,4070,99.5,119.41,6.0947,101.29,0.99609,2,0,0.13461,0.013576,0.088072,0,0,0[0m
+[0;32mI (88375) ai: RS,4080,97.55,119.22,6.1286,101.13,0.99609,2,0.0735,0.13468,0.013602,0.087656,0,0,0[0m
+[0;32mI (88615) ai: RS,4090,101.5,119,6.1639,101.66,0.99609,2,0,0.13368,0.013602,0.087656,0,0,0[0m
+[0;32mI (88675) ai: RS,4100,95.65,118.63,6.1971,100.81,0.99609,2,0.051,0.13337,0.01362,0.074956,0,0,0[0m
+[0;32mI (88865) ai: RS,4110,95.6,118.34,6.2303,99.94,0.99609,2,0,0.13043,0.01362,0.051283,0,0,0[0m
+[0;32mI (89125) ai: RS,4120,95.65,117.97,6.2635,99.353,0.99609,2,0.1445,0.13108,0.01367,0.067678,0,0,0[0m
+[0;32mI (89185) ai: RS,4130,99.55,117.67,6.298,99.242,0.99609,2,0.0825,0.12992,0.013698,0.077039,0,0,0[0m
+[0;32mI (89355) ai: RS,4140,95.6,117.26,6.3312,98.889,0.99609,2,0.397,0.13183,0.013836,0.11623,0,0,0[0m
+[0;32mI (89515) ai: RS,4150,97.55,116.91,6.3651,98.337,0.99609,2,0,0.13091,0.013836,0.1134,0,0,0[0m
+[0;32mI (89685) ai: RS,4160,95.6,116.51,6.3983,98.196,0.99609,2,0.401,0.13244,0.013976,0.15674,0,0,0[0m
+[0;32mI (89885) ai: RS,4170,95.6,116.05,6.4315,98.036,0.99609,2,0.101,0.13356,0.014011,0.16821,0,0,0[0m
+[0;32mI (90125) ai: RS,4180,95.6,115.56,6.4647,97.942,0.99609,2,0.1565,0.13221,0.014065,0.16811,0,0,0[0m
+[0;32mI (90185) ai: RS,4190,93.7,115.02,6.4972,97.136,0.99609,2,0.086,0.13317,0.014095,0.16888,0,0,0[0m
+[0;32mI (90355) ai: RS,4200,93.7,114.56,6.5298,96.816,0.99609,2,0.1995,0.13466,0.014164,0.14843,0,0,0[0m
+[0;32mI (90355) ai: replay 'co_event': sample 840/866 (70 min)[0m
+[0;32mI (90515) ai: RS,4210,91.9,114.09,6.5617,96.035,0.99609,2,0.163,0.13487,0.014221,0.16406,0,0,0[0m
+[0;32mI (90685) ai: RS,4220,97.55,113.65,6.5955,96.162,0.99609,2,0.2725,0.1372,0.014315,0.15059,0,0,0[0m
+[0;32mI (90885) ai: RS,4230,91.8,113.15,6.6274,95.609,0.99609,2,0.1185,0.13773,0.014356,0.15253,0,0,0[0m
+[0;32mI (91015) ai: RS,4240,93.7,112.67,6.6599,95.312,0.99609,2,0,0.13773,0.014356,0.13158,0,0,0[0m
+[0;32mI (91185) ai: RS,4250,88.3,112.16,6.6906,94.519,0.99609,2,0.1445,0.13826,0.014407,0.13968,0,0,0[0m
+[0;32mI (91385) ai: RS,4260,90,111.73,6.7219,93.91,0.99609,2,0.1525,0.13761,0.01446,0.13554,0,0,0[0m
+[0;32mI (91515) ai: RS,4270,93.7,111.24,6.7544,93.953,0.99609,2,0,0.13501,0.01446,0.11569,0,0,0[0m
+[0;32mI (91685) ai: RS,4280,90,110.81,6.7856,92.964,0.99609,2,0.1285,0.13192,0.014504,0.0998,0,0,0[0m
+[0;32mI (91885) ai: RS,4290,84.8,110.29,6.8151,91.931,0.99609,2,0.157,0.13092,0.014559,0.10274,0,0,0[0m
+[0;32mI (92015) ai: RS,4300,93.7,109.81,6.8476,91.888,0.99609,2,0.2435,0.13306,0.014643,0.13251,0,0,0[0m
+[0;32mI (92185) ai: RS,4310,91.8,109.36,6.8795,92.169,0.99609,2,0.1335,0.13327,0.01469,0.13083,0,0,0[0m
+[0;32mI (92285) sensor_task: telemetry published (msg_id=831): {"device_id":"dc:b4:d9:13:ed:8c","mode":"on","ts":1790778001,"temperature":31.058975219726562,"humidity":72.17059326171875,"co_ppm":0,"no2_ppm":1.8572952747344971}[0m
+[0;32mI (92305) sensor_task: shadow published (msg_id=48311): {"mode":"on","temperature":31.058975219726562,"humidity":72.17059326171875,"co_ppm":0,"no2_ppm":1.8572952747344971,"ts":1790778001}[0m
+[0;32mI (92345) ai: RS,4320,88.3,108.91,6.9102,91.878,0.99609,2,0,0.13228,0.01469,0.1131,0,0,0[0m
+[0;32mI (92585) ai: RS,4330,91.9,108.47,6.9421,91.637,0.99609,2,0.0895,0.12964,0.014721,0.12404,0,0,0[0m
+[0;33mW (92585) ai: replay 'co_event' finished: 433 steps in 72 s -- AI gets no more input; reboot to replay again[0m
+[0;32mI (96265) mqtt: RX [device/dc:b4:d9:13:ed:8c/incident/ack]: {"schema_version":2,"incident_id":"0x8dacb946abc972d9fb36ca920822112f2867f1448ed898c75731ae1661ce39ba","evidence_hash":"0x4842a0d159f3c6ac5c1d7d7bedc5f74a50c81069f1e95ff20f297fe87c13d83e","accepted":true,"error_code":"","received_at":"1790777978"}[0m
+[0;32mI (96345) mqtt: RX [device/dc:b4:d9:13:ed:8c/incident/ack]: {"schema_version":2,"incident_id":"0x8dacb946abc972d9fb36ca920822112f2867f1448ed898c75731ae1661ce39ba","evidence_hash":"0x4842a0d159f3c6ac5c1d7d7bedc5f74a50c81069f1e95ff20f297fe87c13d83e","accepted":true,"error_code":"","received_at":"1790777978"}[0m
+[0;32mI (96365) mqtt: RX [device/dc:b4:d9:13:ed:8c/incident/ack]: {"schema_version":2,"incident_id":"0x8dacb946abc972d9fb36ca920822112f2867f1448ed898c75731ae1661ce39ba","evidence_hash":"0x4842a0d159f3c6ac5c1d7d7bedc5f74a50c81069f1e95ff20f297fe87c13d83e","accepted":true,"error_code":"","received_at":"1790777978"}[0m
+[0;32mI (96455) mqtt: RX [device/dc:b4:d9:13:ed:8c/incident/ack]: {"schema_version":2,"incident_id":"0x8dacb946abc972d9fb36ca920822112f2867f1448ed898c75731ae1661ce39ba","evidence_hash":"0x4842a0d159f3c6ac5c1d7d7bedc5f74a50c81069f1e95ff20f297fe87c13d83e","accepted":true,"error_code":"","received_at":"1790777978"}[0m
+[0;32mI (96485) mqtt: RX [device/dc:b4:d9:13:ed:8c/incident/ack]: {"schema_version":2,"incident_id":"0x8dacb946abc972d9fb36ca920822112f2867f1448ed898c75731ae1661ce39ba","evidence_hash":"0x4842a0d159f3c6ac5c1d7d7bedc5f74a50c81069f1e95ff20f297fe87c13d83e","accepted":true,"error_code":"","received_at":"1790777978"}[0m
+[0;32mI (96515) mqtt: RX [device/dc:b4:d9:13:ed:8c/incident/ack]: {"schema_version":2,"incident_id":"0x8dacb946abc972d9fb36ca920822112f2867f1448ed898c75731ae1661ce39ba","evidence_hash":"0x4842a0d159f3c6ac5c1d7d7bedc5f74a50c81069f1e95ff20f297fe87c13d83e","accepted":true,"error_code":"","received_at":"1790777978"}[0m
+[0;32mI (97075) mqtt: RX [device/dc:b4:d9:13:ed:8c/incident/ack]: {"schema_version":2,"incident_id":"0x8dacb946abc972d9fb36ca920822112f2867f1448ed898c75731ae1661ce39ba","evidence_hash":"0x4842a0d159f3c6ac5c1d7d7bedc5f74a50c81069f1e95ff20f297fe87c13d83e","accepted":true,"error_code":"","received_at":"1790777978"}[0m
+[0;32mI (97375) sensor_task: telemetry published (msg_id=44037): {"device_id":"dc:b4:d9:13:ed:8c","mode":"on","ts":1790778006,"temperature":31.088350296020508,"humidity":72.19805908203125,"co_ppm":0,"no2_ppm":2.356633186340332}[0m
+[0;32mI (97395) sensor_task: shadow published (msg_id=36676): {"mode":"on","temperature":31.088350296020508,"humidity":72.19805908203125,"co_ppm":0,"no2_ppm":2.356633186340332,"ts":1790778006}[0m
+[0;32mI (102445) sensor_task: telemetry published (msg_id=13737): {"device_id":"dc:b4:d9:13:ed:8c","mode":"on","ts":1790778011,"temperature":31.088350296020508,"humidity":72.1873779296875,"co_ppm":0,"no2_ppm":1.57870888710022}[0m
+[0;32mI (102455) sensor_task: shadow published (msg_id=9865): {"mode":"on","temperature":31.088350296020508,"humidity":72.1873779296875,"co_ppm":0,"no2_ppm":1.57870888710022,"ts":1790778011}[0m
+[0;32mI (107515) sensor_task: telemetry published (msg_id=5898): {"device_id":"dc:b4:d9:13:ed:8c","mode":"on","ts":1790778016,"temperature":31.088350296020508,"humidity":72.19805908203125,"co_ppm":0,"no2_ppm":1.57870888710022}[0m
+[0;32mI (107535) sensor_task: shadow published (msg_id=19985): {"mode":"on","temperature":31.088350296020508,"humidity":72.19805908203125,"co_ppm":0,"no2_ppm":1.57870888710022,"ts":1790778016}[0m
+[1;31mE (112455) mqtt_client: No PING_RESP, disconnected[0m
+[0;33mW (112455) mqtt: Disconnected; reconnecting automatically[0m
+[0;32mI (112595) sensor_task: telemetry published (msg_id=46344): {"device_id":"dc:b4:d9:13:ed:8c","mode":"on","ts":1790778021,"temperature":31.07499885559082,"humidity":72.22552490234375,"co_ppm":0,"no2_ppm":2.1526086330413818}[0m
+[0;32mI (112615) sensor_task: shadow published (msg_id=30111): {"mode":"on","temperature":31.07499885559082,"humidity":72.22552490234375,"co_ppm":0,"no2_ppm":2.1526086330413818,"ts":1790778021}[0m
+[0;32mI (117655) sensor_task: telemetry published (msg_id=55665): {"device_id":"dc:b4:d9:13:ed:8c","mode":"on","ts":1790778026,"temperature":30.98687744140625,"humidity":72.23773193359375,"co_ppm":0,"no2_ppm":1.57870888710022}[0m
+[0;32mI (117665) sensor_task: shadow published (msg_id=36452): {"mode":"on","temperature":30.98687744140625,"humidity":72.23773193359375,"co_ppm":0,"no2_ppm":1.57870888710022,"ts":1790778026}[0m
+[0;32mI (123125) esp-x509-crt-bundle: Certificate validated[0m
+[1;31mE (134335) mqtt_client: esp_mqtt_connect: mqtt_message_receive() returned 0[0m
+[1;31mE (134335) mqtt_client: MQTT connect failed[0m
+[0;33mW (134335) mqtt: Disconnected; reconnecting automatically[0m
+[0;32mI (134335) sensor_task: telemetry published (msg_id=55541): {"device_id":"dc:b4:d9:13:ed:8c","mode":"on","ts":1790778031,"temperature":30.93079948425293,"humidity":72.3720169067383,"co_ppm":0,"no2_ppm":1.8572952747344971}[0m
+[0;32mI (134355) sensor_task: shadow published (msg_id=49771): {"mode":"on","temperature":30.93079948425293,"humidity":72.3720169067383,"co_ppm":0,"no2_ppm":1.8572952747344971,"ts":1790778031}[0m
+[0;32mI (139405) sensor_task: telemetry published (msg_id=29832): {"device_id":"dc:b4:d9:13:ed:8c","mode":"on","ts":1790778048,"temperature":30.94415283203125,"humidity":72.7229690551758,"co_ppm":0,"no2_ppm":1.7574105262756348}[0m
+[0;32mI (139415) sensor_task: shadow published (msg_id=30105): {"mode":"on","temperature":30.94415283203125,"humidity":72.7229690551758,"co_ppm":0,"no2_ppm":1.7574105262756348,"ts":1790778048}[0m
+[0;32mI (147905) esp-x509-crt-bundle: Certificate validated[0m
+[0;32mI (149725) mqtt: Connected to broker[0m
+[0;32mI (149735) mqtt: Subscribe queued for command topic device/dc:b4:d9:13:ed:8c/command (msg_id=4986)[0m
+[0;32mI (149735) mqtt: Subscribe queued for shadow/get_response topic device/dc:b4:d9:13:ed:8c/shadow/get_response (msg_id=694)[0m
+[0;32mI (149755) mqtt: Subscribe queued for ota topic device/dc:b4:d9:13:ed:8c/ota/update (msg_id=15360)[0m
+[0;32mI (149755) mqtt: Subscribe queued for incident/ack topic device/dc:b4:d9:13:ed:8c/incident/ack (msg_id=59585)[0m
+[0;32mI (149765) mqtt: Published online status -> device/dc:b4:d9:13:ed:8c/status[0m
+[0;32mI (149785) mqtt: Published shadow/get -> device/dc:b4:d9:13:ed:8c/shadow/get (msg_id=1166)[0m
+[0;32mI (149805) sensor_task: telemetry published (msg_id=45432): {"device_id":"dc:b4:d9:13:ed:8c","mode":"on","ts":1790778053,"temperature":30.98687744140625,"humidity":72.678718566894531,"co_ppm":0,"no2_ppm":1.8572952747344971}[0m
+[0;32mI (149825) sensor_task: shadow published (msg_id=149): {"mode":"on","temperature":30.98687744140625,"humidity":72.678718566894531,"co_ppm":0,"no2_ppm":1.8572952747344971,"ts":1790778053}[0m
+[0;32mI (150425) mqtt: Subscribed (msg_id=4986)[0m
+[0;32mI (150425) mqtt: Subscribed (msg_id=694)[0m
+[0;32mI (150435) mqtt: Subscribed (msg_id=15360)[0m
+[0;32mI (150435) mqtt: Subscribed (msg_id=59585)[0m
+[0;32mI (150445) mqtt: RX [device/dc:b4:d9:13:ed:8c/shadow/get_response]: {"desired":{},"delta":{},"ts":1790778059}[0m
+[0;32mI (150455) sysload: shadow/get_response: delta has no mode/relay changes to apply[0m
+[0;32mI (154135) mqtt: RX [device/dc:b4:d9:13:ed:8c/command]: {"command_id":"a428ee4f-f92b-4759-8075-f6c08bdbaf81","type":"relay_set","relay":2,"state":true}[0m
+[0;32mI (154155) mqtt: Command ack -> device/dc:b4:d9:13:ed:8c/response[0m
+[0;32mI (154895) sensor_task: telemetry published (msg_id=8908): {"device_id":"dc:b4:d9:13:ed:8c","mode":"on","ts":1790778063,"temperature":30.960174560546875,"humidity":72.578010559082031,"co_ppm":0,"no2_ppm":1.8572952747344971}[0m
+[0;32mI (154905) sensor_task: shadow published (msg_id=209): {"mode":"on","temperature":30.960174560546875,"humidity":72.578010559082031,"co_ppm":0,"no2_ppm":1.8572952747344971,"ts":1790778063}[0m
+[0;32mI (156575) mqtt: RX [device/dc:b4:d9:13:ed:8c/command]: {"command_id":"d1bfa974-2f40-4ea5-8993-af9f94ce52ae","type":"relay_set","relay":2,"state":false}[0m
+[0;32mI (156605) mqtt: Command ack -> device/dc:b4:d9:13:ed:8c/response[0m
+[0;32mI (159955) sensor_task: telemetry published (msg_id=52160): {"device_id":"dc:b4:d9:13:ed:8c","mode":"on","ts":1790778068,"temperature":30.98687744140625,"humidity":72.5734329223633,"co_ppm":0,"no2_ppm":1.7574105262756348}[0m
+[0;32mI (159965) sensor_task: shadow published (msg_id=22091): {"mode":"on","temperature":30.98687744140625,"humidity":72.5734329223633,"co_ppm":0,"no2_ppm":1.7574105262756348,"ts":1790778068}[0m
+
+
+Script done on 2026-09-30 21:21:11+07:00 [COMMAND_EXIT_CODE="0"]

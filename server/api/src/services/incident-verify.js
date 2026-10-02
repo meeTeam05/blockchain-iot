@@ -251,6 +251,7 @@ export function parseIncidentPayload(payload) {
 export function validateIncidentSemantics(evidence) {
     const e = evidence;
     if (e.schema_version !== INCIDENT_SCHEMA_VERSION) return 'schema_version must be 2';
+    if (e.sequence === '0') return 'sequence must be at least 1';
     if (e.time_source !== 1 && e.time_source !== 2) return 'time_source must be 1 (SNTP) or 2 (RTC)';
     if (e.detection_method !== 2) return 'detection_method must be 2 (GAS_EWS_HYBRID)';
     if (e.overall_level !== 1 && e.overall_level !== 2) return 'overall_level must be 1 or 2';

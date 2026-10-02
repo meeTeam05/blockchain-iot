@@ -289,6 +289,19 @@ export function createRelayer({ db, chain, config, log = console }) {
         await db.query(`UPDATE device_chain_ops SET ${sets.join(', ')} WHERE id = $1`, values);
     }
 
+    async function retryOpLater(op, err, { countAttempt = true, clearTx = false } = {}) {
+        const attempts = Number(op.attempts) + (countAttempt ? 1 : 0);
+        const tooOld = Date.now() - new Date(op.created_at).getTime() > config.maxRetryAgeHours * 3_600_000;
+        const reason = errorText(err);
+        if (attempts >= config.maxAttempts || tooOld) {
+            await setOp(op, 'blocked', { attempts, last_error: reason, ...(clearTx ? { tx_hash: null } : {}) });
+            log.error({ deviceId: op.device_id, op: op.op, attempts, err: reason }, 'device chain op blocked');
+            return;
+        }
+        await setOp(op, 'queued', { attempts, last_error: reason, next_attempt_at: backoff(attempts), ...(clearTx ? { tx_hash: null } : {}) });
+        log.warn({ deviceId: op.device_id, op: op.op, attempts, err: reason }, 'device chain op deferred');
+    }
+
     async function confirmOp(op, fields = {}) {
         const hash = deviceIdHash(op.device_id);
         deviceCache.delete(hash);
@@ -335,7 +348,7 @@ export function createRelayer({ db, chain, config, log = console }) {
             `SELECT o.* FROM device_chain_ops o
              WHERE o.status = 'queued' AND o.next_attempt_at <= NOW()
                AND NOT EXISTS (SELECT 1 FROM device_chain_ops p
-                               WHERE p.device_id = o.device_id AND p.id < o.id AND p.status IN ('queued', 'pending'))
+                               WHERE p.device_id = o.device_id AND p.id < o.id AND p.status IN ('queued', 'pending', 'blocked', 'failed'))
              ORDER BY o.id LIMIT $1`,
             [config.batchSize]
         );
@@ -344,13 +357,18 @@ export function createRelayer({ db, chain, config, log = console }) {
         }
         for (const op of rows) {
             const hash = deviceIdHash(op.device_id);
-            const device = await chain.read.getDevice(hash);
-            if (alreadyApplied(op, device)) {
-                await confirmOp(op);
-                continue;
-            }
-            const [method, args] = opCall(op, hash);
             try {
+                const device = await chain.read.getDevice(hash);
+                if (alreadyApplied(op, device)) {
+                    await confirmOp(op);
+                    continue;
+                }
+                if (Number(op.attempts) >= config.maxAttempts
+                    || Date.now() - new Date(op.created_at).getTime() > config.maxRetryAgeHours * 3_600_000) {
+                    await setOp(op, 'blocked', { last_error: op.last_error || 'retries exhausted' });
+                    continue;
+                }
+                const [method, args] = opCall(op, hash);
                 await chain.manager[method].staticCall(...args);
                 const tx = await chain.manager[method](...args);
                 await setOp(op, 'pending', { tx_hash: lower(tx.hash), attempts: Number(op.attempts) + 1 });
@@ -362,9 +380,7 @@ export function createRelayer({ db, chain, config, log = console }) {
                     await setOp(op, 'failed', { last_error: `${revert.name}(${revert.args.map(String).join(',')})` });
                     log.error({ deviceId: op.device_id, op: op.op, revert: revert.name }, 'device chain op failed');
                 } else {
-                    const attempts = Number(op.attempts) + 1;
-                    await setOp(op, 'queued', { attempts, last_error: errorText(err), next_attempt_at: backoff(attempts) });
-                    log.warn({ deviceId: op.device_id, op: op.op, attempts, err: errorText(err) }, 'device chain op deferred');
+                    await retryOpLater(op, err);
                 }
             }
         }
@@ -378,12 +394,12 @@ export function createRelayer({ db, chain, config, log = console }) {
             const receipt = await chain.provider.getTransactionReceipt(op.tx_hash);
             if (!receipt) {
                 if (!(await chain.provider.getTransaction(op.tx_hash))) {
-                    await setOp(op, 'queued', { tx_hash: null, last_error: 'transaction dropped' });
+                    await retryOpLater(op, new Error('transaction dropped'), { countAttempt: false, clearTx: true });
                 }
                 continue;
             }
             if (receipt.status !== 1) {
-                await setOp(op, 'queued', { tx_hash: null, last_error: `reverted in block ${receipt.blockNumber}` });
+                await retryOpLater(op, new Error(`reverted in block ${receipt.blockNumber}`), { countAttempt: false, clearTx: true });
                 continue;
             }
             if (head - receipt.blockNumber + 1 >= config.confirmations) {

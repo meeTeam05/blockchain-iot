@@ -117,6 +117,25 @@ test('both vectors in order are accepted; the danger vector projects a danger no
     }
 });
 
+test('sequence boundaries: zero is rejected; one and UINT64_MAX are accepted', async () => {
+    const { early, store, fastify } = await setup();
+    try {
+        const zero = signIncident({ ...early, overrides: { sequence: '0' } });
+        const rejected = await deliver(fastify, { ...early, payload: zero });
+        assert.equal(rejected.accepted, false);
+        assert.equal(rejected.errorCode, INCIDENT_ERROR.INVALID_SEMANTICS);
+        assert.equal(await countRows(store, 'incidents'), 0);
+
+        for (const sequence of ['1', '18446744073709551615']) {
+            const payload = signIncident({ ...early, overrides: { sequence } });
+            assert.equal((await deliver(fastify, { ...early, payload })).accepted, true);
+        }
+        assert.equal(await countRows(store, 'incidents'), 2);
+    } finally {
+        await store.close();
+    }
+});
+
 test('duplicate delivery with the same hash is ACKed again without a new row (idempotent)', async () => {
     const { early, exceeded, store, fastify } = await setup();
     try {
