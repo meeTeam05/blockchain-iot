@@ -16,7 +16,7 @@ export function DevicePage() {
   return (
     <>
       <AppBar variant="back" title="Thiết bị" onBack={() => navigate('/')} />
-      <div className="mx-auto w-full max-w-sm p-6">
+      <div className="mx-auto w-full max-w-3xl p-6">
         <div className="mb-4 flex gap-4 border-b border-line">
           <button
             type="button"
