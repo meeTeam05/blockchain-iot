@@ -35,6 +35,14 @@ export function createChainContext({ provider, address, relayerPrivateKey = '', 
     };
 }
 
+// Readable one-line error for logs/DB. ethers can leave shortMessage or message empty
+// (e.g. a refused connection), so fall through on empty strings, not only on null.
+export function chainErrorText(err) {
+    const text = err?.shortMessage || err?.message || err?.code
+        || (err !== null && typeof err === 'object' ? err.name : String(err ?? ''));
+    return String(text || 'unknown error').slice(0, 500);
+}
+
 // Decoded custom error ({ name, args }) of a reverted call, or null for transport errors.
 export function decodeRevert(err, contract) {
     const seen = new Set();

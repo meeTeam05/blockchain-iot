@@ -1,6 +1,8 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { parseEther } from 'ethers';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -28,6 +30,15 @@ function envList(name) {
 function intEnv(name, fallback) {
     const value = Number.parseInt(process.env[name] || '', 10);
     return Number.isInteger(value) && value > 0 ? value : fallback;
+}
+
+// Decimal ETH amount -> wei; an invalid value falls back rather than crashing the worker.
+function weiEnv(name, fallbackEth) {
+    try {
+        return parseEther(env(name, fallbackEth));
+    } catch {
+        return parseEther(fallbackEth);
+    }
 }
 
 function parseAllowedOrigins() {
@@ -152,6 +163,20 @@ export const config = Object.freeze({
         get batchSize() { return intEnv('CHAIN_BATCH_SIZE', 20); },
         // Refuse to start when the configured domain does not match the chain.
         get requireDomainCheck() { return env('CHAIN_DOMAIN_CHECK', 'true') !== 'false'; },
+        // Operations (docs/ops/CHAIN_WORKER_RUNBOOK.md): alerts and /api/health/chain thresholds.
+        get alertFailureStreak() { return intEnv('CHAIN_ALERT_FAILURE_STREAK', 5); },
+        get balanceCheckIntervalMs() { return intEnv('CHAIN_BALANCE_CHECK_INTERVAL_MS', 60_000); },
+        get minRelayerBalanceWei() { return weiEnv('CHAIN_RELAYER_MIN_BALANCE_ETH', '0.05'); },
+        get healthMaxTickAgeSeconds() { return intEnv('CHAIN_HEALTH_MAX_TICK_AGE_SECONDS', 120); },
+        get healthMaxQueuedAgeSeconds() { return intEnv('CHAIN_HEALTH_MAX_QUEUED_AGE_SECONDS', 900); },
+        get healthMaxLagBlocks() { return intEnv('CHAIN_HEALTH_MAX_LAG_BLOCKS', 50); },
+    }),
+    ops: Object.freeze({
+        // Optional Slack/Discord-compatible webhook for chain_ops_alerts.
+        get alertWebhookUrl() { return env('OPS_ALERT_WEBHOOK_URL'); },
+        // Bearer token for /api/metrics/chain and the detailed /api/health/chain body.
+        // Unset: open outside production, disabled in production.
+        get metricsToken() { return env('OPS_METRICS_TOKEN'); },
     }),
     dataRetention: Object.freeze({
         get commandRetentionDays() { return intEnv('COMMAND_RETENTION_DAYS', 30); },

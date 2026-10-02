@@ -27,6 +27,7 @@ SERVER_REQUIRED_ENV := \
 .PHONY: server-env-init server-env-check server-config server-up server-up-build server-up-admin server-admin-recreate server-down
 .PHONY: server-ps server-check server-logs server-log server-restart server-rebuild-api
 .PHONY: server-migrate server-test server-dev server-start server-render-emqx-key
+.PHONY: chain-status chain-ops
 .PHONY: app-pub-get app-analyze app-test app-run app-build-apk
 .PHONY: web3-install web3-dev web3-build web3-test web3-test-e2e
 .PHONY: firmware-build firmware-flash firmware-monitor firmware-flash-monitor firmware-menuconfig firmware-size
@@ -56,6 +57,10 @@ help:
 		'  server-dev               Run API in local watch mode' \
 		'  server-start             Run API locally' \
 		'  server-render-emqx-key   Render EMQX API bootstrap file from server/.env' \
+		'' \
+		'Chain worker (docs/ops/CHAIN_WORKER_RUNBOOK.md):' \
+		'  chain-status             Show chain worker health, queues and alerts' \
+		'  chain-ops                Run scripts/chain-ops.js; e.g. ARGS="requeue-outbox --all-blocked"' \
 		'' \
 		'App:' \
 		'  app-pub-get              Fetch Flutter dependencies' \
@@ -143,6 +148,12 @@ server-migrate:
 
 server-test:
 	cd "$(API_DIR)" && npm test
+
+chain-status:
+	docker exec sa-chain-worker node scripts/chain-ops.js status
+
+chain-ops:
+	docker exec sa-chain-worker node scripts/chain-ops.js $(ARGS)
 
 # Regenerate firmware/backend EIP-712 domain files from spec/incident/deployments.
 .PHONY: incident-gen incident-gen-check e2e-chain-local

@@ -19,6 +19,7 @@
 7. [Commands — Điều khiển](#7-commands--điều-khiển)
 8. [Telemetry — Dữ liệu cảm biến](#8-telemetry--dữ-liệu-cảm-biến)
 8a. [Incidents — Bằng chứng sự cố blockchain](#8a-incidents--bằng-chứng-sự-cố-blockchain)
+8b. [Chain worker — Health và metrics vận hành](#8b-chain-worker--health-và-metrics-vận-hành)
 9. [Realtime — App SSE and Notifications Feed](#9-realtime--app-sse-and-notifications-feed)
 10. [Redis Keys Reference](#10-redis-keys-reference)
 11. [MQTT Bridge — Server-side](#11-mqtt-bridge--server-side)
@@ -37,6 +38,8 @@
 | GET    | `/api/health/live`                |       |            | Liveness check (process up)                               |
 | GET    | `/api/health/ready`               |       |            | Readiness check (DB + Redis + EMQX API + MQTT + realtime) |
 | GET    | `/api/health`                     |       |            | Alias của readiness check                                 |
+| GET    | `/api/health/chain`               |  ops* |            | Chain worker: 200 ok / 503 degraded + lý do (mục 8b)      |
+| GET    | `/api/metrics/chain`              |  ops  |            | Metrics chain worker dạng Prometheus (mục 8b)             |
 | POST   | `/api/auth/register`              |       |   10/min   | Đăng ký                                                   |
 | POST   | `/api/auth/login`                 |       |   10/min   | Đăng nhập                                                 |
 | POST   | `/api/auth/refresh`               |       |   10/min   | Refresh token                                             |
@@ -1136,6 +1139,38 @@ Parse lại `raw_payload` đã lưu, tính lại identity/firmware/evidence/EIP-
 ### Realtime / notification
 
 Incident mới phát SSE event `incident.created` với payload `{ incident_id, sequence, severity, overall_level, co_level, no2_level, observed_at, chain_status }` và notification `incident.warning` ("Gas early warning") hoặc `incident.danger` ("Gas threshold exceeded").
+
+---
+
+## 8b. Chain worker — Health và metrics vận hành
+
+Đọc từ DB (heartbeat `chain_worker_status`, `chain_checkpoints`, `blockchain_outbox`, `device_chain_ops`, `chain_ops_alerts`), không gọi RPC. Tách khỏi `/api/health/ready`: chain kẹt không làm API rớt khỏi rotation, vì MQTT intake, ACK và app vẫn chạy được. Hướng dẫn xử lý: [`docs/ops/CHAIN_WORKER_RUNBOOK.md`](../ops/CHAIN_WORKER_RUNBOOK.md).
+
+**Quyền "ops":** header `Authorization: Bearer <OPS_METRICS_TOKEN>`. Nếu không đặt `OPS_METRICS_TOKEN`: mở khi chạy ngoài production, tắt trong production.
+
+### `GET /api/health/chain`
+
+Công khai phần tóm tắt; thêm `metrics` khi có quyền ops. `200` khi `status = "ok"`, `503` khi `"degraded"`.
+
+```json
+{
+  "status": "degraded",
+  "reasons": ["1 outbox item(s) blocked", "indexer is 102 blocks behind the chain head"],
+  "checked_at": "2026-10-02T10:47:15.597Z",
+  "metrics": {
+    "worker": { "last_tick_age_seconds": 2, "consecutive_failures": 0, "rpc_errors_total": 1, "head_block": 1100, "indexed_block": 998, "index_lag_blocks": 102, "relayer_balance_wei": "…", "last_error": "…" },
+    "outbox": { "by_status": { "queued": 0, "pending": 0, "confirmed": 12, "failed": 0, "blocked": 1, "legacy_domain": 0, "waiting_signer": 0, "stale_signer": 0 }, "oldest_queued_age_seconds": null, "oldest_pending_age_seconds": null, "max_attempts_open": 0 },
+    "device_ops": { "by_status": { "queued": 0, "pending": 0, "confirmed": 3, "failed": 0, "blocked": 0 }, "oldest_queued_age_seconds": null },
+    "alerts": { "open": 1, "undelivered": 0 }
+  }
+}
+```
+
+Lý do `degraded`: chưa có heartbeat; heartbeat cũ hơn `CHAIN_HEALTH_MAX_TICK_AGE_SECONDS` (120); lỗi liên tiếp ≥ `CHAIN_ALERT_FAILURE_STREAK` (5); lag indexer > `CHAIN_HEALTH_MAX_LAG_BLOCKS` (50); số dư relayer < `CHAIN_RELAYER_MIN_BALANCE_ETH` (0.05); có item `blocked`/`failed`; item `queued` cũ nhất > `CHAIN_HEALTH_MAX_QUEUED_AGE_SECONDS` (900).
+
+### `GET /api/metrics/chain`
+
+`text/plain; version=0.0.4`. Cần quyền ops (`401` khi sai token, `404` khi bị tắt). Các metric: `smartair_chain_healthy`, `smartair_chain_outbox_items{status}`, `smartair_chain_outbox_oldest_queued_age_seconds`, `smartair_chain_outbox_oldest_pending_age_seconds`, `smartair_chain_outbox_max_attempts`, `smartair_chain_device_ops_items{status}`, `smartair_chain_device_ops_oldest_queued_age_seconds`, `smartair_chain_worker_last_tick_age_seconds`, `smartair_chain_worker_consecutive_failures`, `smartair_chain_worker_rpc_errors_total`, `smartair_chain_head_block`, `smartair_chain_indexed_block`, `smartair_chain_index_lag_blocks`, `smartair_chain_relayer_balance_eth`, `smartair_chain_alerts_open`, `smartair_chain_alerts_undelivered`.
 
 ---
 

@@ -405,7 +405,7 @@ docker compose down
 | API thoát ngay, báo lỗi domain | RPC hoặc `.env` bị sửa nhầm. Lấy lại `.env` gốc, chỉ sửa 3 biến cho phép |
 | chain-worker exit code 2 | Gửi log cho người giao `.env` (mất role hoặc sai domain) |
 | Tx lỗi `nonce too low` / `replacement underpriced` | Có worker khác đang chạy cùng ví. Xem lại quy tắc 2 |
-| Outbox `blocked` | Hết ETH hoặc RPC lỗi lâu. Nạp ETH rồi chạy `UPDATE blockchain_outbox SET status='queued', attempts=0 WHERE status='blocked';` |
+| Outbox `blocked` | Hết ETH hoặc RPC lỗi lâu. Nạp ETH rồi chạy `docker exec sa-chain-worker node scripts/chain-ops.js requeue-outbox --all-blocked` (xem [`CHAIN_WORKER_RUNBOOK.md`](CHAIN_WORKER_RUNBOOK.md)) |
 | Indexer lỗi range `eth_getLogs` | Thêm `CHAIN_LOG_BATCH_BLOCKS=500` vào `.env` (ngoại lệ được phép), rồi restart worker |
 | Board không kết nối MQTT | URL tunnel đã đổi, hoặc sai `broker_uri`. Build lại app và provision lại |
 | `idf.py` không nhận | Mở "ESP-IDF 5.4 PowerShell" |

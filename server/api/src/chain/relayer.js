@@ -9,12 +9,18 @@
 //   is preceded by an on-chain existence check, so a restart never double-submits.
 // * AirSafetyLog tracks exact (device, sequence) use, so a failed/blocked row never blocks
 //   other rows of the same device. Ordering by (device, sequence) is only for predictability.
+//   Device ops are different: a later op depends on the earlier one, so they stay strictly
+//   ordered per device and a blocked/failed op holds the ops behind it.
+// * Every attempt bound (CHAIN_MAX_ATTEMPTS / CHAIN_MAX_RETRY_AGE_HOURS) counts from
+//   retry_window_started_at (default created_at), including dropped/reverted transactions.
+// * Every move to blocked/failed raises an operator alert (chain_ops_alerts).
 // * Only rows whose signer is the current on-chain signer are sent (signer gate).
 // * Losing RELAYER_ROLE / DEVICE_MANAGER_ROLE stops the worker (ChainFatalError); rows stay queued.
 import { createRealtimeEvent } from '../services/realtime-events.js';
 import { applyConfirmedOp, deviceIdHash } from '../services/signer-lifecycle.js';
 import { computeIncidentKey } from '../services/incident-intake.js';
-import { ChainFatalError, INCIDENT_STATUS, decodeRevert } from './air-safety-log.js';
+import { ChainFatalError, INCIDENT_STATUS, chainErrorText as errorText, decodeRevert } from './air-safety-log.js';
+import { ALERT_KIND, raiseOpsAlert } from './ops-alerts.js';
 
 const FATAL_REVERTS = new Set(['AccessControlUnauthorizedAccount']);
 // Reverts meaning "the signer on chain is not (yet) this row's signer".
@@ -27,9 +33,11 @@ function lower(value) {
     return typeof value === 'string' ? value.toLowerCase() : value;
 }
 
-function errorText(err) {
-    return String(err?.shortMessage ?? err?.message ?? err).slice(0, 500);
+function retryWindowStart(item) {
+    return new Date(item.retry_window_started_at ?? item.created_at);
 }
+
+const ALERT_STATUSES = new Set(['blocked', 'failed']);
 
 export function createRelayer({ db, chain, config, log = console }) {
     const currentAddress = chain.address.toLowerCase();
@@ -43,6 +51,11 @@ export function createRelayer({ db, chain, config, log = console }) {
     function backoff(attempts) {
         const minutes = Math.min(2 ** attempts, 60);
         return new Date(Date.now() + minutes * 60_000);
+    }
+
+    function retriesExhausted(item, attempts = Number(item.attempts)) {
+        return attempts >= config.maxAttempts
+            || Date.now() - retryWindowStart(item).getTime() > config.maxRetryAgeHours * 3_600_000;
     }
 
     async function recordSecurity(deviceId, type, row, details) {
@@ -62,6 +75,36 @@ export function createRelayer({ db, chain, config, log = console }) {
             sets.push(`${column} = $${values.length}`);
         }
         await db.query(`UPDATE blockchain_outbox SET ${sets.join(', ')} WHERE id = $1`, values);
+        if (ALERT_STATUSES.has(status)) {
+            const reason = fields.fail_reason ?? fields.last_error ?? null;
+            await raiseOpsAlert(db, {
+                kind: status === 'blocked' ? ALERT_KIND.OUTBOX_BLOCKED : ALERT_KIND.OUTBOX_FAILED,
+                // A requeued row that blocks again in its new window alerts again.
+                dedupeKey: `outbox:${row.outbox_id}:${status}:${retryWindowStart(row).toISOString()}`,
+                deviceId: row.device_id,
+                subjectId: row.outbox_id,
+                message: `incident sequence ${row.sequence} of ${row.device_id} is ${status}${reason ? `: ${reason}` : ''}`,
+                details: {
+                    outbox_id: String(row.outbox_id),
+                    incident_id: row.incident_id,
+                    sequence: String(row.sequence),
+                    attempts: Number(fields.attempts ?? row.attempts),
+                    last_error: fields.last_error ?? null,
+                    fail_reason: fields.fail_reason ?? null,
+                },
+            });
+        }
+    }
+
+    // A dropped or on-inclusion-reverted transaction already consumed its attempt at
+    // submission, so it only re-checks the bound instead of counting another one.
+    async function requeueOutbox(row, reason) {
+        if (retriesExhausted(row)) {
+            await setOutbox(row, 'blocked', { tx_hash: null, last_error: reason, blocked_at: new Date(), fail_reason: 'retries exhausted' });
+            log.error({ deviceId: row.device_id, sequence: String(row.sequence), err: reason }, 'outbox row blocked');
+            return;
+        }
+        await setOutbox(row, 'queued', { tx_hash: null, last_error: reason, next_attempt_at: new Date() });
     }
 
     async function markConfirmed(row, { txHash = row.tx_hash, blockNumber = null, confirmations = null, reconciled = false }) {
@@ -93,8 +136,7 @@ export function createRelayer({ db, chain, config, log = console }) {
 
     async function retryLater(row, err) {
         const attempts = Number(row.attempts) + 1;
-        const tooOld = Date.now() - new Date(row.created_at).getTime() > config.maxRetryAgeHours * 3_600_000;
-        if (attempts >= config.maxAttempts || tooOld) {
+        if (retriesExhausted(row, attempts)) {
             await setOutbox(row, 'blocked', { attempts, last_error: errorText(err), blocked_at: new Date(), fail_reason: 'retries exhausted' });
             log.error({ deviceId: row.device_id, sequence: String(row.sequence), err: errorText(err) }, 'outbox row blocked');
             return;
@@ -145,7 +187,7 @@ export function createRelayer({ db, chain, config, log = console }) {
     const OUTBOX_COLUMNS = `
         o.id AS outbox_id, o.device_id, o.incident_id, o.sequence, o.status, o.attempts,
         o.tx_hash, o.incident_key, o.verifying_contract, o.signer_address, o.created_at,
-        o.submitted_at, i.device_id_hash, i.observed_at, i.severity, i.evidence_hash, i.signature`;
+        o.retry_window_started_at, o.submitted_at, i.device_id_hash, i.observed_at, i.severity, i.evidence_hash, i.signature`;
     const OUTBOX_FROM = 'FROM blockchain_outbox o JOIN incidents i ON i.id = o.incident_row_id';
     const OUTBOX_SELECT = `SELECT ${OUTBOX_COLUMNS} ${OUTBOX_FROM}`;
 
@@ -232,14 +274,14 @@ export function createRelayer({ db, chain, config, log = console }) {
                     await markConfirmed(row, { reconciled: true });
                     confirmed++;
                 } else {
-                    await setOutbox(row, 'queued', { tx_hash: null, last_error: 'transaction dropped', next_attempt_at: new Date() });
+                    await requeueOutbox(row, 'transaction dropped');
                 }
                 continue;
             }
             const confirmations = head - receipt.blockNumber + 1;
             if (receipt.status !== 1) {
                 // Reverted on inclusion (race with another state change): re-evaluate from chain.
-                await setOutbox(row, 'queued', { tx_hash: null, last_error: `reverted in block ${receipt.blockNumber}`, next_attempt_at: new Date() });
+                await requeueOutbox(row, `reverted in block ${receipt.blockNumber}`);
                 continue;
             }
             if (confirmations >= config.confirmations) {
@@ -287,13 +329,28 @@ export function createRelayer({ db, chain, config, log = console }) {
             sets.push(`${column} = $${values.length}`);
         }
         await db.query(`UPDATE device_chain_ops SET ${sets.join(', ')} WHERE id = $1`, values);
+        if (ALERT_STATUSES.has(status)) {
+            const reason = fields.last_error ?? op.last_error ?? null;
+            await raiseOpsAlert(db, {
+                kind: status === 'blocked' ? ALERT_KIND.DEVICE_OP_BLOCKED : ALERT_KIND.DEVICE_OP_FAILED,
+                dedupeKey: `device_op:${op.id}:${status}:${retryWindowStart(op).toISOString()}`,
+                deviceId: op.device_id,
+                subjectId: op.id,
+                message: `${op.op} op ${op.id} of ${op.device_id} is ${status}; later ops of this device wait${reason ? `: ${reason}` : ''}`,
+                details: {
+                    op_id: String(op.id),
+                    op: op.op,
+                    attempts: Number(fields.attempts ?? op.attempts),
+                    last_error: reason,
+                },
+            });
+        }
     }
 
     async function retryOpLater(op, err, { countAttempt = true, clearTx = false } = {}) {
         const attempts = Number(op.attempts) + (countAttempt ? 1 : 0);
-        const tooOld = Date.now() - new Date(op.created_at).getTime() > config.maxRetryAgeHours * 3_600_000;
         const reason = errorText(err);
-        if (attempts >= config.maxAttempts || tooOld) {
+        if (retriesExhausted(op, attempts)) {
             await setOp(op, 'blocked', { attempts, last_error: reason, ...(clearTx ? { tx_hash: null } : {}) });
             log.error({ deviceId: op.device_id, op: op.op, attempts, err: reason }, 'device chain op blocked');
             return;
@@ -363,8 +420,7 @@ export function createRelayer({ db, chain, config, log = console }) {
                     await confirmOp(op);
                     continue;
                 }
-                if (Number(op.attempts) >= config.maxAttempts
-                    || Date.now() - new Date(op.created_at).getTime() > config.maxRetryAgeHours * 3_600_000) {
+                if (retriesExhausted(op)) {
                     await setOp(op, 'blocked', { last_error: op.last_error || 'retries exhausted' });
                     continue;
                 }

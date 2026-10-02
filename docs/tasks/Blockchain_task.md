@@ -23,9 +23,15 @@ clock không hợp lệ hoặc dữ liệu trigger không hợp lệ.
   đầy đủ lưu, backup và giữ không thời hạn trong TimescaleDB.
 - Backend dùng **relayer wallet** từ secret môi trường/secret manager để gọi
   `logIncident`. ESP32 chỉ giữ khóa ký thiết bị; app mobile và dApp web3 không giữ khóa relayer.
-- Outbox gửi theo `sequence` tuần tự cho từng thiết bị. Retry exponential
-  backoff; quá 10 lần hoặc 24 giờ chuyển `blocked`, báo vận hành và chặn các
-  incident chain tiếp theo của thiết bị đó. MQTT ACK, DB và app không bị chặn.
+- Mỗi incident trong outbox được gửi **độc lập**: contract lưu exact-use theo
+  `(device, sequence)` và nhận sequence lệch thứ tự (schema mục 5), nên outbox chỉ
+  sắp theo `(device, sequence)` để dễ theo dõi, không chặn theo hàng. Retry
+  exponential backoff; quá 10 lần hoặc 24 giờ chuyển `blocked` và báo vận hành,
+  nhưng **không** chặn các sequence khác của thiết bị đó. MQTT ACK, DB và app
+  không bị chặn.
+- Lifecycle op của thiết bị (`device_chain_ops`: register/rotate/revoke/set_owner)
+  thì **tuần tự** theo từng thiết bị vì op sau phụ thuộc op trước: một op
+  `blocked`/`failed` giữ các op phía sau cho đến khi vận hành xử lý.
 - Chỉ nhận `timeSource` SNTP/RTC hợp lệ và `observed_at > 0`; từ chối timestamp
   ở tương lai quá 10 phút. Bản ghi signed hợp lệ đến muộn vẫn được nhận.
 - Chỉ rotate sau khi firmware flush queue. Factory reset giữ signer/sequence/
@@ -117,10 +123,13 @@ từ chối; API verify trả DB, hash và signature status.
 
 **Phạm vi:** worker độc lập, Sepolia config, indexer, metrics và runbook.
 
-- Lấy outbox `queued` FIFO theo từng device; relayer gọi `logIncident`; lưu
-  transaction hash, confirmation, block number, attempts và lỗi.
+- Lấy outbox `queued` theo `(device, sequence)`, mỗi row độc lập; relayer gọi
+  `logIncident`; lưu transaction hash, confirmation, block number, attempts và lỗi.
+  Device op (`device_chain_ops`) chạy tuần tự theo từng thiết bị.
 - Retry RPC/revert có phân loại và backoff; kiểm tra on-chain trước retry. Sau
-  10 attempts hoặc 24 giờ, đánh `blocked`, alert, và không vượt sequence device.
+  10 attempts hoặc 24 giờ (tính từ `retry_window_started_at`, kể cả tx bị
+  drop/revert), đánh `blocked` và alert. Row `blocked` không chặn sequence khác;
+  op `blocked` chặn các op sau của cùng thiết bị.
 - Index/replay idempotent từ block checkpoint bền vững cho event logged,
   acknowledged, resolved; DB/indexer là nguồn trạng thái cuối cùng của app và dApp.
 - Cung cấp health/metrics: age queued, pending/blocked count, attempts, RPC
@@ -128,7 +137,16 @@ từ chối; API verify trả DB, hash và signature status.
 
 **Không làm:** nhận MQTT, verify evidence, UI.  
 **Hoàn thành khi:** restart/RPC timeout không tạo giao dịch trùng; event replay
-an toàn; blocked item giữ đúng thứ tự và tạo cảnh báo vận hành.
+an toàn; item `blocked`/`failed` tạo cảnh báo vận hành và có lệnh requeue;
+device op giữ đúng thứ tự.
+
+**Đã triển khai** (`server/api/src/chain/`, migration 021, runbook
+[`docs/ops/CHAIN_WORKER_RUNBOOK.md`](../ops/CHAIN_WORKER_RUNBOOK.md)):
+`GET /api/health/chain`, `GET /api/metrics/chain` (Prometheus), bảng
+`chain_ops_alerts` + webhook `OPS_ALERT_WEBHOOK_URL`, CLI
+`node scripts/chain-ops.js`. Test: `test/chain-outbox-ops.test.js`,
+`test/chain-indexer-replay.test.js`, `test/chain-worker-ops.test.js`,
+`test/chain-op-retry.test.js`, `test/e2e/chain-e2e.test.js`.
 
 ### Task 5 — Web3 dApp: incident, verify và owner action
 
