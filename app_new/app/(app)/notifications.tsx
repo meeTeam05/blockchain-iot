@@ -9,8 +9,8 @@ import { EmptyState } from '@/components/atoms/EmptyState';
 import { useNotifications } from '@/queries/notifications';
 import { NotificationItem } from '@/models/notification';
 import { AtmospherePalette } from '@/theme/palette';
-import { ApiConfig } from '@/config/env';
-import { openIncidentDappLink } from '@/lib/dappLink';
+import { Env } from '@/config/env';
+import { openNotificationDestination } from '@/lib/dappLink';
 
 const ICON_BY_TYPE: Record<string, typeof AppIcons.check> = {
   'device.online': AppIcons.check,
@@ -64,13 +64,18 @@ function NotificationTile({ item }: { item: NotificationItem }) {
   const c = useColors();
   const router = useRouter();
   const Icon = ICON_BY_TYPE[item.type] ?? AppIcons.notifications;
-  const incidentId = item.type.startsWith('incident.') && typeof item.payload.incident_id === 'string'
-    ? item.payload.incident_id
-    : null;
+  const isIncident = item.type === 'incident.warning' || item.type === 'incident.danger';
 
   return (
     <Pressable
-      onPress={() => router.push(`/devices/${item.deviceId}`)}
+      onPress={() => {
+        void openNotificationDestination(
+          item,
+          Env.apiBaseUrl,
+          Linking.openURL,
+          () => router.push(`/devices/${item.deviceId}`),
+        );
+      }}
       style={[styles.tile, { backgroundColor: c.paper, borderColor: c.line }]}
     >
       <View style={[styles.tileIcon, { backgroundColor: accentBackground(item.severity, c) }]}>
@@ -88,22 +93,10 @@ function NotificationTile({ item }: { item: NotificationItem }) {
           </Text>
           <Text style={AtmosphereTextStyles.caption(c.ink3)}>{formatTime(item.occurredAt)}</Text>
         </View>
-        {incidentId ? (
+        {isIncident ? (
           <>
             <View style={{ height: AtmosphereTokens.space8 }} />
-            <Pressable
-              onPress={(event) => {
-                void openIncidentDappLink(
-                  event,
-                  ApiConfig.defaultApiBaseUrl,
-                  item.deviceId,
-                  incidentId,
-                  Linking.openURL,
-                );
-              }}
-            >
-              <Text style={AtmosphereTextStyles.caption(c.brand)}>Xem trên chain</Text>
-            </Pressable>
+            <Text style={AtmosphereTextStyles.caption(c.brand)}>Xem trên chain</Text>
           </>
         ) : null}
       </View>

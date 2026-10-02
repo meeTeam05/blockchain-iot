@@ -1,22 +1,36 @@
-/** Build the MetaMask Mobile universal link for the nginx-hosted Task 5 dApp. */
+import type { NotificationItem } from '../models/notification';
+
+/** Build the MetaMask Mobile universal link from the canonical dApp URL. */
 export function buildIncidentDappLink(
   apiBaseUrl: string,
   deviceId: string,
   incidentId: string,
 ): string {
-  const host = new URL(apiBaseUrl).host;
-  const device = encodeURIComponent(deviceId);
-  const incident = encodeURIComponent(incidentId);
-  return `https://metamask.app.link/dapp/${host}/dapp/d/${device}/i/${incident}`;
+  const api = new URL(apiBaseUrl);
+  const canonical = new URL(
+    `/dapp/d/${encodeURIComponent(deviceId)}/i/${encodeURIComponent(incidentId)}`,
+    api.origin,
+  );
+  return `https://metamask.app.link/dapp/${canonical.host}${canonical.pathname}`;
 }
 
-export function openIncidentDappLink(
-  event: { stopPropagation(): void },
+const INCIDENT_ID = /^0x[0-9a-fA-F]{64}$/;
+
+/** A notification tap has exactly one destination: dApp or existing device route. */
+export function openNotificationDestination(
+  item: Pick<NotificationItem, 'type' | 'deviceId' | 'payload'>,
   apiBaseUrl: string,
-  deviceId: string,
-  incidentId: string,
   openUrl: (url: string) => Promise<unknown>,
-): Promise<unknown> {
-  event.stopPropagation();
-  return openUrl(buildIncidentDappLink(apiBaseUrl, deviceId, incidentId));
+  openDevice: () => void,
+): Promise<unknown> | void {
+  const incidentId = item.payload.incident_id;
+  if (
+    (item.type === 'incident.warning' || item.type === 'incident.danger') &&
+    item.deviceId &&
+    typeof incidentId === 'string' &&
+    INCIDENT_ID.test(incidentId)
+  ) {
+    return openUrl(buildIncidentDappLink(apiBaseUrl, item.deviceId, incidentId));
+  }
+  openDevice();
 }
