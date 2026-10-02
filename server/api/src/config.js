@@ -152,6 +152,20 @@ export const config = Object.freeze({
         get batchSize() { return intEnv('CHAIN_BATCH_SIZE', 20); },
         // Refuse to start when the configured domain does not match the chain.
         get requireDomainCheck() { return env('CHAIN_DOMAIN_CHECK', 'true') !== 'false'; },
+        // Keeper wallet (Task 7): no role, must differ from the relayer and manager wallets.
+        get keeperPrivateKey() { return env('KEEPER_PRIVATE_KEY'); },
+    }),
+    // Token incentives (Task 7). Off by default so the incident pipeline runs unchanged.
+    incentives: Object.freeze({
+        get enabled() { return env('INCENTIVES_ENABLED', 'false') === 'true'; },
+        // Selects blockchain/deployments/<name>.incentives.json via the generated module.
+        get deployment() { return env('INCENTIVES_DEPLOYMENT', env('INCIDENT_DEPLOYMENT')); },
+        // Defaults to the SafetyIncentives deployment block.
+        get startBlock() { return Number.parseInt(env('INCENTIVES_START_BLOCK', ''), 10); },
+        // Send recordTimelyAck/recordTimelyResolve/slashMissedAck from KEEPER_PRIVATE_KEY.
+        get keeperEnabled() { return env('KEEPER_ENABLED', 'false') === 'true'; },
+        get keeperBatchSize() { return intEnv('KEEPER_BATCH_SIZE', 20); },
+        get stateRefreshMs() { return intEnv('INCENTIVES_STATE_REFRESH_MS', 60_000); },
     }),
     dataRetention: Object.freeze({
         get commandRetentionDays() { return intEnv('COMMAND_RETENTION_DAYS', 30); },

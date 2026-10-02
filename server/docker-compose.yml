@@ -78,7 +78,8 @@ services:
     networks:
       - sa-net
 
-  # Chain worker - relayer (logIncident), signer lifecycle ops and event indexer.
+  # Chain worker - relayer (logIncident), signer lifecycle ops and event indexer,
+  # plus the SafetyIncentives indexer + keeper when INCENTIVES_ENABLED=true (Task 7).
   # Opt-in: `docker compose --profile chain up -d chain-worker` once CHAIN_RPC_URL,
   # RELAYER_PRIVATE_KEY and DEVICE_MANAGER_PRIVATE_KEY are set. Run exactly one
   # instance per database (it takes a Postgres advisory lock). Exit code 2 means a

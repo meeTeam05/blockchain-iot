@@ -8,6 +8,7 @@ import {
     listIncidents,
     verifyStoredIncident,
 } from '../services/incidents.js';
+import { getIncidentIncentive } from '../services/incentives.js';
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
@@ -67,7 +68,7 @@ export default async function incidentsRoutes(fastify) {
     fastify.get('/devices/:id/incidents/:incidentId', auth, async (request, reply) => {
         const row = await loadIncident(request, reply);
         if (!row) return reply;
-        return formatIncidentDetail(row);
+        return { ...formatIncidentDetail(row), incentive: await getIncidentIncentive(fastify, row) };
     });
 
     fastify.get('/devices/:id/incidents/:incidentId/verify', auth, async (request, reply) => {

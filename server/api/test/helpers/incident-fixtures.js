@@ -16,6 +16,7 @@ const VECTOR_DIR = path.resolve(__dirname, '../../../../docs/test-vectors');
 const MIGRATION_017 = path.resolve(__dirname, '../../../db/migrations/017_blockchain_incidents.sql');
 const MIGRATION_018 = path.resolve(__dirname, '../../../db/migrations/018_task1_task3_wire_compat.sql');
 const MIGRATION_019 = path.resolve(__dirname, '../../../db/migrations/019_outbox_domain_and_signer_gate.sql');
+const MIGRATION_020 = path.resolve(__dirname, '../../../db/migrations/020_incentives.sql');
 
 export const VECTOR_FILES = Object.freeze({
     earlyWarning: 'incident-v2-model-early-warning.json',
@@ -125,6 +126,7 @@ export async function createIncidentDb({ signerAddress = null } = {}) {
     await pg.exec(await readFile(MIGRATION_017, 'utf8'));
     await pg.exec(await readFile(MIGRATION_018, 'utf8'));
     await pg.exec(await readFile(MIGRATION_019, 'utf8'));
+    await pg.exec(await readFile(MIGRATION_020, 'utf8'));
 
     await pg.query('INSERT INTO users (id) VALUES ($1), ($2)', [USER_ID, OUTSIDER_ID]);
     await pg.query('INSERT INTO homes (id) VALUES ($1)', [HOME_ID]);

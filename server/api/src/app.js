@@ -22,6 +22,7 @@ import telemetryRoutes from './routes/telemetry.js';
 import notificationsRoutes from './routes/notifications.js';
 import realtimeRoutes from './routes/realtime.js';
 import incidentsRoutes from './routes/incidents.js';
+import incentivesRoutes from './routes/incentives.js';
 import { resolveIncidentDomains } from './services/incident-domains.js';
 import { registerCommandTimeoutJob } from './jobs/command-timeout.js';
 import { registerDataRetentionJob } from './jobs/data-retention.js';
@@ -136,6 +137,7 @@ await fastify.register(telemetryRoutes, { prefix: '/api' });
 await fastify.register(notificationsRoutes, { prefix: '/api' });
 await fastify.register(realtimeRoutes, { prefix: '/api' });
 await fastify.register(incidentsRoutes, { prefix: '/api' });
+await fastify.register(incentivesRoutes, { prefix: '/api' });
 
 // Global error handler
 fastify.setErrorHandler((error, request, reply) => {
