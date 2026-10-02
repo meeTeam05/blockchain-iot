@@ -1,17 +1,17 @@
-// Ported from app_new/src/components/atoms/Pill.tsx.
-// Text colors are web-only AA-contrast overrides (decision #21 in
-// tmp/02_decisions/2026-10-01_task5-dapp-incident-decisions.md) -- background
-// tints are unchanged from app_new. Do not port these text overrides back
-// into app_new/src/theme/tokens.ts; that file is out of scope for Task 5.
+// Ported from app_new/src/components/atoms/Pill.tsx. The "Warden" token set
+// (src/index.css) already defines brand/warn/accent/danger as the dark,
+// text-safe variant of each color -- no per-tone hex override needed here
+// (unlike the old Atmosphere tokens, where decision #21 had to darken each
+// tone's text color by hand for AA contrast).
 export type PillTone = 'online' | 'offline' | 'warn' | 'brand' | 'accent' | 'danger'
 
 const TONE_CLASSES: Record<PillTone, string> = {
-  online: 'bg-online/15 text-[#17765A]',
-  offline: 'bg-ink-3/15 text-[#5C6D69]',
-  warn: 'bg-warn-tint text-[#A65A13]',
+  online: 'bg-online/15 text-brand',
+  offline: 'bg-ink-3/15 text-ink-2',
+  warn: 'bg-warn-tint text-warn',
   brand: 'bg-brand-tint text-brand',
-  accent: 'bg-accent-tint text-[#1A5FEF]',
-  danger: 'bg-danger-tint text-[#BF3923]',
+  accent: 'bg-accent-tint text-accent',
+  danger: 'bg-danger-tint text-danger',
 }
 
 interface PillProps {

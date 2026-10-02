@@ -16,7 +16,7 @@ export function PrimaryButton({ label, loading = false, disabled = false, onClic
       type="button"
       onClick={inactive ? undefined : onClick}
       disabled={inactive}
-      className="flex h-[52px] items-center justify-center rounded-button bg-brand px-6 text-[15px] font-semibold text-paper disabled:opacity-50"
+      className="flex h-[52px] items-center justify-center rounded-button bg-brand-bright px-6 text-[15px] font-semibold text-ink disabled:opacity-50"
     >
       {loading ? <Loader2 className="size-5 animate-spin" aria-hidden /> : label}
     </button>

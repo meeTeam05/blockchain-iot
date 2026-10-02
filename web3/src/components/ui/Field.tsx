@@ -18,7 +18,7 @@ export function Field({ label, errorText, id, ...inputProps }: FieldProps) {
       <input
         id={inputId}
         autoCapitalize="none"
-        className={`mt-2 h-14 w-full rounded-input border px-4 text-[15px] text-ink ${hasError ? 'border-danger' : 'border-line'}`}
+        className={`mt-2 h-14 w-full rounded-input border bg-paper px-4 text-[15px] text-ink ${hasError ? 'border-danger' : 'border-line'}`}
         {...inputProps}
       />
       {hasError ? <p className="mt-1 text-[13px] text-danger">{errorText}</p> : null}
