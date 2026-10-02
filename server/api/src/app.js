@@ -13,6 +13,7 @@ import realtimePlugin from './plugins/realtime.js';
 import { sanitizeLoggedError } from './utils/log-sanitize.js';
 
 import healthRoutes from './routes/health.js';
+import chainHealthRoutes from './routes/chain-health.js';
 import authRoutes from './routes/auth.js';
 import homesRoutes from './routes/homes.js';
 import devicesRoutes from './routes/devices.js';
@@ -127,6 +128,7 @@ await fastify.register(rateLimit, {
 
 // Routes under the /api prefix
 await fastify.register(healthRoutes, { prefix: '/api' });
+await fastify.register(chainHealthRoutes, { prefix: '/api' });
 await fastify.register(authRoutes, { prefix: '/api' });
 await fastify.register(homesRoutes, { prefix: '/api' });
 await fastify.register(devicesRoutes, { prefix: '/api' });

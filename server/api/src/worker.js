@@ -8,9 +8,11 @@ import pg from 'pg';
 
 import { config } from './config.js';
 import { resolveIncidentDomains } from './services/incident-domains.js';
-import { assertDomainMatchesChain, assertRoles, ChainFatalError, createChainContext, createProvider } from './chain/air-safety-log.js';
+import { assertDomainMatchesChain, assertRoles, ChainFatalError, chainErrorText, createChainContext, createProvider } from './chain/air-safety-log.js';
 import { createIndexer } from './chain/indexer.js';
+import { createAlertDelivery } from './chain/ops-alerts.js';
 import { createRelayer } from './chain/relayer.js';
+import { createWorkerStatus } from './chain/worker-status.js';
 
 const WORKER_LOCK_ID = 7_300_419;
 
@@ -80,6 +82,18 @@ async function main() {
     const startBlock = Number.isInteger(config.chain.startBlock) ? config.chain.startBlock : (domains.deployment?.blockNumber ?? 0);
     const relayer = createRelayer({ db, chain, config: chainConfig, log });
     const indexer = createIndexer({ db, chain, config: chainConfig, startBlock, log });
+    const status = createWorkerStatus({
+        db,
+        chain,
+        config: {
+            alertFailureStreak: config.chain.alertFailureStreak,
+            balanceCheckIntervalMs: config.chain.balanceCheckIntervalMs,
+            minRelayerBalanceWei: config.chain.minRelayerBalanceWei,
+        },
+        log,
+    });
+    const alerts = createAlertDelivery({ db, webhookUrl: config.ops.alertWebhookUrl, log });
+    await status.start();
     log.info({
         contract: chain.address,
         relayer: chain.relayerWallet.address,
@@ -98,10 +112,17 @@ async function main() {
         try {
             await indexer.catchUp();
             await relayer.tick();
+            await status.success();
         } catch (err) {
-            if (err instanceof ChainFatalError) throw err;
-            log.error({ err: String(err?.shortMessage ?? err?.message ?? err) }, 'chain worker iteration failed');
+            if (err instanceof ChainFatalError) {
+                await status.stopped(err);
+                await alerts.deliverPending().catch(() => {});
+                throw err;
+            }
+            log.error({ err: chainErrorText(err) }, 'chain worker iteration failed');
+            await status.failure(err).catch((statusErr) => log.error({ err: String(statusErr?.message ?? statusErr) }, 'heartbeat write failed'));
         }
+        await alerts.deliverPending().catch((err) => log.error({ err: String(err?.message ?? err) }, 'ops alert delivery failed'));
         await new Promise((resolve) => setTimeout(resolve, config.chain.pollIntervalMs));
     }
     lockClient.release();

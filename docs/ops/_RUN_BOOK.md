@@ -14,6 +14,8 @@ This file covers manual start and stop, health verification, common operator act
   - `docs/architecture/ARCHITECTURE.md`
   - `docs/reference/API_REFERENCE.md`
   - `docs/reference/MQTT_PROTOCOL.md`
+- Chain worker (Sepolia relayer, indexer, alerts, unblock, relayer rotation):
+  `docs/ops/CHAIN_WORKER_RUNBOOK.md`
 
 ## Current Operating Model
 
