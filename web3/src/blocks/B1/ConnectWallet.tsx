@@ -47,7 +47,7 @@ export function ConnectWallet() {
         <button
           type="button"
           onClick={() => {
-            const next = connectors.find((candidate) => candidate.uid !== activeConnector?.uid)
+            const next = connectors[(connectors.findIndex((candidate) => candidate.uid === activeConnector?.uid) + 1) % connectors.length]
             if (next) void disconnectAsync().then(() => connectAsync({ connector: next }))
           }}
           className="rounded-pill border border-line px-3 py-1 text-[12px] font-semibold text-ink-2"

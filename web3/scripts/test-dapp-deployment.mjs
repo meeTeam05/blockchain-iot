@@ -40,7 +40,7 @@ assert.equal(typeof address, 'object')
 const origin = `http://127.0.0.1:${address.port}`
 
 try {
-  for (const route of ['/dapp/', '/dapp/d/device-1', '/dapp/d/device-1/i/incident-1']) {
+  for (const route of ['/dapp/', '/dapp/d/device-1', '/dapp/d/device-1/i/incident-1', '/dapp/wallet', '/dapp/keeper', '/dapp/params']) {
     const response = await fetch(`${origin}${route}`)
     assert.equal(response.status, 200, `${route} should return 200`)
     assert.match(response.headers.get('content-type') ?? '', /text\/html/)

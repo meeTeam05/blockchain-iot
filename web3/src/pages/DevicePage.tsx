@@ -4,6 +4,8 @@ import { AppBar } from '../components/ui/AppBar'
 import { IncidentList } from '../blocks/B3/IncidentList'
 import { HistoryTimeline } from '../blocks/B6/HistoryTimeline'
 import { SessionActions } from '../blocks/B1/SessionActions'
+import { DeviceIncentives } from '../blocks/B9/DeviceIncentives'
+import { incentivesDeployment } from '../lib/incentives'
 
 type Tab = 'incidents' | 'history'
 
@@ -35,6 +37,7 @@ export function DevicePage() {
           </button>
         </div>
         {tab === 'incidents' ? <IncidentList deviceId={deviceId} /> : <HistoryTimeline deviceId={deviceId} />}
+        {incentivesDeployment ? <DeviceIncentives deviceId={deviceId} /> : null}
       </div>
     </>
   )

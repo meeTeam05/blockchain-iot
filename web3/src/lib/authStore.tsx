@@ -14,6 +14,7 @@ interface AuthState {
   login(email: string, password: string): Promise<void>
   logout(): Promise<void>
   request(path: string, init?: RequestInit): Promise<Response>
+  requestPublic(path: string, init?: RequestInit): Promise<Response>
 }
 
 const AuthContext = createContext<AuthState | null>(null)
@@ -85,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         request: (path, init) => requester.request(path, init),
+        requestPublic: (path, init) => requester.requestPublic(path, init),
       }}
     >
       {children}

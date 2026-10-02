@@ -15,6 +15,7 @@ test-results
 playwright-report
 blob-report
 playwright/.cache
+.incentives-e2e/
 
 # Editor directories and files
 .vscode/*

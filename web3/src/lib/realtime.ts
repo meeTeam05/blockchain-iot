@@ -9,7 +9,7 @@ export interface RealtimeEvent {
 }
 
 export function isIncidentRealtimeEvent(event: Pick<RealtimeEvent, 'type'>) {
-  return event.type.startsWith('incident.') || event.type === 'replay.reset'
+  return event.type.startsWith('incident.') || event.type === 'incentive.updated' || event.type === 'replay.reset'
 }
 
 type ConnectStream = (lastEventId: string | null, signal: AbortSignal) => Promise<Response>

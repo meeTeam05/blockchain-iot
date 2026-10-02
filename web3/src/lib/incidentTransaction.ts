@@ -23,9 +23,9 @@ export interface PendingIncidentTransaction {
   submittedAt: number
 }
 
-export interface TransactionSnapshot {
+export interface TransactionSnapshot<TAction extends string = IncidentAction> {
   stage: TransactionStage
-  action: IncidentAction | null
+  action: TAction | null
   txHash?: Hash
   error?: unknown
   apiSyncDelayed?: boolean
@@ -141,12 +141,28 @@ async function finishConfirmed<TRequest>(
   return result
 }
 
-async function reconcilePending<TRequest>(
-  pending: PendingIncidentTransaction,
-  dependencies: TransactionDependencies<TRequest>,
-  emit: (snapshot: TransactionSnapshot) => void,
-  timeoutMs: number,
-  intervalMs: number,
+export interface PendingReceiptTransaction<TAction extends string> {
+  version: 1
+  action: TAction
+  txHash: Hash
+  submittedAt: number
+}
+
+export interface ReceiptDependencies<TRequest, TAction extends string> {
+  simulate(action: TAction): Promise<TRequest>
+  submit(request: TRequest): Promise<Hash>
+  waitForReceipt(hash: Hash): Promise<{ status: 'success' | 'reverted' }>
+  persist(pending: PendingReceiptTransaction<TAction>): void
+  clearPending(): void
+  confirmed(pending: PendingReceiptTransaction<TAction>, emit: (snapshot: TransactionSnapshot<TAction>) => void): Promise<TransactionResult>
+}
+
+// Shared receipt state machine: Task 5 supplies owner-indexing reconciliation;
+// Task 8 supplies incentives refresh. Wallet signing and persistence stay here.
+export async function resumeReceiptTransaction<TRequest, TAction extends string>(
+  pending: PendingReceiptTransaction<TAction>,
+  dependencies: ReceiptDependencies<TRequest, TAction>,
+  emit: (snapshot: TransactionSnapshot<TAction>) => void,
 ): Promise<TransactionResult> {
   emit({ stage: 'submitted', action: pending.action, txHash: pending.txHash })
   emit({ stage: 'confirming', action: pending.action, txHash: pending.txHash })
@@ -156,57 +172,77 @@ async function reconcilePending<TRequest>(
       dependencies.clearPending()
       throw new TransactionRevertedError()
     }
-    return finishConfirmed(pending, dependencies, emit, timeoutMs, intervalMs)
+    try {
+      return await dependencies.confirmed(pending, emit)
+    } catch {
+      dependencies.clearPending()
+      const result = { stage: 'success', txHash: pending.txHash, apiSyncDelayed: true } as const
+      emit({ ...result, action: pending.action })
+      return result
+    }
   } catch (error) {
     emit({ stage: 'error', action: pending.action, txHash: pending.txHash, error })
     return { stage: 'error', txHash: pending.txHash, error }
   }
 }
 
-export async function runIncidentTransaction<TRequest>(
-  input: TransactionInput,
-  dependencies: TransactionDependencies<TRequest>,
-  emit: (snapshot: TransactionSnapshot) => void,
+export async function runReceiptTransaction<TRequest, TAction extends string>(
+  action: TAction,
+  dependencies: ReceiptDependencies<TRequest, TAction>,
+  emit: (snapshot: TransactionSnapshot<TAction>) => void,
 ): Promise<TransactionResult> {
-  const expectedOwnerStatus =
-    input.action === 'acknowledgeIncident' ? 'acknowledged' : 'resolved'
   try {
-    emit({ stage: 'simulating', action: input.action })
-    const request = await dependencies.simulate(input.action)
-    emit({ stage: 'awaiting_wallet', action: input.action })
+    emit({ stage: 'simulating', action })
+    const request = await dependencies.simulate(action)
+    emit({ stage: 'awaiting_wallet', action })
     let txHash: Hash
     try {
       txHash = await dependencies.submit(request)
     } catch (error) {
       if (isUserRejected(error)) {
-        emit({ stage: 'cancelled', action: input.action })
+        emit({ stage: 'cancelled', action })
         return { stage: 'cancelled' }
       }
       throw error
     }
 
-    const pending: PendingIncidentTransaction = {
+    const pending: PendingReceiptTransaction<TAction> = {
       version: 1,
-      action: input.action,
-      incidentKey: input.incidentKey,
-      deviceId: input.deviceId,
-      incidentId: input.incidentId,
+      action,
       txHash,
-      expectedOwnerStatus,
       submittedAt: Date.now(),
     }
     dependencies.persist(pending)
-    return reconcilePending(
-      pending,
-      dependencies,
-      emit,
-      input.indexingTimeoutMs ?? DEFAULT_INDEXING_TIMEOUT_MS,
-      input.pollingIntervalMs ?? DEFAULT_POLLING_INTERVAL_MS,
-    )
+    return resumeReceiptTransaction(pending, dependencies, emit)
   } catch (error) {
-    emit({ stage: 'error', action: input.action, error })
+    emit({ stage: 'error', action, error })
     return { stage: 'error', error }
   }
+}
+
+function incidentReceiptDependencies<TRequest>(
+  input: TransactionInput,
+  dependencies: TransactionDependencies<TRequest>,
+): ReceiptDependencies<TRequest, IncidentAction> {
+  const complete = (pending: PendingReceiptTransaction<IncidentAction>): PendingIncidentTransaction => ({
+    ...pending, incidentKey: input.incidentKey, deviceId: input.deviceId, incidentId: input.incidentId,
+    expectedOwnerStatus: pending.action === 'acknowledgeIncident' ? 'acknowledged' : 'resolved',
+  })
+  return {
+    ...dependencies,
+    persist: (pending) => dependencies.persist(complete(pending)),
+    confirmed: (pending, emit) => finishConfirmed(complete(pending), dependencies, emit,
+      input.indexingTimeoutMs ?? DEFAULT_INDEXING_TIMEOUT_MS,
+      input.pollingIntervalMs ?? DEFAULT_POLLING_INTERVAL_MS),
+  }
+}
+
+export function runIncidentTransaction<TRequest>(
+  input: TransactionInput,
+  dependencies: TransactionDependencies<TRequest>,
+  emit: (snapshot: TransactionSnapshot) => void,
+) {
+  return runReceiptTransaction(input.action, incidentReceiptDependencies(input, dependencies), emit)
 }
 
 export function resumeIncidentTransaction<TRequest>(
@@ -215,11 +251,9 @@ export function resumeIncidentTransaction<TRequest>(
   emit: (snapshot: TransactionSnapshot) => void,
   options: { indexingTimeoutMs?: number; pollingIntervalMs?: number } = {},
 ) {
-  return reconcilePending(
+  return resumeReceiptTransaction(
     pending,
-    dependencies,
+    incidentReceiptDependencies({ ...pending, ...options }, dependencies),
     emit,
-    options.indexingTimeoutMs ?? DEFAULT_INDEXING_TIMEOUT_MS,
-    options.pollingIntervalMs ?? DEFAULT_POLLING_INTERVAL_MS,
   )
 }

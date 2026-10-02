@@ -15,8 +15,9 @@ import { activeNetwork } from '../config/networks'
 // in a normal build; only playwright.config.ts's webServer sets this env var.
 const e2eMockAccount = import.meta.env.VITE_E2E_MOCK_ACCOUNT as `0x${string}` | undefined
 const e2eWrongAccount = '0x70997970C51812dc3A010C7d01b50e0d17dc79C8' as const
+const e2eKeeperAccount = import.meta.env.VITE_E2E_KEEPER_ACCOUNT as `0x${string}` | undefined
 const connectors = e2eMockAccount
-  ? [mock({ accounts: [e2eWrongAccount] }), mock({ accounts: [e2eMockAccount] })]
+  ? [mock({ accounts: [e2eWrongAccount] }), mock({ accounts: [e2eMockAccount] }), ...(e2eKeeperAccount ? [mock({ accounts: [e2eKeeperAccount] })] : [])]
   : [injected()]
 
 export const chain = defineChain({

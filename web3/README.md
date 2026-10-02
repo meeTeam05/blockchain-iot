@@ -1,4 +1,35 @@
-# web3 -- dApp xem/verify/acknowledge/resolve incident (Task 5)
+# web3 -- incident + token/bond/incentives dApp (Task 5 + Task 8)
+
+## Task 8 — incentives
+
+`/dapp/wallet` (đăng nhập) đọc token balance/allowance trực tiếp từ chain,
+approve đúng số lượng rồi stake; unstake/withdraw theo cooldown canonical.
+Device và incident giữ riêng trạng thái chain và API indexed/projection.
+`/dapp/keeper` và `/dapp/params` là các trang public. Keeper action luôn đọc
+lại eligibility và simulate trước khi ký; P2 chỉ chạy khi người dùng bấm,
+không thêm automation phía server. Receipt confirmed không bị đổi thành
+failed khi API chậm. Transaction pending lưu theo mạng/contract/ví/target
+và có thể resume mà không gửi lại transaction.
+
+Deployment incentives lấy từ generator chung; chạy `npm run sync-abi`,
+hoặc `npm run sync-abi -- --check` để kiểm tra drift. Nếu chưa có
+`blockchain/deployments/sepolia.incentives.json`, UI báo unavailable,
+không dùng địa chỉ giả. Không có admin/private-key transaction trong dApp.
+
+Gate browser Task 8 độc lập:
+
+```bash
+npx playwright install chromium
+npm run test:incentives-e2e
+```
+
+Harness dùng Hardhat thật (`18545`), API/indexer/relayer Task 7 thật trên
+PGlite (`3006`) và Vite (`5176`); chỉ login fixture và connector ví test.
+Receipt deployment vừa tạo được đưa vào module tạm `.incentives-e2e/`
+qua config Vite riêng, không đổi artifact production hay bỏ qua domain guard.
+Scenario đi qua UI: approve/stake, evidence verify, ack/resolve R1/R2,
+P1, P2 manual, daily cap, insufficient reward fund và cooldown/withdraw.
+Không cần EMQX/Sepolia, không thao tác incident production.
 
 Vite + React + TypeScript + wagmi/viem. Xem `docs/reference/ATMOSPHERE_WEB_DESIGN.md`
 (UI) và `tmp/02_decisions/2026-10-01_task5-dapp-incident-decisions.md` (21

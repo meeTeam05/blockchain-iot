@@ -30,6 +30,7 @@ interface OwnerActionsProps {
   isOwner: boolean
   readOwnerStatus: () => Promise<string | null | undefined>
   refetchChain: () => Promise<void>
+  afterConfirmed?: (action: IncidentAction) => Promise<void>
 }
 
 const IDLE: TransactionSnapshot = { stage: 'idle', action: null }
@@ -42,6 +43,7 @@ export function OwnerActions({
   isOwner,
   readOwnerStatus,
   refetchChain,
+  afterConfirmed,
 }: OwnerActionsProps) {
   const { address, isConnected } = useAccount()
   const { data: walletClient } = useWalletClient()
@@ -57,7 +59,7 @@ export function OwnerActions({
     [incidentKey],
   )
 
-  function createDependencies(): TransactionDependencies<unknown> | null {
+  function createDependencies(action?: IncidentAction): TransactionDependencies<unknown> | null {
     if (!publicClient) return null
     return {
       simulate: async (action) => {
@@ -81,7 +83,10 @@ export function OwnerActions({
         const receipt = await publicClient.waitForTransactionReceipt({ hash, confirmations: 1 })
         return { status: receipt.status }
       },
-      refetchChain,
+      refetchChain: async () => {
+        await refetchChain()
+        if (action) await afterConfirmed?.(action)
+      },
       invalidateQueries: async () => {
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ['incident', deviceId, incidentId] }),
@@ -113,7 +118,7 @@ export function OwnerActions({
     if (resuming.current || publicStatus !== 'correct') return
     const pending = loadPendingTransaction(storageKey)
     if (!pending || pending.deviceId !== deviceId || pending.incidentId !== incidentId) return
-    const dependencies = createDependencies()
+    const dependencies = createDependencies(pending.action)
     if (!dependencies) return
     resuming.current = true
     void resumeIncidentTransaction(pending, dependencies, setSnapshot).finally(() => {
@@ -127,7 +132,7 @@ export function OwnerActions({
   async function submitAction(action: IncidentAction) {
     setDialogAction(null)
     if (!domainOk) return
-    const dependencies = createDependencies()
+    const dependencies = createDependencies(action)
     if (!dependencies) return
     const result = await runIncidentTransaction(
       { action, incidentKey, deviceId, incidentId },

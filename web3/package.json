@@ -5,12 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "sync-abi": "node ../spec/incident/gen/gen-all.mjs",
     "build": "tsc -b && vite build",
     "test:deployment": "node scripts/test-dapp-deployment.mjs",
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:incentives-e2e": "playwright test --config playwright.incentives.config.ts"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.10",

@@ -7,6 +7,7 @@ describe('RealtimeRefreshCoordinator', () => {
   it('refreshes for incident/replay SSE events but not unrelated telemetry', () => {
     expect(isIncidentRealtimeEvent({ type: 'incident.chain_updated' })).toBe(true)
     expect(isIncidentRealtimeEvent({ type: 'incident.owner_updated' })).toBe(true)
+    expect(isIncidentRealtimeEvent({ type: 'incentive.updated' })).toBe(true)
     expect(isIncidentRealtimeEvent({ type: 'replay.reset' })).toBe(true)
     expect(isIncidentRealtimeEvent({ type: 'telemetry.point' })).toBe(false)
   })

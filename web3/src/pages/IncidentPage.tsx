@@ -12,6 +12,10 @@ import { computeDeviceIdHash, computeIncidentKey } from '../lib/chainIncident'
 import { useIncidentDetail } from '../lib/incidentsApi'
 import { CHAIN_STATUS_NAMES, deriveIncidentStatus } from '../lib/mergeStatus'
 import { addressesMatch } from '../lib/ownership'
+import { IncidentIncentives } from '../blocks/B9/IncidentIncentives'
+import { useIncentiveTransaction } from '../lib/useIncentiveTransaction'
+import { SAFETY_INCENTIVES_ABI } from '../generated/incentives-deployments'
+import type { IncidentAction } from '../lib/incidentTransaction'
 
 export function IncidentPage() {
   const { deviceId, incidentId } = useParams<{ deviceId: string; incidentId: string }>()
@@ -21,6 +25,15 @@ export function IncidentPage() {
 
   const deviceIdHash = deviceId ? computeDeviceIdHash(deviceId) : undefined
   const incidentKey = deviceIdHash && incidentId ? computeIncidentKey(deviceIdHash, incidentId as `0x${string}`) : undefined
+  const incentivesTx = useIncentiveTransaction(incidentKey ?? 'wallet')
+  const afterConfirmed = async (action: IncidentAction) => {
+    const { guard, run } = incentivesTx
+    if (!guard.canWrite || !incidentKey || !guard.publicClient || !guard.deployment) return
+    const read = () => guard.publicClient!.readContract({ address: guard.deployment!.incentives.address,
+      abi: SAFETY_INCENTIVES_ABI, functionName: 'pendingSettlement', args: [incidentKey] })
+    if ((await read()).canRecordAck) await run('recordTimelyAck', [incidentKey])
+    if (action === 'resolveIncident' && (await read()).canRecordResolve) await run('recordTimelyResolve', [incidentKey])
+  }
 
   const { data: chainIncident, isPending: isChainIncidentPending, isError: isChainIncidentError, refetch: refetchChainIncident } = useReadContract({
     address: activeNetwork.address,
@@ -75,6 +88,7 @@ export function IncidentPage() {
                 loggedAt={chainIncident?.loggedAt}
               />
               <VerifyPanel deviceId={deviceId} incident={incident} />
+              {incidentKey ? <IncidentIncentives deviceId={deviceId} incidentKey={incidentKey} projection={incident.incentive} transaction={incentivesTx} /> : null}
             </div>
             <div className="flex flex-col gap-3">
               {isOwner ? (
@@ -92,6 +106,7 @@ export function IncidentPage() {
                   isOwner={isOwner}
                   readOwnerStatus={readOwnerStatus}
                   refetchChain={refetchChain}
+                  afterConfirmed={afterConfirmed}
                 />
               ) : null}
               {!isOwner ? (

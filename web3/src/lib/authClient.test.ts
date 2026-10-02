@@ -41,6 +41,25 @@ function requester(fetcher: typeof fetch) {
 }
 
 describe('AuthRequester', () => {
+  it('binds native fetch to its global receiver for private and public requests', async () => {
+    vi.stubGlobal('fetch', function (this: unknown) {
+      expect(this).toBe(globalThis)
+      return Promise.resolve(response(200, { ok: true }))
+    })
+    try {
+      const client = new AuthRequester({
+        baseUrl: 'https://api.example.test/api',
+        getSession: () => initial,
+        setSession: vi.fn(),
+        clearSession: vi.fn(),
+      })
+      expect((await client.request('/devices')).status).toBe(200)
+      expect((await client.requestPublic('/incentives/params')).status).toBe(200)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('surfaces login failure without creating a session', async () => {
     const fetcher = vi.fn(async () => response(401, { error: 'Invalid credentials' })) as typeof fetch
     await expect(

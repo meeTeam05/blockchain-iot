@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useEffect } from 'react'
-import { BrowserRouter, Route, Routes } from 'react-router'
+import { BrowserRouter, Link, Route, Routes } from 'react-router'
+import type { ReactNode } from 'react'
 import { WagmiProvider } from 'wagmi'
 import { DomainMismatchBanner, DomainStatusProvider } from './blocks/B0/domainStatus'
 import { AuthProvider } from './lib/authStore'
@@ -12,13 +13,17 @@ import { DevicePage } from './pages/DevicePage'
 import { HomePage } from './pages/HomePage'
 import { IncidentPage } from './pages/IncidentPage'
 import { RealtimeSync } from './lib/RealtimeSync'
+import { WalletPage } from './pages/WalletPage'
+import { KeeperPage } from './pages/KeeperPage'
+import { ParamsPage } from './pages/ParamsPage'
+import { incentivesDeployment } from './lib/incentives'
 
 const queryClient = new QueryClient()
 // Canonical public mount. Vite's base is also /dapp/, but the router must not
 // silently become root-relative in test/dev modes where BASE_URL can be '/'.
 const routerBasename = '/dapp'
 
-function AuthenticatedRoutes() {
+function RequireAuth({ children }: { children: ReactNode }) {
   const { accessToken } = useAuth()
   const client = queryClient
 
@@ -39,17 +44,26 @@ function AuthenticatedRoutes() {
     )
   }
 
-  return (
-    <>
-      <RealtimeSync />
-      <DomainMismatchBanner />
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/d/:deviceId" element={<DevicePage />} />
-        <Route path="/d/:deviceId/i/:incidentId" element={<IncidentPage />} />
-      </Routes>
-    </>
-  )
+  return children
+}
+
+function AppRoutes() {
+  const { accessToken } = useAuth()
+  return <>
+    {accessToken ? <RealtimeSync /> : null}
+    <DomainMismatchBanner />
+    {incentivesDeployment ? <nav className="flex gap-4 border-b border-line px-6 py-2" aria-label="Incentives navigation">
+      <Link to="/">Thiết bị</Link><Link to="/wallet">Ví token / bond</Link><Link to="/keeper">Keeper</Link><Link to="/params">Tham số / quỹ</Link>
+    </nav> : null}
+    <Routes>
+      <Route path="/" element={<RequireAuth><HomePage /></RequireAuth>} />
+      <Route path="/d/:deviceId" element={<RequireAuth><DevicePage /></RequireAuth>} />
+      <Route path="/d/:deviceId/i/:incidentId" element={<RequireAuth><IncidentPage /></RequireAuth>} />
+      <Route path="/wallet" element={<RequireAuth><WalletPage /></RequireAuth>} />
+      <Route path="/keeper" element={<KeeperPage />} />
+      <Route path="/params" element={<ParamsPage />} />
+    </Routes>
+  </>
 }
 
 function App() {
@@ -59,7 +73,7 @@ function App() {
         <AuthProvider>
           <DomainStatusProvider>
             <BrowserRouter basename={routerBasename}>
-              <AuthenticatedRoutes />
+              <AppRoutes />
             </BrowserRouter>
           </DomainStatusProvider>
         </AuthProvider>

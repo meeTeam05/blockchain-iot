@@ -39,7 +39,7 @@ export class AuthRequester {
 
   constructor(options: AuthRequesterOptions) {
     this.options = options
-    this.fetcher = options.fetcher ?? fetch
+    this.fetcher = options.fetcher ?? globalThis.fetch.bind(globalThis)
     this.currentSession = options.getSession()
   }
 
@@ -120,6 +120,10 @@ export class AuthRequester {
     )
     if (response.status === 401) this.clearSession()
     return response
+  }
+
+  requestPublic(path: string, init: RequestInit = {}): Promise<Response> {
+    return this.fetcher(`${this.options.baseUrl}${path}`, { ...init, credentials: 'include' })
   }
 }
 

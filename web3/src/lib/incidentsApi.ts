@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { useAuth } from './authStore'
+import type { IncidentIncentive } from './incentivesApi'
 
 export interface ApiIncidentSummary {
   device_id: string
@@ -18,6 +19,7 @@ export interface ApiIncidentSummary {
 }
 
 export interface ApiIncidentDetail extends ApiIncidentSummary {
+  incentive?: IncidentIncentive
   observed_at_iso: string | null
   incident_kind: string | null
   time_source: string | null

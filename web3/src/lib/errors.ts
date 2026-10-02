@@ -1,12 +1,26 @@
-// B0 stub / B5 full table (tmp/Web3_task.md mục 6). Only the AirSafetyLog
-// errors relevant to Task 5 are mapped here -- SafetyIncentives errors
-// (AckDeadlinePassed, BondTooLow, ...) are Task 8 and out of scope.
+// Shared custom error messages for the incident and incentives transactions.
 import { BaseError, ContractFunctionRevertedError } from 'viem'
 
 const MESSAGES: Record<string, string> = {
   NotDeviceOwner: 'Ví đang kết nối không phải chủ thiết bị này',
   InvalidStatus: 'Sự cố đã được xử lý ở bước này rồi',
   IncidentNotFound: 'Sự cố chưa được ghi lên chain',
+  BondTooLow: 'Tổng bond thấp hơn mức yêu cầu',
+  BondHeldByOther: 'Bond hiện còn thuộc ví chủ sở hữu trước',
+  CooldownActive: 'Chưa hết thời gian chờ rút bond',
+  NotStaker: 'Ví đang kết nối không phải người stake bond này',
+  AlreadySettled: 'Hành động đã được settlement bởi keeper khác; hãy làm mới',
+  AckDeadlinePassed: 'Đã quá hạn acknowledge; không còn thưởng',
+  AckDeadlineNotPassed: 'Chưa quá hạn acknowledge; không thể phạt',
+  ResolveDeadlinePassed: 'Đã quá hạn resolve; không còn thưởng',
+  IncidentNotCovered: 'Sự cố xảy ra trước khi incentives được kích hoạt',
+  NoUnstakeRequest: 'Chưa yêu cầu unstake',
+  UnstakeAlreadyRequested: 'Bond đã có yêu cầu unstake',
+  NotAcknowledged: 'Chưa ghi nhận acknowledge đúng hạn',
+  NotResolved: 'Sự cố chưa được resolve trên chain',
+  RelayNotLate: 'Relay chưa vượt quá hạn cho phép',
+  ERC20InsufficientBalance: 'Không đủ ASAFE trong ví',
+  ERC20InsufficientAllowance: 'Allowance không đủ; cần approve trước',
 }
 
 export interface DecodedError {
