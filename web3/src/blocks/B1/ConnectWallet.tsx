@@ -43,7 +43,11 @@ export function ConnectWallet() {
         <Pill tone="online" label={chain.name} />
       )}
       {lowBalance ? <Pill tone="warn" label="ETH thấp" /> : null}
-      <button type="button" onClick={() => disconnect()} className="font-mono text-[13px] text-ink-2">
+      <button
+        type="button"
+        onClick={() => disconnect()}
+        className="rounded-pill bg-ink px-3 py-1 font-mono text-[13px] text-paper"
+      >
         {shortenAddress(address!)}
       </button>
     </div>
