@@ -10,7 +10,7 @@ import App from './App'
 describe('App', () => {
   it('mounts the full provider tree and shows the login form when logged out', async () => {
     render(<App />)
-    expect(screen.getByText('smart-air')).toBeInTheDocument()
+    expect(screen.getByText('smart air')).toBeInTheDocument()
     expect(await screen.findByLabelText('Email')).toBeInTheDocument()
     expect(screen.getByLabelText('Mật khẩu')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Đăng nhập' })).toBeInTheDocument()

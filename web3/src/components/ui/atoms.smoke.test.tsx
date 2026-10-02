@@ -89,9 +89,9 @@ describe('Atmosphere-Web atoms', () => {
 
   it('AppBar renders brand and back variants', () => {
     render(<AppBar variant="brand" />)
-    expect(screen.getByText('smart-air')).toBeInTheDocument()
-    render(<AppBar variant="back" title="Thiết bị" onBack={() => {}} />)
-    expect(screen.getByText('Thiết bị')).toBeInTheDocument()
+    expect(screen.getByText('smart air')).toBeInTheDocument()
+    render(<AppBar variant="back" title="Sự cố" onBack={() => {}} />)
+    expect(screen.getByText('Sự cố')).toBeInTheDocument()
   })
 
   it('DotLogo renders an svg with 25 dots', () => {
