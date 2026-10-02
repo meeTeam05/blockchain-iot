@@ -674,7 +674,7 @@ Nếu mode hiệu lực là `off` thì mọi `relay_N=true` đều bị reject. 
 3. Nếu offline → chỉ lưu DB, push khi device online lại hoặc khi device publish `shadow/get`
 
 > `PUT /shadow/desired` là declarative target state cho các keys firmware hỗ trợ qua `shadow/get_response`. Typed command endpoints vẫn tồn tại cho imperative command/history flow.
-> Chi tiết topic/payload MQTT tương ứng nằm ở `docs/MQTT_PROTOCOL.md`.
+> Chi tiết topic/payload MQTT tương ứng nằm ở `docs/reference/MQTT_PROTOCOL.md`.
 
 ---
 
@@ -1044,7 +1044,7 @@ Sắp xếp `ts DESC`.
 
 ## 8a. Incidents — Bằng chứng sự cố blockchain
 
-Incident do firmware ký (EIP-712) và gửi qua `device/{id}/incident`; backend verify rồi lưu vào `incidents` (không retention) và xếp `blockchain_outbox` ở `queued`. Hợp đồng dữ liệu: `docs/BLOCKCHAIN_INCIDENT_SCHEMA.md`. Mọi route yêu cầu user là thành viên home của device (`checkDeviceAccess`), nếu không trả `403`. `:incidentId` là bytes32 hex (`0x` + 64 hex, không phân biệt hoa thường), sai định dạng trả `400`, không có trả `404`.
+Incident do firmware ký (EIP-712) và gửi qua `device/{id}/incident`; backend verify rồi lưu vào `incidents` (không retention) và xếp `blockchain_outbox` ở `queued`. Hợp đồng dữ liệu: `docs/reference/BLOCKCHAIN_INCIDENT_SCHEMA.md`. Mọi route yêu cầu user là thành viên home của device (`checkDeviceAccess`), nếu không trả `403`. `:incidentId` là bytes32 hex (`0x` + 64 hex, không phân biệt hoa thường), sai định dạng trả `400`, không có trả `404`.
 
 ### `GET /api/devices/:id/incidents` 🔒
 
@@ -1250,7 +1250,7 @@ Protocol:     MQTT v3.1.1 over WebSocket
 
 > **Lưu ý:** Flutter app production flow dùng `/api/realtime`, không subscribe trực tiếp `/mqtt`.
 > Nếu dùng WebSocket MQTT trực tiếp, EMQX đang xác thực bằng MQTT username/password theo built-in database; JWT của REST API không được dùng cho MQTT/WSS.
-> `docs/MQTT_PROTOCOL.md` mới là contract chi tiết cho toàn bộ topics và payload MQTT.
+> `docs/reference/MQTT_PROTOCOL.md` mới là contract chi tiết cho toàn bộ topics và payload MQTT.
 
 **Topics subscribe:**
 

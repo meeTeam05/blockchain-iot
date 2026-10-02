@@ -1,0 +1,58 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap');
+@import 'tailwindcss';
+
+/*
+ * "Warden" tokens (2026-10-02 restyle, see decision #14-revised in
+ * tmp/02_decisions/2026-10-01_task5-dapp-incident-decisions.md): a
+ * crypto/DeFi dashboard identity, deliberately split from app_new/app's
+ * Atmosphere system -- this dApp no longer visually matches the two mobile
+ * apps. Light mode only.
+ *
+ * Two greens on purpose: `brand` is the dark, text-safe green (links, text on
+ * tint backgrounds, borders) -- `brand-bright` is the saturated electric
+ * green for solid high-emphasis surfaces (primary buttons, status dots),
+ * which needs dark (`ink`) text on top, not white. Same split for
+ * danger/accent. Values lifted from tmp/base/Warden Mockups.dc.html.
+ *
+ * Tailwind's default spacing scale (0.5=2px, 1=4px, 1.5=6px, 2=8px, 3=12px,
+ * 4=16px, 5=20px, 6=24px, 8=32px) already matches these tokens' spacing
+ * exactly, so no custom spacing scale is defined here.
+ */
+@theme {
+  --color-brand: #0a7a3e;
+  --color-brand-bright: #1fe07a;
+  --color-brand-tint: #e6fbef;
+  --color-accent: #00606f;
+  --color-accent-bright: #00c8e6;
+  --color-accent-tint: #e2f9fc;
+  --color-warn: #8a5200;
+  --color-warn-tint: #fff6e0;
+  --color-danger: #c4122a;
+  --color-danger-bright: #ff3b4a;
+  --color-danger-tint: #fff0f1;
+  --color-online: #1fe07a;
+  --color-ink: #0e1210;
+  --color-ink-2: #5b625d;
+  --color-ink-3: #7a817c;
+  --color-ink-4: #9aa19c;
+  --color-line: #e7e9e4;
+  --color-line-2: #f0f2ee;
+  --color-bg: #e9ebe6;
+  --color-paper: #ffffff;
+
+  --radius-input: 12px;
+  --radius-button: 12px;
+  --radius-tile: 16px;
+  --radius-card: 16px;
+  --radius-pill: 999px;
+
+  --font-sans: 'Geist', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}

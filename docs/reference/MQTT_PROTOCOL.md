@@ -1,6 +1,6 @@
 # MQTT Protocol — smart-air
 
-> `docs/MQTT_PROTOCOL.md` là nguồn sự thật cho giao tiếp MQTT giữa firmware ESP32 và broker/server.
+> `docs/reference/MQTT_PROTOCOL.md` là nguồn sự thật cho giao tiếp MQTT giữa firmware ESP32 và broker/server.
 > Hợp đồng app production vẫn là REST + SSE; app không dùng MQTT trực tiếp trong flow hiện tại.
 
 ---
@@ -336,7 +336,7 @@ Ghi chú:
 
 ### 3.8 `device/{id}/incident`
 
-Hợp đồng field-level: `docs/BLOCKCHAIN_INCIDENT_SCHEMA.md` (Schema v2). Payload là 33 field evidence `snake_case` cộng `device_id`, `firmware_version`, `evidence_hash`, `signature`; không nhận field khác. Firmware chỉ publish khi level chung tăng (xem schema mục 3) và persist payload trước khi publish. Queue có thể retry/publish nhiều slot nên backend không giả định thứ tự arrival theo `sequence`.
+Hợp đồng field-level: `docs/reference/BLOCKCHAIN_INCIDENT_SCHEMA.md` (Schema v2). Payload là 33 field evidence `snake_case` cộng `device_id`, `firmware_version`, `evidence_hash`, `signature`; không nhận field khác. Firmware chỉ publish khi level chung tăng (xem schema mục 3) và persist payload trước khi publish. Queue có thể retry/publish nhiều slot nên backend không giả định thứ tự arrival theo `sequence`.
 
 Bridge xử lý (`handleIncident()`):
 

@@ -6,6 +6,7 @@ ROOT_DIR := $(CURDIR)
 SERVER_DIR := $(ROOT_DIR)/server
 API_DIR := $(SERVER_DIR)/api
 APP_DIR := $(ROOT_DIR)/app
+WEB3_DIR := $(ROOT_DIR)/web3
 FIRMWARE_DIR := $(ROOT_DIR)/firmware
 
 COMPOSE := docker compose -f "$(SERVER_DIR)/docker-compose.yml" --env-file "$(SERVER_DIR)/.env"
@@ -27,6 +28,7 @@ SERVER_REQUIRED_ENV := \
 .PHONY: server-ps server-check server-logs server-log server-restart server-rebuild-api
 .PHONY: server-migrate server-test server-dev server-start server-render-emqx-key
 .PHONY: app-pub-get app-analyze app-test app-run app-build-apk
+.PHONY: web3-install web3-dev web3-build web3-test web3-test-e2e
 .PHONY: firmware-build firmware-flash firmware-monitor firmware-flash-monitor firmware-menuconfig firmware-size
 .PHONY: host-docker-start host-docker-stop host-docker-disable-autostart
 
@@ -61,6 +63,13 @@ help:
 		'  app-test                 Run Flutter tests' \
 		'  app-run                  Run the Flutter app' \
 		'  app-build-apk            Build Android release APK' \
+		'' \
+		'Web3 dApp (Task 5):' \
+		'  web3-install             Install web3/ dependencies' \
+		'  web3-dev                 Run the dApp dev server' \
+		'  web3-build               Build the dApp for production' \
+		'  web3-test                Run web3/ unit + integration tests (Vitest)' \
+		'  web3-test-e2e            Run web3/ Playwright E2E tests' \
 		'' \
 		'Firmware:' \
 		'  firmware-build           Build ESP-IDF firmware' \
@@ -171,6 +180,21 @@ app-run:
 
 app-build-apk:
 	cd "$(APP_DIR)" && flutter build apk --release
+
+web3-install:
+	cd "$(WEB3_DIR)" && npm install
+
+web3-dev:
+	cd "$(WEB3_DIR)" && npm run dev
+
+web3-build:
+	cd "$(WEB3_DIR)" && npm run build
+
+web3-test:
+	cd "$(WEB3_DIR)" && npm run test
+
+web3-test-e2e:
+	cd "$(WEB3_DIR)" && npm run test:e2e
 
 firmware-build:
 	cd "$(FIRMWARE_DIR)" && . "$(IDF_EXPORT)" && idf.py build

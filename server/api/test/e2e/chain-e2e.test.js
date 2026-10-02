@@ -12,10 +12,7 @@
 // scenarios (rotate guard, sequence floor) is covered by the firmware host tests.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { ContractFactory, JsonRpcProvider, NonceManager, SigningKey, Wallet } from 'ethers';
+import { JsonRpcProvider, SigningKey, Wallet } from 'ethers';
 
 import { AIR_SAFETY_LOG_ABI } from '../../src/generated/incident-deployments.js';
 import { ChainFatalError, assertDomainMatchesChain, createChainContext } from '../../src/chain/air-safety-log.js';
@@ -29,36 +26,16 @@ import {
     requestSignerRevocation,
 } from '../../src/services/signer-lifecycle.js';
 import { DEVICE_ID, createIncidentDb, createIntakeFastify, loadVector, rawBytes, signIncident } from '../helpers/incident-fixtures.js';
+import { KEYS, deploy } from '../helpers/chain-deploy.js';
 
 const RPC_URL = process.env.E2E_CHAIN_RPC_URL;
 const skip = RPC_URL ? false : 'set E2E_CHAIN_RPC_URL to a hardhat node to run the chain E2E';
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
-const ARTIFACT = path.resolve(HERE, '../../../../blockchain/artifacts/contracts/AirSafetyLog.sol/AirSafetyLog.json');
 const LEGACY_ADDRESS = '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC';
-// Publicly known hardhat development keys.
-const KEYS = Object.freeze({
-    admin: '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
-    relayer: '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d',
-    manager: '0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a',
-    owner: '0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6',
-});
 const WORKER_CONFIG = Object.freeze({ confirmations: 1, batchSize: 20, maxAttempts: 10, maxRetryAgeHours: 24, logBatchBlocks: 2_000 });
 const silent = process.env.E2E_DEBUG
     ? { info: (o, m) => console.log("INFO", m, JSON.stringify(o)), warn: (o, m) => console.log("WARN", m, JSON.stringify(o)), error: (o, m) => console.log("ERROR", m, JSON.stringify(o)) }
     : { info() {}, warn() {}, error() {} };
-
-async function deploy(provider) {
-    const artifact = JSON.parse(await readFile(ARTIFACT, 'utf8'));
-    const admin = new NonceManager(new Wallet(KEYS.admin, provider));
-    const factory = new ContractFactory(artifact.abi, artifact.bytecode, admin);
-    const contract = await factory.deploy(await admin.getAddress());
-    await contract.waitForDeployment();
-    for (const [role, key] of [['RELAYER_ROLE', KEYS.relayer], ['DEVICE_MANAGER_ROLE', KEYS.manager]]) {
-        await (await contract.grantRole(await contract[role](), new Wallet(key).address)).wait();
-    }
-    return { contract, admin, address: await contract.getAddress() };
-}
 
 async function setup() {
     const provider = new JsonRpcProvider(RPC_URL, undefined, { staticNetwork: true, cacheTimeout: -1 });

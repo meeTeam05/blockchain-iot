@@ -79,7 +79,7 @@ Devices provision over BLE, publish telemetry/shadow over MQTT, and serve the ap
 
 ## Contributing
 
-- For structural work, also read `docs/ARCHITECTURE.md`, `docs/MQTT_PROTOCOL.md`, and `docs/API_REFERENCE.md`.
+- For structural work, also read `docs/architecture/ARCHITECTURE.md`, `docs/reference/MQTT_PROTOCOL.md`, and `docs/reference/API_REFERENCE.md`.
 - Keep changes narrow, update matching docs when contracts change, and run the narrowest verification for the area you touched.
 
 ## License

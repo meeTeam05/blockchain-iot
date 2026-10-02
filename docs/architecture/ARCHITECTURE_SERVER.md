@@ -214,7 +214,7 @@ Kiến trúc ở đây giữ responsibility khá rõ: plugin layer boot dependen
 - `notifications`
 - `realtime`
 
-File `docs/API_REFERENCE.md` là contract HTTP chi tiết. Ở mức kiến trúc, điều quan trọng là app boundary hiện tại đi qua REST + SSE chứ không đi trực tiếp vào MQTT.
+File `docs/reference/API_REFERENCE.md` là contract HTTP chi tiết. Ở mức kiến trúc, điều quan trọng là app boundary hiện tại đi qua REST + SSE chứ không đi trực tiếp vào MQTT.
 
 ## 5. Persistence model
 
@@ -479,7 +479,7 @@ Boundary server nằm giữa firmware và app:
 
 Hai hợp đồng chính để đọc kèm theo tài liệu này là:
 
-- `docs/MQTT_PROTOCOL.md` cho topic/payload MQTT
-- `docs/API_REFERENCE.md` cho contract HTTP/SSE
+- `docs/reference/MQTT_PROTOCOL.md` cho topic/payload MQTT
+- `docs/reference/API_REFERENCE.md` cho contract HTTP/SSE
 
 Tài liệu này chỉ giải thích các thành phần server và quan hệ giữa chúng. Khi contract field-level thay đổi, nguồn sự thật vẫn là code trong `server/` và hai tài liệu contract ở trên.

@@ -11,9 +11,9 @@ This file covers manual start and stop, health verification, common operator act
 - Main verification script: `scripts/check-server-connections.sh`
 - Public operator entrypoint: root `Makefile`
 - Architecture and contracts live elsewhere:
-  - `docs/ARCHITECTURE.md`
-  - `docs/API_REFERENCE.md`
-  - `docs/MQTT_PROTOCOL.md`
+  - `docs/architecture/ARCHITECTURE.md`
+  - `docs/reference/API_REFERENCE.md`
+  - `docs/reference/MQTT_PROTOCOL.md`
 
 ## Current Operating Model
 
@@ -365,6 +365,6 @@ make server-log SERVICE=api
 - `server/.env.example`
 - `Makefile`
 - `scripts/check-server-connections.sh`
-- `docs/ARCHITECTURE.md`
-- `docs/API_REFERENCE.md`
-- `docs/MQTT_PROTOCOL.md`
+- `docs/architecture/ARCHITECTURE.md`
+- `docs/reference/API_REFERENCE.md`
+- `docs/reference/MQTT_PROTOCOL.md`

@@ -15,6 +15,7 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./emqx/certs:/etc/nginx/certs:ro # reuse EMQX self-signed cert
       - ./ota-files:/var/www/ota:ro # firmware binaries drop zone
+      - ./dapp-files:/var/www/dapp:ro # web3/dist build output (Task 5)
     depends_on:
       api:     { condition: service_healthy }
     healthcheck:

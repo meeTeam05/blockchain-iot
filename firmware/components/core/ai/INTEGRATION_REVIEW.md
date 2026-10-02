@@ -48,7 +48,7 @@ quan trọng. Mô tả kiến trúc chi tiết của module nằm ở [README.md
 | 10 | Dữ liệu huấn luyện (trạm ngoài trời) ≠ cảm biến thiết bị (trong nhà) | 🔴 Chất lượng mô hình | ❌ Chưa xử lý — cần dữ liệu thực | — |
 | 11 | Ngưỡng 0.5 → ~91% cảnh báo là báo nhầm | 🟡 Chất lượng mô hình | ❌ Chưa xử lý | — |
 | 12 | Model `nofreeze` INT8 dưới ngưỡng khớp 98% | ⚪ Chất lượng mô hình | ❌ Chưa xử lý | — |
-| 13 | Topic `ai/state` chưa có trong `docs/MQTT_PROTOCOL.md`, server chưa đọc | ⚪ Tài liệu | ❌ Chưa sửa | — |
+| 13 | Topic `ai/state` chưa có trong `docs/reference/MQTT_PROTOCOL.md`, server chưa đọc | ⚪ Tài liệu | ❌ Chưa sửa | — |
 
 **Chưa có gì được build hay chạy thử.** Máy dùng để rà soát không có ESP-IDF và không có trình biên
 dịch C. Mọi kết luận ở đây đến từ việc đọc code. `SA_AI_ENABLED` mặc định là `n`, nên khi chưa bật
@@ -170,7 +170,7 @@ build lại firmware.
 - **(a) Ít xâm lấn:** AI chỉ tắt quạt nếu chính AI đã bật nó. Người dùng bật tay thì AI không bao giờ tắt.
 - **(b) Đầy đủ:** thêm cờ `auto_mode` (lưu NVS, điều khiển qua lệnh MQTT/shadow và nút trong app).
   AI chỉ điều khiển relay khi `auto_mode` bật. Cần sửa cả firmware, server (schema shadow/command,
-  xem `docs/MQTT_PROTOCOL.md`) và app.
+  xem `docs/reference/MQTT_PROTOCOL.md`) và app.
 
 ### ❌ #6 — Nhận nhầm "người dùng can thiệp" sau khi bật lại device_mode
 
@@ -202,7 +202,7 @@ scheduler chỉ chạy suy luận khi con số này thay đổi.
 Mô hình học từ **trạm quan trắc ngoài trời ở TP.HCM** (thiết bị tham chiếu, đã hiệu chuẩn). Thiết bị
 dùng cảm biến MEMS giá rẻ GM702B/GM102B, đặt **trong nhà**, chưa hiệu chuẩn. Kể cả khi đơn vị đã đúng
 (#1), phân phối giá trị vẫn có thể khác hẳn. Firmware có sẵn lệnh `calibrate_co` / `calibrate_no2`
-(`docs/MQTT_PROTOCOL.md` mục 4.1) — nên hiệu chuẩn trước khi đánh giá AI.
+(`docs/reference/MQTT_PROTOCOL.md` mục 4.1) — nên hiệu chuẩn trước khi đánh giá AI.
 
 **Khuyến nghị:** bật AI ở chế độ **chỉ publish, không điều khiển relay** vài ngày, ghi log `ai/state`
 kèm telemetry, xem tỉ lệ ALERT có hợp lý không rồi mới cho điều khiển quạt.
@@ -220,7 +220,7 @@ recall (87.30%), nên ảnh hưởng thực tế nhỏ, nhưng nên xem lại t�
 
 ### ❌ #13 — Tài liệu và phía server
 
-- `device/{id}/ai/state` chưa được mô tả trong [docs/MQTT_PROTOCOL.md](../docs/MQTT_PROTOCOL.md)
+- `device/{id}/ai/state` chưa được mô tả trong [docs/reference/MQTT_PROTOCOL.md](../docs/reference/MQTT_PROTOCOL.md)
   (bảng mục 2 và mục 3).
 - Server và bridge chưa subscribe topic này (`bridgeRules()` không có), app cũng chưa hiển thị. Hiện
   tại dữ liệu AI publish lên nhưng **không ai đọc**.
@@ -267,5 +267,5 @@ nằm ở repo `ungdungdidong`, không có trong repo này.
 5. [ ] Sửa #6, #8, #9.
 6. [ ] Hiệu chuẩn cảm biến, chạy AI ở chế độ chỉ quan sát vài ngày (#10).
 7. [ ] Xem lại ngưỡng / thêm hysteresis (#11).
-8. [ ] Bổ sung `ai/state` vào `docs/MQTT_PROTOCOL.md` và quyết định server/app có dùng dữ liệu này không (#13).
+8. [ ] Bổ sung `ai/state` vào `docs/reference/MQTT_PROTOCOL.md` và quyết định server/app có dùng dữ liệu này không (#13).
 9. [ ] Chạy checklist benchmark trên board thật ([README.md](README.md) mục 8): RAM, flash, thời gian suy luận, kích thước tensor arena.

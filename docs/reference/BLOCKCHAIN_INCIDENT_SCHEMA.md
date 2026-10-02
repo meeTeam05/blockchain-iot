@@ -195,7 +195,7 @@ chối timestamp ở tương lai quá 10 phút; incident hợp lệ đến muộ
 ACK là JSON QoS 1 với các field `schema_version`, `incident_id`,
 `evidence_hash`, `accepted`, `error_code` (chuỗi rỗng khi accepted) và
 `received_at` (chuỗi uint64 Unix giây). Mã lỗi và thứ tự xử lý: xem
-`docs/MQTT_PROTOCOL.md` mục 3.8 và 4.4. Delivery có thể đến lệch thứ tự:
+`docs/reference/MQTT_PROTOCOL.md` mục 3.8 và 4.4. Delivery có thể đến lệch thứ tự:
 backend nhận mọi sequence hợp lệ chưa dùng, nhưng cùng `(device_id, sequence)`
 không được đại diện cho hai incident khác nhau. Retry nguyên bytes của một
 incident đã được lưu luôn nhận ACK thành công. `accepted:true` chỉ
