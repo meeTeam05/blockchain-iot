@@ -51,7 +51,12 @@ export function DeviceCard({ device, chainDevice, connectedAddress }: DeviceCard
         )}
 
         {device.open_incident_count !== undefined ? (
-          <p className="text-[13px] text-ink-2">{device.open_incident_count} sự cố đang mở</p>
+          <div>
+            <Pill
+              tone={device.open_incident_count > 0 ? 'danger' : 'offline'}
+              label={`${device.open_incident_count} sự cố đang mở`}
+            />
+          </div>
         ) : null}
       </Card>
     </Link>
