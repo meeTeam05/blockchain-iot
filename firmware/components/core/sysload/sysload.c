@@ -35,6 +35,10 @@
 #include "relay.h"
 #include "device_mode.h"
 #include "display_service.h"
+#include "incident.h"
+#if CONFIG_SA_INCIDENT_SIGNER_PROVISION_BENCH
+#include "incident_signer_provision_bench.h"
+#endif
 
 #include "cJSON.h"
 
@@ -48,6 +52,9 @@
 #include "sysload.h"
 
 static const char *TAG = "sysload";
+#if SA_INCIDENT_OFFLINE_BENCH
+static const char *INC_BENCH_TAG = "INC_BENCH";
+#endif
 static const uint32_t MIN_VALID_UNIX_TS = 946684800UL;
 static const char *const SHADOW_SYNC_RELAY_KEYS[] = {"relay_1", "relay_2", "relay_3"};
 
@@ -58,6 +65,12 @@ static const char *const SHADOW_SYNC_RELAY_KEYS[] = {"relay_1", "relay_2", "rela
 #define CALIBRATION_TASK_STACK_SIZE        4096
 #define CALIBRATION_TASK_PRIORITY          3
 #define CALIBRATION_TASK_NAME              "calibration_task"
+
+#if SA_INCIDENT_OFFLINE_BENCH
+#define NETWORK_ONLY_UNUSED __attribute__((unused))
+#else
+#define NETWORK_ONLY_UNUSED
+#endif
 
 RTC_DATA_ATTR static uint32_t s_boot_failure_count = 0;
 
@@ -193,7 +206,23 @@ static void ensure_system_clock_seeded(bool rtc_ready)
     sync_system_clock(build_time_fallback_ts(), "build time");
 }
 
-static void sync_time_from_sntp_stage(bool rtc_ready)
+static bool establish_rtc_incident_time_source(bool rtc_ready)
+{
+#if SA_ENABLE_DS3231
+    if (rtc_ready) {
+        uint32_t rtc_ts = 0;
+        if (ds3231_get_timestamp(&s_ds3231_dev, &rtc_ts) == ESP_OK && rtc_ts >= MIN_VALID_UNIX_TS) {
+            incident_set_time_source(INCIDENT_TIME_DS3231);
+            return true;
+        }
+    }
+#else
+    (void)rtc_ready;
+#endif
+    return false;
+}
+
+static void NETWORK_ONLY_UNUSED sync_time_from_sntp_stage(bool rtc_ready)
 {
     esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG(CONFIG_SA_SNTP_SERVER);
     config.start = false;
@@ -234,6 +263,7 @@ static void sync_time_from_sntp_stage(bool rtc_ready)
 
     uint32_t ts = (uint32_t)now;
     sync_system_clock(ts, "sntp");
+    incident_set_time_source(INCIDENT_TIME_SNTP);
 
 #if SA_ENABLE_DS3231
     if (rtc_ready) {
@@ -452,7 +482,7 @@ static void shadow_sync_log_unknown_keys(cJSON *patch)
     }
 }
 
-static esp_err_t handle_shadow_get_response(const char *json_payload)
+static esp_err_t NETWORK_ONLY_UNUSED handle_shadow_get_response(const char *json_payload)
 {
     if (json_payload == NULL) {
         ESP_LOGW(TAG, "shadow/get_response: missing payload");
@@ -613,7 +643,7 @@ static esp_err_t handle_relay_set(const char *type, const char *json_payload)
 #endif
 
 #if SA_ENABLE_AI
-static esp_err_t handle_ai_set(const char *type, const char *json_payload)
+static esp_err_t NETWORK_ONLY_UNUSED handle_ai_set(const char *type, const char *json_payload)
 {
     (void)type;
 
@@ -750,8 +780,14 @@ static void init_nvs_stage(void)
 {
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+#if SA_ENABLE_BLOCKCHAIN_INCIDENT
+        ESP_LOGE(TAG,
+                 "encrypted default NVS requires destructive recovery (%s); refusing automatic erase to preserve signer and incidents",
+                 esp_err_to_name(err));
+#else
         ESP_ERROR_CHECK(nvs_flash_erase());
         err = nvs_flash_init();
+#endif
     }
     if (err != ESP_OK) {
         reboot_after_boot_error("nvs_flash_init", err);
@@ -759,15 +795,19 @@ static void init_nvs_stage(void)
 
     err = nvs_flash_init_partition(SA_NVS_CALIB_PARTITION);
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+#if SA_INCIDENT_OFFLINE_BENCH
+        ESP_LOGE(INC_BENCH_TAG, "calibration NVS init requires erase; refusing automatic erase");
+#else
         ESP_ERROR_CHECK(nvs_flash_erase_partition(SA_NVS_CALIB_PARTITION));
         err = nvs_flash_init_partition(SA_NVS_CALIB_PARTITION);
+#endif
     }
     if (err != ESP_OK) {
         reboot_after_boot_error("nvs_flash_init_partition(calib)", err);
     }
 }
 
-static void init_network_stack_stage(void)
+static void NETWORK_ONLY_UNUSED init_network_stack_stage(void)
 {
     esp_err_t err = esp_netif_init();
     if (err != ESP_OK) {
@@ -801,7 +841,7 @@ static void init_i2c_bus_stage(void)
 #endif
 }
 
-static void init_wifi_stage(void)
+static void NETWORK_ONLY_UNUSED init_wifi_stage(void)
 {
     esp_err_t err = wifi_sta_init();
     if (err != ESP_OK) {
@@ -809,7 +849,7 @@ static void init_wifi_stage(void)
     }
 }
 
-static void run_ble_provisioning_stage(void)
+static void NETWORK_ONLY_UNUSED run_ble_provisioning_stage(void)
 {
     if (ble_prov_is_provisioned()) {
         return;
@@ -826,7 +866,7 @@ static void run_ble_provisioning_stage(void)
     }
 }
 
-static void load_wifi_credentials_stage(char *ssid, size_t ssid_len, char *password, size_t password_len)
+static void NETWORK_ONLY_UNUSED load_wifi_credentials_stage(char *ssid, size_t ssid_len, char *password, size_t password_len)
 {
     esp_err_t err = ble_prov_load_credentials(ssid, ssid_len, password, password_len);
     if (err != ESP_OK) {
@@ -834,7 +874,7 @@ static void load_wifi_credentials_stage(char *ssid, size_t ssid_len, char *passw
     }
 }
 
-static void connect_wifi_stage(const char *ssid, const char *password)
+static void NETWORK_ONLY_UNUSED connect_wifi_stage(const char *ssid, const char *password)
 {
     display_service_set_boot_phase(DISPLAY_BOOT_PHASE_WIFI);
 
@@ -858,7 +898,7 @@ static void connect_wifi_stage(const char *ssid, const char *password)
     led_set_state(LED_STATE_WIFI);
 }
 
-static void load_runtime_config_stage(char *broker_uri,
+static void NETWORK_ONLY_UNUSED load_runtime_config_stage(char *broker_uri,
                                       size_t broker_uri_len,
                                       char *resolved_id,
                                       size_t resolved_id_len,
@@ -876,7 +916,7 @@ static void load_runtime_config_stage(char *broker_uri,
     }
 }
 
-static void start_http_server_stage(const char *resolved_id)
+static void NETWORK_ONLY_UNUSED start_http_server_stage(const char *resolved_id)
 {
     char ip_str[16] = {0};
     wifi_sta_get_ip(ip_str, sizeof(ip_str));
@@ -906,13 +946,29 @@ static void init_runtime_control_stage(const char *resolved_id)
         reboot_after_boot_error("device_mode_init", err);
     }
 
+    err = incident_init(resolved_id);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "incident_init failed: %s; continuing without incidents", esp_err_to_name(err));
+    }
+
+#if CONFIG_SA_INCIDENT_SIGNER_PROVISION_BENCH
+    err = incident_signer_provision_bench_start();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "signer provisioning bench start failed: %s", esp_err_to_name(err));
+    }
+#endif
+
 #if SA_ENABLE_RELAYS
     register_command_handler_or_reboot("relay_set", handle_relay_set);
 #endif
     register_command_handler_or_reboot("device_mode", handle_device_mode);
+#if SA_ENABLE_BLOCKCHAIN_INCIDENT
+    /* Backend signer lifecycle sends the sequence floor after on-chain registration. */
+    register_command_handler_or_reboot("signer_activate", incident_handle_signer_activate);
+#endif
 }
 
-static void start_mqtt_stage(const char *broker_uri, const char *resolved_id, const char *secret_key)
+static void NETWORK_ONLY_UNUSED start_mqtt_stage(const char *broker_uri, const char *resolved_id, const char *secret_key)
 {
     display_service_set_boot_phase(DISPLAY_BOOT_PHASE_MQTT);
 
@@ -922,7 +978,7 @@ static void start_mqtt_stage(const char *broker_uri, const char *resolved_id, co
     }
 }
 
-static void start_ota_stage(const char *resolved_id)
+static void NETWORK_ONLY_UNUSED start_ota_stage(const char *resolved_id)
 {
     esp_err_t err = ota_task_start(resolved_id);
     if (err != ESP_OK) {
@@ -933,19 +989,20 @@ static void start_ota_stage(const char *resolved_id)
 /* Time sync callback (app -> MQTT -> DS3231) */
 
 #if SA_ENABLE_DS3231
-static void on_time_sync(uint32_t ts)
+static void NETWORK_ONLY_UNUSED on_time_sync(uint32_t ts)
 {
     sync_system_clock(ts, "set_time");
 
     esp_err_t err = ds3231_set_timestamp(&s_ds3231_dev, ts);
     if (err == ESP_OK) {
         ESP_LOGI(TAG, "DS3231 time updated: %lu", (unsigned long)ts);
+        incident_set_time_source(INCIDENT_TIME_DS3231);
     } else {
         ESP_LOGW(TAG, "DS3231 set_timestamp failed: %s", ds3231_err_to_name(err));
     }
 }
 #else
-static void on_time_sync(uint32_t ts)
+static void NETWORK_ONLY_UNUSED on_time_sync(uint32_t ts)
 {
     sync_system_clock(ts, "set_time");
     ESP_LOGI(TAG, "DS3231 disabled; set_time(%lu) acknowledged, system clock updated", (unsigned long)ts);
@@ -966,9 +1023,20 @@ void sysload_init(void)
 
     /* 1 - NVS init (required by Wi-Fi and BLE provisioning) */
     init_nvs_stage();
+#if SA_INCIDENT_OFFLINE_BENCH
+    ESP_LOGW(INC_BENCH_TAG, "mode enabled");
+    ESP_LOGI(INC_BENCH_TAG, "network provisioning bypassed");
+    ESP_LOGI(INC_BENCH_TAG,
+             "replay scenario=%d speed=%dx",
+             CONFIG_SA_AI_REPLAY_SCENARIO,
+             CONFIG_SA_AI_REPLAY_SPEED);
+    ESP_LOGI(INC_BENCH_TAG, "encrypted NVS ready");
+#endif
 
     /* 2 - Network stack (must precede wifi_sta_init) */
+#if !SA_INCIDENT_OFFLINE_BENCH
     init_network_stack_stage();
+#endif
 
     /* 3 - I2C bus (shared by SHT3x and DS3231, HW-01: 400 kHz) */
     /* Only init bus if at least one I2C device is enabled. Add to this guard
@@ -1050,6 +1118,17 @@ void sysload_init(void)
     }
 #endif
 
+    char resolved_id[18] = {0};
+
+#if SA_INCIDENT_OFFLINE_BENCH
+    /* Test-only local path: device identity still comes from the immutable
+     * STA MAC, but no credential, BLE, Wi-Fi, HTTP, MQTT, or OTA dependency
+     * is introduced before the production incident and replay tasks start. */
+    esp_err_t device_id_err = config_get_device_id(resolved_id, sizeof(resolved_id));
+    if (device_id_err != ESP_OK) {
+        reboot_after_boot_error("config_get_device_id", device_id_err);
+    }
+#else
     /* 6 - Wi-Fi station (no connect yet) */
     init_wifi_stage();
 
@@ -1064,43 +1143,74 @@ void sysload_init(void)
 
     /* 9 - Resolve immutable device ID and runtime config */
     char broker_uri[128] = {0};
-    char resolved_id[18] = {0};
     char secret_key[64] = {0};
     load_runtime_config_stage(
         broker_uri, sizeof(broker_uri), resolved_id, sizeof(resolved_id), secret_key, sizeof(secret_key));
 
     /* 9.1 - Local provisioning HTTP API (must exist before first MQTT login) */
     start_http_server_stage(resolved_id);
+#endif
 
 #if SA_ENABLE_DS3231
     ensure_system_clock_seeded(rtc_err == ESP_OK);
+#if SA_INCIDENT_OFFLINE_BENCH
+    bool rtc_incident_time_valid = establish_rtc_incident_time_source(rtc_err == ESP_OK);
+#else
+    (void)establish_rtc_incident_time_source(rtc_err == ESP_OK);
     sync_time_from_sntp_stage(rtc_err == ESP_OK);
+#endif
 #else
     ensure_system_clock_seeded(false);
+#if !SA_INCIDENT_OFFLINE_BENCH
     sync_time_from_sntp_stage(false);
+#endif
+#if SA_INCIDENT_OFFLINE_BENCH
+    bool rtc_incident_time_valid = false;
+#endif
 #endif
     configure_local_timezone();
 
+#if SA_INCIDENT_OFFLINE_BENCH
+    if (rtc_incident_time_valid) {
+        ESP_LOGI(INC_BENCH_TAG, "time source=DS3231");
+    } else {
+        ESP_LOGW(INC_BENCH_TAG, "no valid incident time source; signing cannot proceed");
+    }
+#else
     if (secret_key[0] == '\0') {
         display_service_set_boot_phase(DISPLAY_BOOT_PHASE_WAITING_CONFIG);
         ESP_LOGW(TAG, "MQTT secret_key not provisioned yet; waiting for local POST /api/config");
         s_boot_failure_count = 0;
         vTaskDelete(NULL);
     }
+#endif
 
     /* 9.2 - Runtime control bootstrap (buzzer -> relay -> mode -> MQTT handlers) */
     init_runtime_control_stage(resolved_id);
 
+#if SA_INCIDENT_OFFLINE_BENCH
+    char signer_address[43] = {0};
+    esp_err_t signer_err = incident_get_signer_address(signer_address);
+    ESP_LOGI(INC_BENCH_TAG, "signer available=%s", signer_err == ESP_OK ? "yes" : "no");
+    if (signer_err == ESP_OK) {
+        ESP_LOGI(INC_BENCH_TAG, "signer address=%s", signer_address);
+    } else {
+        ESP_LOGW(INC_BENCH_TAG, "production signer unavailable; replay and local alarm will continue");
+    }
+    ESP_LOGW(INC_BENCH_TAG, "MQTT unavailable/offline; queued records retained");
+#else
     /* 9.3 - Register time sync callback before mqtt_start to avoid race:
      *        broker may deliver a queued set_time command immediately on connect */
     mqtt_register_time_sync_cb(on_time_sync);
     mqtt_register_shadow_sync_cb(handle_shadow_get_response);
+    mqtt_register_incident_ack_cb(incident_handle_ack);
 
     /* 9.4 - Start MQTT */
     start_mqtt_stage(broker_uri, resolved_id, secret_key);
 
     /* 9.5 - OTA task */
     start_ota_stage(resolved_id);
+#endif
 
     /* 10 - Sensor polling task (publishes telemetry every SA_SENSOR_POLLING_INTERVAL ms) */
 #if SA_DEMO_NO_PERIPHERALS
@@ -1153,7 +1263,9 @@ void sysload_init(void)
         ESP_LOGW(TAG, "ai_start failed: %s; continuing without on-device AI", esp_err_to_name(ai_err));
     }
 #if SA_ENABLE_AI
+#if !SA_INCIDENT_OFFLINE_BENCH
     register_command_handler_or_reboot("ai_set", handle_ai_set);
+#endif
 #endif
 
     /* 11 - Validate OTA firmware after all subsystems are running (SEC-03) */

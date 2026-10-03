@@ -79,7 +79,7 @@ async function upsertUserRules(username, rules, requestId = null) {
     }
 }
 
-function deviceRules(deviceId) {
+export function deviceRules(deviceId) {
     return [
         { topic: `device/${deviceId}/status`, action: 'publish', permission: 'allow' },
         { topic: `device/${deviceId}/telemetry`, action: 'publish', permission: 'allow' },
@@ -88,13 +88,15 @@ function deviceRules(deviceId) {
         { topic: `device/${deviceId}/shadow/get`, action: 'publish', permission: 'allow' },
         { topic: `device/${deviceId}/ota/progress`, action: 'publish', permission: 'allow' },
         { topic: `device/${deviceId}/ai/state`, action: 'publish', permission: 'allow' },
+        { topic: `device/${deviceId}/incident`, action: 'publish', permission: 'allow' },
         { topic: `device/${deviceId}/command`, action: 'subscribe', permission: 'allow' },
         { topic: `device/${deviceId}/shadow/get_response`, action: 'subscribe', permission: 'allow' },
         { topic: `device/${deviceId}/ota/update`, action: 'subscribe', permission: 'allow' },
+        { topic: `device/${deviceId}/incident/ack`, action: 'subscribe', permission: 'allow' },
     ];
 }
 
-function bridgeRules() {
+export function bridgeRules() {
     return [
         { topic: 'device/+/status', action: 'subscribe', permission: 'allow' },
         { topic: 'device/+/telemetry', action: 'subscribe', permission: 'allow' },
@@ -102,10 +104,21 @@ function bridgeRules() {
         { topic: 'device/+/shadow/report', action: 'subscribe', permission: 'allow' },
         { topic: 'device/+/shadow/get', action: 'subscribe', permission: 'allow' },
         { topic: 'device/+/ota/progress', action: 'subscribe', permission: 'allow' },
+        { topic: 'device/+/incident', action: 'subscribe', permission: 'allow' },
         { topic: 'device/+/command', action: 'publish', permission: 'allow' },
         { topic: 'device/+/shadow/get_response', action: 'publish', permission: 'allow' },
         { topic: 'device/+/ota/update', action: 'publish', permission: 'allow' },
+        { topic: 'device/+/incident/ack', action: 'publish', permission: 'allow' },
     ];
+}
+
+export async function refreshDeviceAuthorizations(deviceIds, requestId = null) {
+    for (const deviceId of deviceIds) {
+        await upsertUserRules(deviceId, deviceRules(deviceId), requestId);
+    }
+    if (deviceIds.length > 0) {
+        await clearAuthorizationCache(requestId);
+    }
 }
 
 export async function ensureBridgeUser() {
@@ -153,6 +166,16 @@ export async function createDeviceUser(deviceId, secretKey, logger = null, reque
     }
 
     return { userCreated };
+}
+
+// Rewrites the ACL of an already-registered device to the current deviceRules().
+// Needed after new device topics are added: EMQX disconnects on denied publish.
+export async function syncDeviceRules(deviceId, requestId = null) {
+    await upsertUserRules(deviceId, deviceRules(deviceId), requestId);
+}
+
+export async function clearEmqxAuthorizationCache(requestId = null) {
+    await clearAuthorizationCache(requestId);
 }
 
 export async function deleteDeviceUser(deviceId) {

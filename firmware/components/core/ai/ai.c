@@ -13,6 +13,7 @@
  */
 
 #include "ai.h"
+#include "ai_alarm_dispatch.h"
 
 #include "config.h"
 #include "esp_log.h"
@@ -23,10 +24,10 @@ static const char *TAG = "ai";
 
 #if SA_ENABLE_AI
 
-#include "buzzer.h"
 #include "cJSON.h"
 #include "esp_timer.h"
 #include "gas_ews_model.h"
+#include "incident.h"
 #include "mqtt.h"
 
 #include <math.h>
@@ -168,26 +169,6 @@ static uint32_t s_infer_runs = 0;
 static int64_t s_infer_sum_us = 0;
 static int64_t s_infer_max_us = 0;
 
-/* Early warning: three long beeps. Limit exceeded: four very long beeps.
- * Both fit the buzzer queue depth (8 steps) and differ from the relay /
- * device_mode confirmation beeps. */
-static const buzzer_pattern_step_t kEarlyPattern[] = {
-    {.enabled = true, .duration_ms = 400},
-    {.enabled = false, .duration_ms = 120},
-    {.enabled = true, .duration_ms = 400},
-    {.enabled = false, .duration_ms = 120},
-    {.enabled = true, .duration_ms = 400},
-};
-static const buzzer_pattern_step_t kExceededPattern[] = {
-    {.enabled = true, .duration_ms = 800},
-    {.enabled = false, .duration_ms = 150},
-    {.enabled = true, .duration_ms = 800},
-    {.enabled = false, .duration_ms = 150},
-    {.enabled = true, .duration_ms = 800},
-    {.enabled = false, .duration_ms = 150},
-    {.enabled = true, .duration_ms = 800},
-};
-
 static int64_t now_ms(void)
 {
     return esp_timer_get_time() / 1000;
@@ -245,6 +226,45 @@ static void publish_ai_state(void)
     }
     cJSON_Delete(root);
     s_last_publish_ms = now_ms();
+}
+
+/* Convert the single status copy taken after gas_ews_set_model_result().
+ * Invalid raw values are zeroed rather than borrowing forward-filled values;
+ * derived/model values carry their own validity masks as Schema v2 requires. */
+static incident_snapshot_t incident_snapshot_from_status(const gas_ews_status_t *st, gas_ews_level_t overall)
+{
+    incident_snapshot_t x = {.warmup = st->warmup, .sensor_valid_mask = st->sensor_valid_mask, .overall_level = (uint8_t)overall,
+                             .co_level = (uint8_t)st->level[GAS_EWS_CO], .no2_level = (uint8_t)st->level[GAS_EWS_NO2]};
+    if ((x.sensor_valid_mask & 1u) != 0 && isfinite(st->temperature_c)) x.temperature_c_x100 = (int32_t)lroundf(st->temperature_c * 100.0f);
+    else x.sensor_valid_mask &= (uint8_t)~1u;
+    if ((x.sensor_valid_mask & 2u) != 0 && isfinite(st->humidity_pct) && st->humidity_pct >= 0.0f && st->humidity_pct <= 100.0f) x.humidity_pct_x100 = (uint16_t)lroundf(st->humidity_pct * 100.0f);
+    else x.sensor_valid_mask &= (uint8_t)~2u;
+    if ((x.sensor_valid_mask & 4u) != 0 && isfinite(st->ppm[GAS_EWS_CO])) x.co_ppm_x1000 = (uint32_t)lroundf(st->ppm[GAS_EWS_CO] * 1000.0f);
+    else x.sensor_valid_mask &= (uint8_t)~4u;
+    if ((x.sensor_valid_mask & 8u) != 0 && isfinite(st->ppm[GAS_EWS_NO2])) x.no2_ppm_x1000 = (uint32_t)lroundf(st->ppm[GAS_EWS_NO2] * 1000.0f);
+    else x.sensor_valid_mask &= (uint8_t)~8u;
+    const float *d[] = {st->stel, st->stel, st->twa, st->twa, st->proj, st->proj};
+    uint32_t *out[] = {&x.co_stel15_ppm_x1000,&x.no2_stel15_ppm_x1000,&x.co_twa8h_ppm_x1000,&x.no2_twa8h_ppm_x1000,&x.co_proj10_ppm_x1000,&x.no2_proj10_ppm_x1000};
+    for (int i=0;i<6;i++) { int g=i&1; if (isfinite(d[i][g]) && d[i][g] >= 0.0f) { *out[i]=(uint32_t)lroundf(d[i][g]*1000.0f); x.derived_valid_mask|=(uint8_t)(1u<<i); } }
+    for (int g=0;g<GAS_EWS_NUM_GASES;g++) {
+        uint8_t sources=(st->rule_alarm[g]?1u:0u)|(st->proj_alarm[g]?2u:0u)|(st->model_alarm[g]?4u:0u);
+        if (g==GAS_EWS_CO) x.co_alarm_source_mask=sources; else x.no2_alarm_source_mask=sources;
+        if (isfinite(st->p_model[g]) && st->p_model[g] >= 0.0f && st->p_model[g] <= 1.0f) {
+            uint16_t p=(uint16_t)lroundf(st->p_model[g]*10000.0f); x.model_probability_valid_mask|=(uint8_t)(1u<<g);
+            if(g==GAS_EWS_CO)x.co_model_probability_bps=p;else x.no2_model_probability_bps=p;
+        }
+    }
+    if (gas_ews_model_sha256(x.model_sha256) != ESP_OK) {
+        memset(x.model_sha256, 0, sizeof(x.model_sha256));
+    }
+    if (config_get_gas_calibration_snapshot(&x.co_r0_q10000,
+                                            &x.no2_r0_q10000,
+                                            &x.calibration_revision) != ESP_OK) {
+        x.co_r0_q10000 = 0;
+        x.no2_r0_q10000 = 0;
+        x.calibration_revision = 0;
+    }
+    return x;
 }
 
 /* Mirrors relay.c's relay_publish_delta(); "mode" is hardcoded since the
@@ -359,11 +379,8 @@ static void ai_handle_step(bool just_enabled)
     last_warmup = s_status.warmup;
 
     if (s_level > prev) {
-        if (s_level == GAS_EWS_EXCEEDED) {
-            buzzer_beep_pattern(kExceededPattern, sizeof(kExceededPattern) / sizeof(kExceededPattern[0]));
-        } else {
-            buzzer_beep_pattern(kEarlyPattern, sizeof(kEarlyPattern) / sizeof(kEarlyPattern[0]));
-        }
+        incident_snapshot_t incident_snapshot = incident_snapshot_from_status(&s_status, s_level);
+        ai_alarm_dispatch((uint8_t)prev, (uint8_t)s_level, &incident_snapshot);
     }
     if (changed || now_ms() - s_last_publish_ms >= AI_STATE_PERIOD_MS) {
         publish_ai_state();

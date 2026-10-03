@@ -17,7 +17,8 @@ export function registerCommandTimeoutJob(fastify, options = {}) {
                 `UPDATE commands
                  SET status = 'timeout', executed_at = NOW()
                  WHERE (status = 'sent'    AND sent_at IS NOT NULL AND sent_at < NOW() - ($1 * INTERVAL '1 second'))
-                    OR (status = 'pending' AND created_at < NOW() - ($2 * INTERVAL '1 second'))
+                    OR (status = 'pending' AND created_at < NOW() - ($2 * INTERVAL '1 second')
+                        AND payload->>'type' IS DISTINCT FROM 'signer_activate')
                  RETURNING id, device_id, payload`,
                 [timeoutSeconds, pendingTimeoutSeconds]
             );

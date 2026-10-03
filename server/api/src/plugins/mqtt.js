@@ -8,17 +8,19 @@ import {
     handleShadowGet,
     handleOtaProgress,
 } from '../services/mqtt-handlers.js';
+import { handleIncident, publishIncidentAck } from '../services/incident-intake.js';
 import { normalizeDeviceId } from '../utils/device-id.js';
-import { ensureBridgeUser } from '../services/emqx.js';
+import { ensureBridgeUser, refreshDeviceAuthorizations } from '../services/emqx.js';
 import { config } from '../config.js';
 
-const SUBSCRIPTIONS = Object.freeze([
+export const SUBSCRIPTIONS = Object.freeze([
     'device/+/status',
     'device/+/telemetry',
     'device/+/response',
     'device/+/shadow/report',
     'device/+/shadow/get',
     'device/+/ota/progress',
+    'device/+/incident',
 ]);
 
 export function waitForMqttClientEnd(client) {
@@ -29,6 +31,16 @@ export function waitForMqttClientEnd(client) {
             reject(err);
         }
     });
+}
+
+export async function refreshProvisionedDeviceAuthorizations(fastify) {
+    const { rows } = await fastify.db.query('SELECT id FROM devices ORDER BY id');
+    const deviceIds = rows.map((row) => row.id);
+    await refreshDeviceAuthorizations(deviceIds);
+    fastify.log.info(
+        { deviceCount: deviceIds.length },
+        'EMQX authorization refreshed for provisioned devices'
+    );
 }
 
 async function mqttPlugin(fastify) {
@@ -92,6 +104,7 @@ async function mqttPlugin(fastify) {
         while (!closed) {
             try {
                 await ensureBridgeUser();
+                await refreshProvisionedDeviceAuthorizations(fastify);
                 if (!closed && !connectingStarted) {
                     connectingStarted = true;
                     client.connect();
@@ -132,11 +145,13 @@ async function mqttPlugin(fastify) {
     client.on('disconnect', setNotReady);
     client.on('error', (err) => fastify.log.error({ err }, 'MQTT bridge error'));
 
+    // Returns work to run after the inbound packet is acked (e.g. publishes that wait for PUBACK).
     async function handleInboundMessage(topic, buf, packet = null) {
+        const afterAck = [];
         const parts = topic.split('/');
         const deviceId = normalizeDeviceId(parts[1]);
         if (!deviceId) {
-            return;
+            return afterAck;
         }
 
         let payload;
@@ -144,7 +159,7 @@ async function mqttPlugin(fastify) {
             payload = JSON.parse(buf.toString());
         } catch {
             fastify.log.warn({ topic }, 'MQTT payload is not valid JSON');
-            return;
+            return afterAck;
         }
 
         let handled = true;
@@ -161,6 +176,11 @@ async function mqttPlugin(fastify) {
             await handleShadowGet(fastify, deviceId, payload);
         } else if (parts[2] === 'ota' && parts[3] === 'progress') {
             await handleOtaProgress(fastify, deviceId, payload);
+        } else if (parts[2] === 'incident' && parts.length === 3) {
+            const result = await handleIncident(fastify, deviceId, payload, buf);
+            if (result.ack) {
+                afterAck.push(() => publishIncidentAck(fastify, deviceId, result.ack));
+            }
         } else {
             handled = false;
         }
@@ -168,16 +188,22 @@ async function mqttPlugin(fastify) {
         if (!handled) {
             fastify.log.warn({ topic }, 'MQTT message topic not handled');
         }
+        return afterAck;
     }
 
     client.handleMessage = async (packet, callback) => {
         const topic = packet.topic;
+        let afterAck;
         try {
-            await handleInboundMessage(topic, packet.payload, packet);
+            afterAck = await handleInboundMessage(topic, packet.payload, packet);
             callback();
         } catch (err) {
             fastify.log.error({ err, topic }, 'MQTT message handler error; message left unacked for redelivery');
             // With manualAcks=true, not calling callback keeps the QoS1 message unacked.
+            return;
+        }
+        for (const task of afterAck) {
+            task().catch((err) => fastify.log.warn({ err, topic }, 'post-ack MQTT publish failed'));
         }
     };
 

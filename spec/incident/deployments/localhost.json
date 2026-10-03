@@ -1,0 +1,14 @@
+{
+  "network": "localhost",
+  "chainId": "11155111",
+  "domain": {
+    "name": "AirSafetyLog",
+    "version": "1"
+  },
+  "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+  "domainSeparator": "0x3696d3186087b7d951859d495019cfe08620f9b7b134ed4a7678f80312879bc2",
+  "legacyAddresses": [],
+  "deployTxHash": "0xda502d56c24f5ef7a61359998c1c2df48fd6ed5bb86877006057489e9fa7c3d9",
+  "blockNumber": 1,
+  "schemaVersion": 2
+}

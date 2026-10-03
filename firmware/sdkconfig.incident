@@ -1,0 +1,21 @@
+# Explicit opt-in profile for Schema v2 incident firmware on ESP32-S3.
+#
+# This file contains no signer material. Provision the signer after flashing
+# only through the encrypted-NVS lifecycle API. HMAC key block 6 must be
+# provisioned according to the ESP-IDF NVS security-provider procedure before
+# production use; this profile never burns eFuses during a build.
+CONFIG_SA_ENABLE_AI=y
+CONFIG_SA_ENABLE_BLOCKCHAIN_INCIDENT=y
+CONFIG_SA_INCIDENT_QUEUE_CAPACITY=4
+# EIP-712 domain comes from spec/incident/deployments via incident_domain.h.
+CONFIG_SA_INCIDENT_ENV_SEPOLIA=y
+
+# NVS encryption is mandatory before incident signer provisioning is accepted.
+CONFIG_NVS_ENCRYPTION=y
+CONFIG_NVS_SEC_KEY_PROTECT_USING_HMAC=y
+# ESP-IDF 5.4's nvs_sec_provider accepts blocks 0..5 for this target.
+CONFIG_NVS_SEC_HMAC_EFUSE_KEY_ID=5
+
+# Incident signatures use deterministic secp256k1 ECDSA.
+CONFIG_MBEDTLS_ECDSA_DETERMINISTIC=y
+CONFIG_MBEDTLS_ECP_DP_SECP256K1_ENABLED=y

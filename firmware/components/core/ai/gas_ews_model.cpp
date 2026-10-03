@@ -19,6 +19,7 @@
 #include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "sdkconfig.h"
+#include "mbedtls/sha256.h"
 
 #include "tensorflow/lite/micro/micro_interpreter.h"
 #include "tensorflow/lite/micro/micro_mutable_op_resolver.h"
@@ -34,6 +35,17 @@ static const char *TAG = "gas_ews_model";
 
 /* EMBED_FILES "model/gas_ews_int8.tflite" -> symbols from the file BASENAME. */
 extern const uint8_t g_gas_ews_model_start[] asm("_binary_gas_ews_int8_tflite_start");
+extern const uint8_t g_gas_ews_model_end[] asm("_binary_gas_ews_int8_tflite_end");
+
+extern "C" esp_err_t gas_ews_model_sha256(uint8_t out[32])
+{
+    const uint8_t *start = g_gas_ews_model_start;
+    const uint8_t *end = g_gas_ews_model_end;
+    if (out == nullptr || end < start) return ESP_ERR_INVALID_ARG;
+    return mbedtls_sha256(start, static_cast<size_t>(end - start), out, 0) == 0
+               ? ESP_OK
+               : ESP_FAIL;
+}
 
 #ifndef CONFIG_SA_AI_TENSOR_ARENA_SIZE
 #define CONFIG_SA_AI_TENSOR_ARENA_SIZE (16 * 1024)

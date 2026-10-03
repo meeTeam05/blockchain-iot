@@ -1,0 +1,30 @@
+{
+  "name": "air-safety-log",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AirSafetyLog smart contract (Incident Schema v2) for Sepolia",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "export-abi": "node scripts/export-abi.js",
+    "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
+    "node": "hardhat node",
+    "deploy:localhost": "hardhat run scripts/deploy.js --network localhost",
+    "verify:sepolia": "hardhat run scripts/verify.js --network sepolia",
+    "roles:sepolia": "hardhat roles --network sepolia",
+    "coverage": "hardhat coverage && hardhat compile --force",
+    "deploy:incentives:localhost": "hardhat run scripts/deploy-incentives.js --network localhost",
+    "deploy:incentives:sepolia": "hardhat run scripts/deploy-incentives.js --network sepolia",
+    "fund:incentives:localhost": "hardhat run scripts/fund-incentives.js --network localhost",
+    "fund:incentives:sepolia": "hardhat run scripts/fund-incentives.js --network sepolia",
+    "verify:incentives:sepolia": "hardhat run scripts/verify-incentives.js --network sepolia"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "dotenv": "^16.6.1",
+    "hardhat": "^2.29.1"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.6.1"
+  }
+}

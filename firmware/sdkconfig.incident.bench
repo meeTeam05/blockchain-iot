@@ -1,0 +1,8 @@
+# Test-only overlay for physical offline incident verification.
+# Combine with: sdkconfig.defaults;sdkconfig.incident;sdkconfig.incident.bench
+# This profile contains no signer or NVS/HMAC key material.
+CONFIG_SA_AI_REPLAY=y
+CONFIG_SA_AI_REPLAY_SPEED=60
+CONFIG_SA_AI_REPLAY_SCENARIO=0
+CONFIG_SA_ENABLE_BUZZER=y
+CONFIG_SA_INCIDENT_OFFLINE_BENCH=y

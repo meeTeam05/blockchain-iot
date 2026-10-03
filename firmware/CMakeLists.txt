@@ -8,6 +8,7 @@ set(EXTRA_COMPONENT_DIRS
     components/core/display_service
     components/core/device_mode
     components/core/sensor_task
+    components/core/incident
     components/core/sysload
     components/general/ble_prov
     components/general/wifi

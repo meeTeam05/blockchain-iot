@@ -75,3 +75,28 @@ test('GET /devices safely normalizes relay shadow fields without ::bool casts', 
 
     await app.close();
 });
+
+test('GET /devices includes open_incident_count as a correlated subquery scoped to the device', async () => {
+    const app = Fastify({ logger: false });
+    let seenQuery = null;
+
+    app.decorate('authenticate', async (request) => {
+        request.user = { sub: 'user-1' };
+    });
+    app.decorate('db', {
+        async query(sql) {
+            seenQuery = sql;
+            return { rows: [{ id: 'aa:bb:cc:dd:ee:ff', name: 'Device 1', open_incident_count: 2 }], rowCount: 1 };
+        },
+    });
+
+    await app.register(devicesRoutes);
+
+    const res = await app.inject({ method: 'GET', url: '/devices' });
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.json()[0].open_incident_count, 2);
+    assert.match(seenQuery, /FROM incidents i\s*\n\s*WHERE i\.device_id = d\.id AND i\.owner_status = 'open'/);
+
+    await app.close();
+});

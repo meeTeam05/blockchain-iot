@@ -15,6 +15,9 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./emqx/certs:/etc/nginx/certs:ro # reuse EMQX self-signed cert
       - ./ota-files:/var/www/ota:ro # firmware binaries drop zone
+      # Deterministic Task 5 artifact: `cd ../web3 && npm run build`, then
+      # compose serves that exact dist tree without a manual copy step.
+      - ../web3/dist:/var/www/dapp:ro
     depends_on:
       api:     { condition: service_healthy }
     healthcheck:
@@ -74,6 +77,25 @@ services:
       retries: 3
       start_period: 20s
     mem_limit: 512m
+    logging: *default-logging
+    networks:
+      - sa-net
+
+  # Chain worker - relayer (logIncident), signer lifecycle ops and event indexer,
+  # plus the SafetyIncentives indexer + keeper when INCENTIVES_ENABLED=true (Task 7).
+  # Opt-in: `docker compose --profile chain up -d chain-worker` once CHAIN_RPC_URL,
+  # RELAYER_PRIVATE_KEY and DEVICE_MANAGER_PRIVATE_KEY are set. Run exactly one
+  # instance per database (it takes a Postgres advisory lock). Exit code 2 means a
+  # fatal chain condition (lost role, domain mismatch) that needs an operator.
+  chain-worker:
+    image: smart-air-api:local
+    container_name: sa-chain-worker
+    command: ["node", "src/worker.js"]
+    env_file: .env
+    depends_on:
+      api:      { condition: service_healthy }
+    profiles: ["chain"]
+    mem_limit: 256m
     logging: *default-logging
     networks:
       - sa-net

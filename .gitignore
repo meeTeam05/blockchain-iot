@@ -2,10 +2,13 @@
 firmware/build/
 firmware/build-demo/
 firmware/build-normal/
+firmware/build-*/
 firmware/**/build/
 firmware/**/compile_commands.json
 firmware/sdkconfig
 firmware/sdkconfig.old
+firmware/sdkconfig.*.generated
+firmware/components/core/incident/tools/logs/*.log
 firmware/tools/**/sdkconfig
 firmware/tools/**/sdkconfig.old
 firmware/managed_components/
@@ -45,6 +48,8 @@ firmware/**/nvs*.bin
 firmware/**/nvs*.csv
 server/ota-files/*
 !server/ota-files/.gitkeep
+server/dapp-files/*
+!server/dapp-files/.gitkeep
 
 # Python local caches
 __pycache__/

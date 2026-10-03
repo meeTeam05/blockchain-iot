@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-test('ensureBridgeUser provisions bridge publish access for OTA update topic', async () => {
+test('ensureBridgeUser provisions exact bridge OTA and incident access', async () => {
     const originalFetch = globalThis.fetch;
     let rulesPayload = null;
 
@@ -30,6 +30,15 @@ test('ensureBridgeUser provisions bridge publish access for OTA update topic', a
             bridgeRules.find((rule) => rule.topic === 'device/+/ota/update'),
             { topic: 'device/+/ota/update', action: 'publish', permission: 'allow' }
         );
+        assert.deepEqual(
+            bridgeRules.find((rule) => rule.topic === 'device/+/incident'),
+            { topic: 'device/+/incident', action: 'subscribe', permission: 'allow' }
+        );
+        assert.deepEqual(
+            bridgeRules.find((rule) => rule.topic === 'device/+/incident/ack'),
+            { topic: 'device/+/incident/ack', action: 'publish', permission: 'allow' }
+        );
+        assert.equal(bridgeRules.some((rule) => rule.topic === '#' || rule.topic === 'device/#'), false);
     } finally {
         globalThis.fetch = originalFetch;
     }

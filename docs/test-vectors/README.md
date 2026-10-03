@@ -10,6 +10,9 @@ Schema v2 là schema duy nhất và dùng hai vector bắt buộc:
 Các private key trong vector là khóa Hardhat công khai, chỉ dành cho test.
 Không dùng chúng trong firmware, backend, ví hoặc môi trường deploy.
 
-Mỗi implementation phải tính lại hash định danh, `calibration_hash` (SHA-256),
+`transport.calibration_canonical` trong vector chỉ là dữ liệu nguồn để chứng
+minh cách firmware tạo `calibration_hash`; nó không phải field MQTT Schema v2.
+Backend nhận `calibration_hash` bên trong signed evidence nên không thể tái tạo
+độc lập hash đó từ payload. Mỗi implementation phải tính lại hash định danh,
 `evidence_hash` (Keccak-256 ABI encoding), EIP-712 digest và signer. Test phải
 fail khi sửa một evidence field, attestation field, source mask hoặc valid mask.

@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Allow cleartext HTTP to local network IPs (Pi server on LAN).
-     HTTPS is still enforced for all other domains. -->
-<network-security-config>
-    <!-- Provisioning uses http://<device-ip>/api/config and the device IP is dynamic. -->
-    <base-config cleartextTrafficPermitted="true" />
-</network-security-config>

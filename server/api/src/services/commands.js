@@ -88,7 +88,8 @@ export async function flushPending(fastify, deviceId) {
             try {
                 const { rows } = await client.query(
                     `SELECT id, payload,
-                            created_at < NOW() - ($2 * INTERVAL '1 second') AS pending_expired
+                            (created_at < NOW() - ($2 * INTERVAL '1 second')
+                             AND payload->>'type' IS DISTINCT FROM 'signer_activate') AS pending_expired
                      FROM commands
                      WHERE device_id = $1 AND status = 'pending'
                      ORDER BY created_at ASC

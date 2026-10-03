@@ -21,6 +21,7 @@ idf_component_register(
         gm702b
         httpd
         i2c_bus
+        incident
         json
         led
         nvs_flash

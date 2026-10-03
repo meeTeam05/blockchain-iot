@@ -1,0 +1,3 @@
+# Explicit test-only overlay for the UART signer provisioning bench tool.
+# Contains no signer, NVS encryption key, HMAC secret, or eFuse operation.
+CONFIG_SA_INCIDENT_SIGNER_PROVISION_BENCH=y

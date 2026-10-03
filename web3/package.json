@@ -1,0 +1,47 @@
+{
+  "name": "web3",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "sync-abi": "node ../spec/incident/gen/gen-all.mjs",
+    "build": "tsc -b && vite build",
+    "test:deployment": "node scripts/test-dapp-deployment.mjs",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:incentives-e2e": "playwright test --config playwright.incentives.config.ts"
+  },
+  "dependencies": {
+    "@headlessui/react": "^2.2.10",
+    "@tanstack/react-query": "^5.104.0",
+    "lucide-react": "^1.49.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router": "^8.4.0",
+    "viem": "^2.57.2",
+    "wagmi": "^3.7.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "ethers": "^6.17.0",
+    "jsdom": "^30.1.1",
+    "mqtt": "^5.16.0",
+    "oxlint": "^1.81.0",
+    "pg": "^8.23.1",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~6.0.2",
+    "undici": "^8.11.2",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.3"
+  }
+}

@@ -1,5 +1,6 @@
 set(srcs
     "ai.c"
+    "ai_alarm_dispatch.c"
     "gas_ews.c"
 )
 set(embed_files "")
@@ -25,7 +26,9 @@ idf_component_register(
         esp_timer
         freertos
         heap
+        incident
         json
+        mbedtls
         sa_mqtt
     EMBED_FILES
         ${embed_files}

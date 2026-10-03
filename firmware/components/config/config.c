@@ -17,6 +17,7 @@
 #include "freertos/semphr.h"
 
 #include <ctype.h>
+#include <math.h>
 #include <string.h>
 
 static const char *TAG = "config";
@@ -29,7 +30,7 @@ static volatile bool s_factory_reset_in_progress = false;
 /* Private namespace / key constants */
 
 /* Device / MQTT namespace */
-#define NS_DEVICE      "device"     /* 6 chars, within the 15-char NVS limit */
+#define NS_DEVICE      SA_NVS_DEVICE_NAMESPACE
 #define KEY_DEVICE_ID  "device_id"  /* 9 chars */
 #define KEY_SECRET_KEY "secret_key" /* 10 chars */
 #define KEY_BROKER_URI "broker_uri" /* 10 chars */
@@ -38,6 +39,7 @@ static volatile bool s_factory_reset_in_progress = false;
 #define NS_GAS_CALIB "gas_calib"
 #define KEY_R0_CO    "r0_co"
 #define KEY_R0_NO2   "r0_no2"
+#define KEY_CALIB_REV "revision"
 
 static bool is_mac_format(const char *input);
 static bool copy_lowercase_mac(const char *input, char *out, size_t out_len);
@@ -158,6 +160,39 @@ void config_factory_reset_end(void)
     if (s_nvs_write_lock != NULL) {
         xSemaphoreGive(s_nvs_write_lock);
     }
+}
+
+static esp_err_t erase_namespace(const char *namespace_name)
+{
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(namespace_name, NVS_READWRITE, &h);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "factory reset open(%s) failed: %s", namespace_name, esp_err_to_name(err));
+        return err;
+    }
+
+    err = nvs_erase_all(h);
+    if (err == ESP_OK) {
+        err = nvs_commit(h);
+    }
+    nvs_close(h);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "factory reset erase(%s) failed: %s", namespace_name, esp_err_to_name(err));
+    }
+    return err;
+}
+
+esp_err_t config_factory_reset_erase_provisioning(void)
+{
+    if (!s_factory_reset_in_progress) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    esp_err_t err = erase_namespace(SA_NVS_WIFI_NAMESPACE);
+    if (err != ESP_OK) {
+        return err;
+    }
+    return erase_namespace(SA_NVS_DEVICE_NAMESPACE);
 }
 
 esp_err_t config_get_mqtt_creds(char *broker_uri_buf, size_t broker_uri_len, char *secret_key_buf, size_t secret_key_len)
@@ -424,7 +459,20 @@ esp_err_t config_save_gas_r0(const char *sensor_name, float r0)
         return err;
     }
 
+    uint32_t revision = 0;
+    if (nvs_get_u32(h, KEY_CALIB_REV, &revision) == ESP_ERR_NVS_NOT_FOUND) {
+        revision = 0; /* migration: existing R0-only records remain revision 0 until next save */
+    }
+    if (revision == UINT32_MAX) {
+        nvs_close(h);
+        config_nvs_write_end();
+        return ESP_ERR_INVALID_STATE;
+    }
+
     err = nvs_set_blob(h, key, &r0, sizeof(float));
+    if (err == ESP_OK) {
+        err = nvs_set_u32(h, KEY_CALIB_REV, revision + 1);
+    }
     if (err == ESP_OK) {
         err = nvs_commit(h);
     }
@@ -437,6 +485,58 @@ esp_err_t config_save_gas_r0(const char *sensor_name, float r0)
         ESP_LOGE(TAG, "save_gas_r0(%s): write failed: %s", sensor_name, esp_err_to_name(err));
     }
     return err;
+}
+
+esp_err_t config_get_gas_calibration_snapshot(int64_t *co_r0_q10000,
+                                              int64_t *no2_r0_q10000,
+                                              uint32_t *revision)
+{
+    if (co_r0_q10000 == NULL || no2_r0_q10000 == NULL || revision == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    *co_r0_q10000 = 0;
+    *no2_r0_q10000 = 0;
+    *revision = 0;
+
+    esp_err_t guard_err = config_nvs_read_begin();
+    if (guard_err != ESP_OK) {
+        return guard_err;
+    }
+    nvs_handle_t h;
+    esp_err_t err = nvs_open_from_partition(SA_NVS_CALIB_PARTITION, NS_GAS_CALIB, NVS_READONLY, &h);
+    if (err == ESP_ERR_NVS_NOT_FOUND) {
+        config_nvs_read_end();
+        return ESP_OK;
+    }
+    if (err != ESP_OK) {
+        config_nvs_read_end();
+        return err;
+    }
+
+    float co = 0.0f, no2 = 0.0f;
+    size_t co_len = sizeof(co), no2_len = sizeof(no2);
+    esp_err_t co_err = nvs_get_blob(h, KEY_R0_CO, &co, &co_len);
+    esp_err_t no2_err = nvs_get_blob(h, KEY_R0_NO2, &no2, &no2_len);
+    esp_err_t rev_err = nvs_get_u32(h, KEY_CALIB_REV, revision);
+    if (rev_err == ESP_ERR_NVS_NOT_FOUND) {
+        *revision = 0;
+    } else if (rev_err != ESP_OK) {
+        nvs_close(h);
+        config_nvs_read_end();
+        return rev_err;
+    }
+    nvs_close(h);
+    config_nvs_read_end();
+
+    if (co_err != ESP_OK && co_err != ESP_ERR_NVS_NOT_FOUND) return co_err;
+    if (no2_err != ESP_OK && no2_err != ESP_ERR_NVS_NOT_FOUND) return no2_err;
+    if (co_err == ESP_OK && co_len == sizeof(co) && isfinite(co) && co > 0.0f) {
+        *co_r0_q10000 = (int64_t)llround((double)co * 10000.0);
+    }
+    if (no2_err == ESP_OK && no2_len == sizeof(no2) && isfinite(no2) && no2 > 0.0f) {
+        *no2_r0_q10000 = (int64_t)llround((double)no2 * 10000.0);
+    }
+    return ESP_OK;
 }
 
 /* Self-test (enabled only when SA_CONFIG_SELF_TEST=y) */
