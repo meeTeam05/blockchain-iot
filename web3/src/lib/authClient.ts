@@ -151,3 +151,39 @@ export async function loginWithPassword(
   }
   return body as AuthSession
 }
+
+export interface RegisteredUser {
+  id: string
+  email: string
+  full_name: string | null
+  created_at: string
+}
+
+export async function registerUser(
+  baseUrl: string,
+  email: string,
+  password: string,
+  fullName?: string,
+  fetcher: typeof fetch = fetch,
+): Promise<RegisteredUser> {
+  const payload: { email: string; password: string; full_name?: string } = { email, password }
+  if (fullName && fullName.trim()) {
+    payload.full_name = fullName.trim()
+  }
+  const response = await fetcher(`${baseUrl}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  const body = await response.json().catch(() => null) as Partial<RegisteredUser> & { error?: string } | null
+  if (!response.ok) {
+    if (response.status === 409) {
+      throw new Error('Email này đã được đăng ký trong hệ thống')
+    }
+    throw new Error(body?.error ?? 'Đăng ký tài khoản thất bại')
+  }
+  if (!body || typeof body.id !== 'string') {
+    throw new Error('Phản hồi đăng ký không hợp lệ')
+  }
+  return body as RegisteredUser
+}

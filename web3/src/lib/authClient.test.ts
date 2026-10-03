@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   AuthRequester,
   loginWithPassword,
+  registerUser,
   type AuthSession,
 } from './authClient'
 
@@ -132,5 +133,47 @@ describe('AuthRequester', () => {
     expect((await state.client.request('/devices')).status).toBe(401)
     expect(fetcher).toHaveBeenCalledTimes(3)
     expect(state.clear).toHaveBeenCalledOnce()
+  })
+
+  it('registers a user successfully and returns user details', async () => {
+    const fetcher = vi.fn(async (_input, init) => {
+      expect(JSON.parse(String(init?.body))).toEqual({
+        email: 'newuser@example.com',
+        password: 'password-123',
+        full_name: 'Nguyen Van A',
+      })
+      return response(201, {
+        id: 'user-new',
+        email: 'newuser@example.com',
+        full_name: 'Nguyen Van A',
+        created_at: '2026-10-04T00:00:00Z',
+      })
+    }) as typeof fetch
+
+    const result = await registerUser(
+      'https://api.example.test/api',
+      'newuser@example.com',
+      'password-123',
+      'Nguyen Van A',
+      fetcher,
+    )
+    expect(result.id).toBe('user-new')
+    expect(result.email).toBe('newuser@example.com')
+  })
+
+  it('rejects duplicate email with 409 friendly message', async () => {
+    const fetcher = vi.fn(async () =>
+      response(409, { error: 'Email already registered' }),
+    ) as typeof fetch
+
+    await expect(
+      registerUser(
+        'https://api.example.test/api',
+        'existing@example.com',
+        'password-123',
+        undefined,
+        fetcher,
+      ),
+    ).rejects.toThrow('Email này đã được đăng ký trong hệ thống')
   })
 })
