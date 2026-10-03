@@ -36,7 +36,7 @@ async function ownerAction(page: Page, label: string) {
 test('one day through the real UI: approve/stake, R1/R2, P1, manual P2, daily cap and cooldown', async ({ page }) => {
   await page.goto('/dapp/wallet')
   await page.getByLabel('Email').fill('task8@local.test')
-  await page.getByLabel('Mật khẩu').fill('local-fixture-password')
+  await page.getByLabel('Mật khẩu', { exact: true }).fill('local-fixture-password')
   await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click()
   await wallet(page, '0x90f7')
   await expect(page.getByTestId('token-balance')).toContainText('100 ASAFE')
@@ -48,9 +48,9 @@ test('one day through the real UI: approve/stake, R1/R2, P1, manual P2, daily ca
 
   await incident(page, 1)
   await expect(page.getByTestId('ack-countdown')).toContainText('Hạn acknowledge:')
-  await ownerAction(page, 'Xác nhận')
+  await ownerAction(page, 'Xác nhận đã biết')
   await expect(page.getByText('Chain: đã thưởng ack', { exact: true })).toBeVisible()
-  await ownerAction(page, 'Đã xử lý')
+  await ownerAction(page, 'Đánh dấu đã xử lý')
   await expect(page.getByText('Chain: resolve đã settlement (thưởng hoặc skipped)', { exact: true })).toBeVisible()
 
   const second = await incident(page, 2, { danger: true })
@@ -64,7 +64,7 @@ test('one day through the real UI: approve/stake, R1/R2, P1, manual P2, daily ca
   await expect(page.getByRole('button', { name: 'Phạt missed ack', exact: true })).toHaveCount(0)
   await page.goto(`/dapp/d/${second.deviceId}/i/${second.incidentId}`)
   await wallet(page, '0x90f7')
-  await ownerAction(page, 'Xác nhận')
+  await ownerAction(page, 'Xác nhận đã biết')
   await expect(page.getByText('Chain: owner đã bị phạt', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Ghi nhận thưởng ack', exact: true })).toHaveCount(0)
 
@@ -76,14 +76,16 @@ test('one day through the real UI: approve/stake, R1/R2, P1, manual P2, daily ca
   await expect(page.getByRole('button', { name: 'Phạt relay trễ (operator)', exact: true })).toHaveCount(0)
   await page.goto(`/dapp/d/${third.deviceId}/i/${third.incidentId}`)
   await wallet(page, '0x90f7')
-  await ownerAction(page, 'Xác nhận')
+  await ownerAction(page, 'Xác nhận đã biết')
   await expect(page.getByText('Chain: đã thưởng ack', { exact: true })).toBeVisible()
-  await expect(page.getByText('2/3 lượt thưởng hôm nay', { exact: true })).toBeVisible()
   await expect(page.getByText('Chain: relay trễ, operator bị phạt', { exact: true })).toBeVisible()
+  await page.goto('/dapp/wallet')
+  await wallet(page, '0x90f7')
+  await expect(page.getByTestId('device-rewards-today')).toHaveText(/2\s*\/\s*3/)
 
   for (const sequence of [4, 5, 6]) {
     await incident(page, sequence)
-    await ownerAction(page, 'Xác nhận')
+    await ownerAction(page, 'Xác nhận đã biết')
     if (sequence === 4) await expect(page.getByText('Chain: đã thưởng ack', { exact: true })).toBeVisible()
     else {
       await expect(page.getByText('API projection: Vượt trần ngày: không thưởng', { exact: true })).toBeVisible()
@@ -94,8 +96,8 @@ test('one day through the real UI: approve/stake, R1/R2, P1, manual P2, daily ca
   await wallet(page, '0x90f7')
   await expect(page.getByTestId('token-balance')).toContainText('20 ASAFE')
   await expect(page.getByTestId('bond-amount')).toHaveText('Bond chain: 80 ASAFE')
-  await expect(page.getByText('3/3 lượt thưởng hôm nay (chain)', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Đối chiếu lịch sử incentives on-chain' }).click()
+  await expect(page.getByTestId('device-rewards-today')).toHaveText(/3\s*\/\s*3/)
+  await page.getByRole('button', { name: 'Đối chiếu on-chain' }).click()
   await expect(page.getByText(/On-chain MissedAckSlashed/)).toBeVisible()
 
   await page.goto('/dapp/params')
@@ -105,7 +107,7 @@ test('one day through the real UI: approve/stake, R1/R2, P1, manual P2, daily ca
 
   await control('set-params', { ackReward: String(60000n * 10n ** 18n), dailyRewardCap: 100 })
   await incident(page, 7)
-  await ownerAction(page, 'Xác nhận')
+  await ownerAction(page, 'Xác nhận đã biết')
   await expect(page.getByText(/RewardSkipped.*InsufficientFund/)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Ghi nhận thưởng ack', exact: true })).toHaveCount(0)
 

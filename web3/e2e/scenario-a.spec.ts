@@ -144,11 +144,11 @@ test.describe('Kich ban A: E2E incident', () => {
     await page.getByLabel('Mật khẩu').fill(loginPassword)
     await page.getByRole('button', { name: 'Đăng nhập' }).click()
     await expect(page).toHaveURL(new RegExp(`/d/${deviceId}/i/${incidentId}$`))
-    await expect(page.getByText('sequence 1')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('Sự cố #1')).toBeVisible({ timeout: 10_000 })
 
     // Kết nối account không phải owner trước: action phải bị chặn.
     await page.getByRole('button', { name: 'Kết nối ví' }).click()
-    await expect(page.getByText('Chỉ chủ sở hữu thiết bị')).toBeVisible()
+    await expect(page.getByText('Chỉ chủ thiết bị được thao tác')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Xác nhận' })).toHaveCount(0)
 
     // Account switch sang owner phải cập nhật quyền trên cùng deep-link.
@@ -181,7 +181,7 @@ test.describe('Kich ban A: E2E incident', () => {
     await expect(page.getByText('là chủ thiết bị này')).toBeVisible()
 
     // A7: sau khi acknowledge, nut "Da xu ly" (resolve) phai hien ra.
-    const resolveButton = page.getByRole('button', { name: 'Đã xử lý' })
+    const resolveButton = page.getByRole('button', { name: 'Đánh dấu đã xử lý' })
     await expect(resolveButton).toBeVisible({ timeout: 20_000 })
     await expect(ackButton).toHaveCount(0)
 
