@@ -55,6 +55,6 @@ export function IncidentIncentives({ deviceId, incidentKey, projection, transact
         {' · '}Keeper/owner: {event.account ?? '—'} · <ExplorerLink kind="tx" value={event.tx_hash} /> · <ExplorerLink kind="block" value={event.block_number} />
       </p>)}
     </> : null}
-    <IncentiveTxStatus snapshot={transaction.snapshot} />
+    <IncentiveTxStatus snapshot={transaction.snapshot} onDiscard={transaction.discardPending} />
   </IncentivesCard>
 }

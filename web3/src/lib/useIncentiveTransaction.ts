@@ -100,5 +100,11 @@ export function useIncentiveTransaction(target: Hash | 'wallet') {
       return result
     })
   }
-  return { run, snapshot, guard }
+  // Escape hatch for a submitted transaction that never produced a receipt (dropped from
+  // the mempool): without it run() would keep resuming the same dead hash.
+  function discardPending() {
+    try { localStorage.removeItem(storageKey) } catch { /* private browsing */ }
+    setSnapshot(idle)
+  }
+  return { run, snapshot, guard, discardPending }
 }

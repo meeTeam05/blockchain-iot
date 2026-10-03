@@ -6,6 +6,7 @@ import { BondControls } from './B8/BondControls'
 import { DeviceIncentives } from './B9/DeviceIncentives'
 import { IncidentIncentives } from './B9/IncidentIncentives'
 import { KeeperBoard } from './B10/KeeperBoard'
+import { IncentiveTxStatus } from './B7/IncentivesShared'
 import { incentivesDeployment } from '../lib/incentives'
 
 const mocks = vi.hoisted(() => ({ token: {} as any, canonical: {} as any, settlement: {} as any, guard: {} as any,
@@ -148,5 +149,18 @@ describe('keeper UI', () => {
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('AlreadySettled'))
     expect(screen.getByRole('button', { name: 'Phạt missed ack' })).toBeDisabled()
     expect(mocks.tx.run).not.toHaveBeenCalled()
+  })
+})
+describe('pending transaction escape hatch', () => {
+  const txHash = `0x${'ef'.repeat(32)}` as const
+  it('offers to drop a submitted transaction only after an error with a tx hash', () => {
+    const onDiscard = vi.fn()
+    const view = mount(<IncentiveTxStatus snapshot={{ stage: 'error', action: 'stakeDevice', txHash, error: new Error('timeout') }} onDiscard={onDiscard} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Bỏ qua giao dịch đang chờ' }))
+    expect(onDiscard).toHaveBeenCalledOnce()
+    view.rerender(<IncentiveTxStatus snapshot={{ stage: 'error', action: 'stakeDevice', error: new Error('simulation reverted') }} onDiscard={onDiscard} />)
+    expect(screen.queryByRole('button', { name: 'Bỏ qua giao dịch đang chờ' })).not.toBeInTheDocument()
+    view.rerender(<IncentiveTxStatus snapshot={{ stage: 'confirming', action: 'stakeDevice', txHash }} onDiscard={onDiscard} />)
+    expect(screen.queryByRole('button', { name: 'Bỏ qua giao dịch đang chờ' })).not.toBeInTheDocument()
   })
 })

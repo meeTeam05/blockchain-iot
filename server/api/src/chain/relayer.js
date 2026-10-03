@@ -6,7 +6,10 @@
 //
 // Invariants:
 // * tx_hash + 'pending' are committed before waiting for anything, and every submission
-//   is preceded by an on-chain existence check, so a restart never double-submits.
+//   is preceded by an on-chain existence check, so a restart after that commit never
+//   double-submits. A crash between sending a transaction and committing 'pending' can
+//   still send it twice; the contract rejects the second one (SequenceAlreadyUsed), which
+//   costs gas only and is reconciled to 'confirmed' from chain state.
 // * AirSafetyLog tracks exact (device, sequence) use, so a failed/blocked row never blocks
 //   other rows of the same device. Ordering by (device, sequence) is only for predictability.
 //   Device ops are different: a later op depends on the earlier one, so they stay strictly

@@ -39,7 +39,7 @@ ESP32 (ký EIP-712) → MQTT/WSS → EMQX → API (xác thực, outbox) → chai
 | Node.js | **22 LTS** | |
 | Docker Desktop | mới nhất | Phải đang chạy trước mọi lệnh `docker` |
 | ESP-IDF | **v5.4.2** | Chỉ cần cho phần board (mục 3) |
-| Flutter | theo `app/pubspec.yaml` | Chỉ cần cho phần board (mục 3.6) |
+| Android SDK, JDK 17, `adb` | | Chỉ cần để cài app Expo lên điện thoại (mục 3.6) |
 | MetaMask | | Dùng làm ví **owner** của device. Không dùng ví relayer hay ví manager làm owner |
 
 ### 0.2 Lấy code
@@ -295,10 +295,13 @@ Nếu thay vào đó là lỗi domain hoặc log báo không ký thì **dừng l
 
 ```powershell
 cd app
-flutter run --dart-define=API_BASE_URL=https://<tên>.trycloudflare.com/api --dart-define=MQTT_BROKER_URI=wss://<tên>.trycloudflare.com/mqtt
+npm install
+$env:EXPO_PUBLIC_API_BASE_URL="https://<tên>.trycloudflare.com/api"
+$env:EXPO_PUBLIC_MQTT_BROKER_URI="wss://<tên>.trycloudflare.com/mqtt"
+npx expo run:android --variant release
 ```
 
-Với app Expo (`app_new`), đặt `EXPO_PUBLIC_API_BASE_URL` và `EXPO_PUBLIC_MQTT_BROKER_URI` cho giống như trên.
+Điện thoại cắm USB, đã bật USB debugging (`adb devices` thấy máy). Hai biến `EXPO_PUBLIC_*` được nhúng lúc build: đổi URL tunnel là phải build lại. Dùng domain cố định `minhnhat05.xyz` thì không cần đặt hai biến này (xem `docs/_RUN_BOOK.md`, mục A2).
 
 Trên app: đăng ký tài khoản, thêm thiết bị qua BLE (tên `SMART_AIR_xxxxxx`), rồi nhập Wi-Fi.
 

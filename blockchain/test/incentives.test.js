@@ -569,6 +569,23 @@ describe("SafetyIncentives", function () {
       expect((await inc.deviceBond(DEVICE)).amount).to.equal(A(100));
     });
 
+    it("slashes an owner who acknowledged in time but whose ack was never recorded (ack time is not stored on chain)", async function () {
+      const { inc, log, token, owner, keeper, treasury, logIncident } = await loadFixture(stakedFixture);
+      const { key, deadline } = await logIncident({ severity: 2n });
+      await time.increaseTo(deadline - 5n);
+      await log.connect(owner).acknowledgeIncident(key);
+
+      // Nobody called recordTimelyAck before the deadline: the chain cannot tell this ack from a late one.
+      await time.increaseTo(deadline + 1n);
+      await expect(inc.recordTimelyAck(key)).to.be.revertedWithCustomError(inc, "AckDeadlinePassed").withArgs(key, deadline);
+      await expect(inc.connect(keeper).slashMissedAck(key))
+        .to.emit(inc, "MissedAckSlashed")
+        .withArgs(key, DEVICE, A(20), keeper.address);
+      expect((await inc.deviceBond(DEVICE)).amount).to.equal(A(80));
+      expect(await token.balanceOf(keeper.address)).to.equal(A(10));
+      expect(await token.balanceOf(treasury.address)).to.equal(A(10));
+    });
+
     it("honours keeper shares of 0% and 100%", async function () {
       const { inc, token, keeper, treasury, logIncident } = await loadFixture(stakedFixture);
       await inc.setParams({ ...DEFAULT_PARAMS, keeperShareBps: 0n });
@@ -603,6 +620,18 @@ describe("SafetyIncentives", function () {
       expect(await token.balanceOf(keeper.address)).to.equal(A(10));
       expect(await token.balanceOf(treasury.address)).to.equal(A(10));
       await expect(inc.connect(keeper).slashLateRelay(late.key)).to.be.revertedWithCustomError(inc, "AlreadySettled");
+    });
+
+    it("counts device offline time as relay delay", async function () {
+      const { inc, keeper, token, logIncident } = await loadFixture(deployFixture);
+      // The device observed the incident an hour ago and flushed its stored queue on reconnect;
+      // the relayer logged it in the very next block, yet observedAt is what the chain measures.
+      const { key } = await logIncident({ delay: 3600n });
+      await expect(inc.connect(keeper).slashLateRelay(key))
+        .to.emit(inc, "LateRelaySlashed")
+        .withArgs(key, 3600n, A(20), keeper.address);
+      expect((await inc.operatorBond()).amount).to.equal(A(980));
+      expect(await token.balanceOf(keeper.address)).to.equal(A(10));
     });
 
     it("treats a device clock ahead of the chain as zero delay", async function () {

@@ -77,6 +77,22 @@ describe('incentives uses the shared Task 5 transaction engine', () => {
     await act(async () => { await hook.result.current.run('approve', [incentivesDeployment!.incentives.address, 100n]) })
     expect(hook.result.current.snapshot.stage).toBe('cancelled')
   })
+  it('lets the user drop a submitted transaction that never produced a receipt, then sends a new one', async () => {
+    const hook = await setup()
+    const storage = `smartair-pending-incentives:localhost:${incentivesDeployment!.incentives.address.toLowerCase()}:${mock.account.address.toLowerCase()}:${key}`
+    mock.public.waitForTransactionReceipt.mockRejectedValueOnce(new Error('receipt timeout'))
+    await act(async () => { await hook.result.current.run('slashMissedAck', [key]) })
+    expect(hook.result.current.snapshot).toMatchObject({ stage: 'error', txHash: hash })
+    expect(localStorage.getItem(storage)).not.toBeNull()
+
+    act(() => hook.result.current.discardPending())
+    expect(localStorage.getItem(storage)).toBeNull()
+    expect(hook.result.current.snapshot.stage).toBe('idle')
+
+    await act(async () => { await hook.result.current.run('slashMissedAck', [key]) })
+    expect(mock.wallet.writeContract).toHaveBeenCalledTimes(2)
+    expect(hook.result.current.snapshot.stage).toBe('success')
+  })
   it('does not resubmit a persisted transaction after remount', async () => {
     const storage = `smartair-pending-incentives:localhost:${incentivesDeployment!.incentives.address.toLowerCase()}:${mock.account.address.toLowerCase()}:${key}`
     localStorage.setItem(storage, JSON.stringify({ version: 1, action: 'stakeDevice', txHash: hash, submittedAt: 1 }))

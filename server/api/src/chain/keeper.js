@@ -143,11 +143,14 @@ export function createKeeper({ db, chain, config, log = console }) {
         return 'failed';
     }
 
-    // A slash only moves tokens when the device bond covers the incident; otherwise it
-    // would cost gas for a zero penalty and a zero bounty.
-    async function bondCovers(s) {
+    // A slash only moves tokens when the device bond covers the incident (as in the
+    // contract: held by the current owner, in place when the incident was logged);
+    // otherwise it would cost gas for a zero penalty and a zero bounty. An owner the
+    // indexer has not seen yet (null) is not checked here; the contract still decides.
+    async function bondCovers(s, row) {
         const bond = await chain.read.deviceBond(s.deviceIdHash);
-        return bond.amount > 0n && Number(bond.since) <= s.loggedAt;
+        if (!(bond.amount > 0n && Number(bond.since) <= s.loggedAt)) return false;
+        return !row.owner_address || lower(bond.staker) === lower(row.owner_address);
     }
 
     async function handle(action, row, nowSeconds) {
@@ -162,7 +165,7 @@ export function createKeeper({ db, chain, config, log = console }) {
         if (decision.kind === 'wait') return 'wait';
         if (action === 'slash_missed_ack') {
             try {
-                if (!(await bondCovers(s))) return skip(row, action, 'no covering bond');
+                if (!(await bondCovers(s, row))) return skip(row, action, 'no covering bond');
             } catch (err) {
                 return retryLater(row, action, err);
             }
@@ -192,9 +195,10 @@ export function createKeeper({ db, chain, config, log = console }) {
     const CANDIDATE_SELECT = `
         SELECT i.id, i.device_id, i.incident_id, i.sequence, i.owner_status, ii.ack_deadline_at, ii.resolve_deadline_at,
                ii.flags AS incentive_flags, COALESCE(i.acknowledged_at, i.resolved_at) AS reacted_at, o.incident_key,
-               COALESCE(k.attempts, 0) AS keeper_attempts
+               COALESCE(k.attempts, 0) AS keeper_attempts, dv.owner_address
         FROM incidents i
         JOIN blockchain_outbox o ON o.incident_row_id = i.id
+        LEFT JOIN devices dv ON dv.id = i.device_id
         JOIN incident_incentives ii ON ii.incident_row_id = i.id AND ii.contract = $4
         LEFT JOIN keeper_actions k ON k.incident_row_id = i.id AND k.action = $2 AND k.contract = $4
         WHERE o.status = 'confirmed' AND o.incident_key IS NOT NULL AND ii.covered = TRUE

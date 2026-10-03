@@ -61,6 +61,6 @@ export function BondControls({ deviceId }: { deviceId: string }) {
         onClick={() => void tx.run('withdraw', [canonical.hash])} />
     </> : null}
     {error ? <p role="alert">{error}</p> : null}
-    <IncentiveTxStatus snapshot={tx.snapshot} />
+    <IncentiveTxStatus snapshot={tx.snapshot} onDiscard={tx.discardPending} />
   </IncentivesCard>
 }

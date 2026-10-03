@@ -1,17 +1,19 @@
 import { describe, it, expect, vi } from 'vitest'
 import { encodeFunctionResult, type PublicClient } from 'viem'
 import { activeNetwork } from '../config/networks'
-import { SAFETY_INCENTIVES_ABI } from '../generated/incentives-deployments'
+import { INCENTIVES_DEPLOYMENTS, SAFETY_INCENTIVES_ABI } from '../generated/incentives-deployments'
 import { incentivesDeployment, parseBondAmount, readTokenWallet, resolveIncentives, stakeWithApproval, validateIncentives } from './incentives'
 import { readIncentivesResponse } from './incentivesApi'
 import { withIncentiveLock } from './useIncentiveTransaction'
 
 const deployment = incentivesDeployment!
 describe('Task 8 canonical deployment and token reads', () => {
-  it('uses local generated addresses and tolerates missing Sepolia incentives', () => {
+  it('resolves the active network, tolerates a network without incentives and rejects an AirSafetyLog mismatch', () => {
     expect(resolveIncentives(activeNetwork)?.token.address).toBe(deployment.token.address)
-    expect(resolveIncentives({ ...activeNetwork, key: 'sepolia' })).toBeNull()
+    expect(resolveIncentives({ ...activeNetwork, key: 'unknown' })).toBeNull()
     expect(() => resolveIncentives({ ...activeNetwork, address: `0x${'1'.repeat(40)}` })).toThrow('không khớp')
+    const sepolia = INCENTIVES_DEPLOYMENTS.sepolia
+    expect(resolveIncentives({ key: 'sepolia', chainId: Number(sepolia.chainId), address: sepolia.airSafetyLog })).toBe(sepolia)
   })
   it('reads balance/allowance and decimals from the token contract, never the API', async () => {
     const readContract = vi.fn(async ({ functionName }: { functionName: string; address?: string }) => ({ symbol: 'ASAFE', decimals: 6, balanceOf: 123000000n, allowance: 4000000n })[functionName])

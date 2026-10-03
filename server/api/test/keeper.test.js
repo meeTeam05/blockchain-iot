@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import { KEEPER_ACTIONS, createKeeper, decideAction } from '../src/chain/keeper.js';
 import { SETTLEMENT_FLAGS as F } from '../src/chain/incentives.js';
-import { createIncidentDb } from './helpers/incident-fixtures.js';
+import { DEVICE_ID, createIncidentDb } from './helpers/incident-fixtures.js';
 import {
     ASAFE,
     createFakeIncentivesChain,
@@ -167,6 +167,22 @@ test('P1: overdue open incident is slashed; no covering bond or in-time ack is s
         fake.state.bonds.set(open.hash, { amount: 100n * ASAFE, since: later.loggedAt + 1 });
         await keeper.tick();
         assert.equal((await actions(store)).find((a) => a.sequence === 12).last_error, 'no covering bond');
+    });
+});
+
+test('P1: a bond held by someone other than the current owner does not cover the incident', async () => {
+    await withSetup(async ({ store, fake, keeper }) => {
+        const old = NOW - 3_600;
+        const held = await insertChainIncident(store, { sequence: 20, severity: 2, observedAt: old });
+        fake.state.settlements.set(held.key, settlementFor(held, { canSlashMissedAck: true }));
+        fake.state.bonds.set(held.hash, { amount: 100n * ASAFE, since: old - 100 });
+        // The fake bond is staked by OWNER; the device has since changed hands.
+        await store.query('UPDATE devices SET owner_address = $2 WHERE id = $1', [DEVICE_ID, '0x000000000000000000000000000000000000dead']);
+
+        const result = await keeper.tick();
+        assert.equal(result.sent, 0);
+        assert.equal(fake.state.calls.length, 0);
+        assert.deepEqual((await actions(store)).map((a) => [a.sequence, a.status, a.last_error]), [[20, 'skipped', 'no covering bond']]);
     });
 });
 

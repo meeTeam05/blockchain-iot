@@ -18,7 +18,7 @@ export function IncentivesGuardNotice({ guard }: { guard: ReturnType<typeof useI
 export function IncentivesCard({ title, children }: { title: string; children: ReactNode }) {
   return <section className="my-4 space-y-3 rounded-card border border-line bg-paper p-5"><h2 className="font-semibold">{title}</h2>{children}</section>
 }
-export function IncentiveTxStatus({ snapshot }: { snapshot: TransactionSnapshot<IncentiveAction> }) {
+export function IncentiveTxStatus({ snapshot, onDiscard }: { snapshot: TransactionSnapshot<IncentiveAction>; onDiscard?: () => void }) {
   const messages: Record<string, string> = { simulating: 'Đang mô phỏng…', awaiting_wallet: 'Chờ xác nhận trong ví…',
     submitted: 'Đã gửi giao dịch.', confirming: 'Chờ receipt on-chain…', indexing: 'Chain đã xác nhận; làm mới dữ liệu…',
     success: 'Đã xác nhận trên chain.', cancelled: 'Bạn đã hủy yêu cầu trong ví; có thể tiếp tục.', error: 'Giao dịch chưa hoàn tất.' }
@@ -27,5 +27,9 @@ export function IncentiveTxStatus({ snapshot }: { snapshot: TransactionSnapshot<
     {snapshot.error ? <p role="alert">{decodeError(snapshot.error).message}</p> : null}
     {snapshot.apiSyncDelayed ? <p>API đang chậm; giao dịch đã được ghi trên chain.</p> : null}
     {snapshot.txHash ? <p>Tx: <ExplorerLink kind="tx" value={snapshot.txHash} /></p> : null}
+    {onDiscard && snapshot.stage === 'error' && snapshot.txHash ? <>
+      <p>Chỉ bỏ qua khi giao dịch đã bị rớt khỏi mempool; nếu nó được đào sau đó, thao tác có thể thực hiện hai lần.</p>
+      <button type="button" onClick={onDiscard}>Bỏ qua giao dịch đang chờ</button>
+    </> : null}
   </div>
 }

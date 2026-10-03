@@ -303,3 +303,26 @@ và MetaMask (không gọi tay qua script); số dư hiển thị khớp bảng 
 
 **Không làm trong task này:** sửa `AirSafetyLog`, sửa firmware, đưa token lên
 mainnet, bán hay niêm yết token.
+
+## Giới hạn đã biết của MVP
+
+Các điểm dưới đây đã được kiểm chứng trong code và có test mô tả hành vi
+(`blockchain/test/incentives.test.js`). Contract đang deploy trên Sepolia không đổi vì chúng.
+
+- **Độ trễ relay gồm cả thời gian thiết bị offline.** `slashLateRelay` so `loggedAt` (thời điểm ghi lên chain)
+  với `observedAt` do thiết bị ký. Backend nhận bằng chứng trễ vô thời hạn (`checkIncidentOrdering` trong
+  `server/api/src/services/incident-verify.js`) và firmware giữ hàng đợi trong NVS khi mất mạng, nên một thiết bị
+  offline hơn `MAX_RELAY_DELAY` (15 phút) làm operator bị tính là relay trễ dù relayer ghi ngay khi nhận được.
+  Test: "counts device offline time as relay delay".
+  Giảm nhẹ không cần deploy lại: admin tăng `maxRelayDelay` bằng `setParams`
+  (`docs/_RUN_BOOK.md`, mục A8b); đổi lại thì relay chậm dưới ngưỡng mới không bị phạt.
+- **Thời điểm ack không nằm trên chain.** `AirSafetyLog` không lưu thời điểm acknowledge, nên `slashMissedAck`
+  chỉ kiểm tra "chưa có R1 và đã quá hạn". Ack đúng hạn nhưng `recordTimelyAck` chưa vào block trước hạn vẫn bị phạt
+  được. Keeper của dự án (`KEEPER_ENABLED=true`) ghi nhận R1 giúp owner, và bỏ qua phạt khi ack đã được lập chỉ mục
+  trước hạn; nhưng indexer chờ `CHAIN_CONFIRMATIONS` (3) block, nên ack trong khoảng 1 phút cuối trước hạn không được
+  bảo vệ. Test: "slashes an owner who acknowledged in time but whose ack was never recorded".
+- **Tham số admin không có cận trên.** `setParams` không giới hạn `unstakeCooldown`; giá trị quá lớn làm `withdraw`
+  revert. Owner rút được ngay khi hết cooldown, nên incident được ghi trong khoảng cuối cooldown (ngắn hơn hạn ack)
+  không còn bond để bị phạt.
+- **Quỹ thưởng không rút lại được.** Chỉ có `fundRewards`; deploy lại `SafetyIncentives` đồng nghĩa số ASAFE đã nạp
+  vào contract cũ nằm lại đó.

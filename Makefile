@@ -12,7 +12,7 @@ FIRMWARE_DIR := $(ROOT_DIR)/firmware
 COMPOSE := docker compose -f "$(SERVER_DIR)/docker-compose.yml" --env-file "$(SERVER_DIR)/.env"
 SERVICE ?= api
 TAIL ?= 200
-IDF_EXPORT ?= $(HOME)/.espressif/v5.4.2/esp-idf/export.sh
+IDF_EXPORT ?= $(or $(firstword $(wildcard $(HOME)/workspace/esp-idf/export.sh $(HOME)/.espressif/v5.4.2/esp-idf/export.sh $(HOME)/esp/esp-idf/export.sh)),$(HOME)/.espressif/v5.4.2/esp-idf/export.sh)
 EMQX_BOOTSTRAP ?= $(SERVER_DIR)/emqx/api-key.bootstrap
 
 SERVER_REQUIRED_ENV := \
@@ -28,7 +28,7 @@ SERVER_REQUIRED_ENV := \
 .PHONY: server-ps server-check server-logs server-log server-restart server-rebuild-api
 .PHONY: server-migrate server-test server-dev server-start server-render-emqx-key
 .PHONY: chain-status chain-ops
-.PHONY: app-pub-get app-analyze app-test app-run app-build-apk
+.PHONY: app-install app-lint app-test app-run app-build-release
 .PHONY: web3-install web3-dev web3-build web3-test web3-test-e2e
 .PHONY: firmware-build firmware-flash firmware-monitor firmware-flash-monitor firmware-menuconfig firmware-size
 .PHONY: host-docker-start host-docker-stop host-docker-disable-autostart
@@ -63,11 +63,11 @@ help:
 		'  chain-ops                Run scripts/chain-ops.js; e.g. ARGS="requeue-outbox --all-blocked"' \
 		'' \
 		'App:' \
-		'  app-pub-get              Fetch Flutter dependencies' \
-		'  app-analyze              Run Flutter analyzer' \
-		'  app-test                 Run Flutter tests' \
-		'  app-run                  Run the Flutter app' \
-		'  app-build-apk            Build Android release APK' \
+		'  app-install              Install app dependencies (npm install)' \
+		'  app-lint                 Run Expo lint' \
+		'  app-test                 Run Jest tests' \
+		'  app-run                  Build and run the debug app on a connected Android device' \
+		'  app-build-release        Build the release app and install it on a connected Android device' \
 		'' \
 		'Web3 dApp (Task 5):' \
 		'  web3-install             Install web3/ dependencies' \
@@ -177,20 +177,20 @@ server-start:
 server-render-emqx-key:
 	"$(SERVER_DIR)/emqx/render-api-key-bootstrap.sh" "$(SERVER_DIR)/.env" "$(EMQX_BOOTSTRAP)"
 
-app-pub-get:
-	cd "$(APP_DIR)" && flutter pub get
+app-install:
+	cd "$(APP_DIR)" && npm install
 
-app-analyze:
-	cd "$(APP_DIR)" && flutter analyze
+app-lint:
+	cd "$(APP_DIR)" && npx expo lint
 
 app-test:
-	cd "$(APP_DIR)" && flutter test
+	cd "$(APP_DIR)" && npm test
 
 app-run:
-	cd "$(APP_DIR)" && flutter run
+	cd "$(APP_DIR)" && npx expo run:android
 
-app-build-apk:
-	cd "$(APP_DIR)" && flutter build apk --release
+app-build-release:
+	cd "$(APP_DIR)" && npx expo run:android --variant release
 
 web3-install:
 	cd "$(WEB3_DIR)" && npm install

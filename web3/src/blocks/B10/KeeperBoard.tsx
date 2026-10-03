@@ -81,7 +81,7 @@ function KeeperItem({ item, action }: { item: KeeperCandidate; action: 'slashMis
     <PrimaryButton label={action === 'slashMissedAck' ? 'Phạt missed ack' : 'Phạt relay trễ (operator)'}
       disabled={!tx.guard.canWrite || !eligible || bounty.isPending || bounty.isError || preflight.isPending || preflight.isError || isTransactionBusy(tx.snapshot.stage)}
       onClick={() => void tx.run(action, [item.incident_key])} />
-    <IncentiveTxStatus snapshot={tx.snapshot} />
+    <IncentiveTxStatus snapshot={tx.snapshot} onDiscard={tx.discardPending} />
   </div>
 }
 
