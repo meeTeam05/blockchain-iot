@@ -1,0 +1,76 @@
+{
+  "network": "sepolia",
+  "chainId": "11155111",
+  "airSafetyLog": "0x45CF175ffd4B1Ad77E87389d1e92945f9Bc88d3A",
+  "token": {
+    "contract": "AirSafeToken",
+    "address": "0xD01324896e7cCc099DB95212a54b5473a3B2DE34",
+    "deployTxHash": "0x967445ea3d96707390156d2a817d364baddb64aa30a9cd37747aca6228558b9d",
+    "blockNumber": 11834177,
+    "constructorArguments": [
+      "0x7Ee5fAD36702a5228E60D8CDE6Be3FE91f5B1a3F"
+    ],
+    "explorer": "https://sepolia.etherscan.io/address/0xD01324896e7cCc099DB95212a54b5473a3B2DE34"
+  },
+  "incentives": {
+    "contract": "SafetyIncentives",
+    "address": "0x4078c3a86708B4C4B3aD61aB5A282e0E6A9FAA04",
+    "deployTxHash": "0xa1605adc85bceae68ae352cafe7886cc287c5329bba05e2fb75346289d2a49db",
+    "blockNumber": 11834182,
+    "activatedAt": "1791010248",
+    "constructorArguments": [
+      "0x7Ee5fAD36702a5228E60D8CDE6Be3FE91f5B1a3F",
+      "0x45CF175ffd4B1Ad77E87389d1e92945f9Bc88d3A",
+      "0xD01324896e7cCc099DB95212a54b5473a3B2DE34",
+      "0x7Ee5fAD36702a5228E60D8CDE6Be3FE91f5B1a3F",
+      "0xe9426f8AbFf21ddb99a4Ca383c2b71D9AF95197d"
+    ],
+    "explorer": "https://sepolia.etherscan.io/address/0x4078c3a86708B4C4B3aD61aB5A282e0E6A9FAA04"
+  },
+  "deployer": "0x7Ee5fAD36702a5228E60D8CDE6Be3FE91f5B1a3F",
+  "admin": "0x7Ee5fAD36702a5228E60D8CDE6Be3FE91f5B1a3F",
+  "treasury": "0x7Ee5fAD36702a5228E60D8CDE6Be3FE91f5B1a3F",
+  "operator": "0xe9426f8AbFf21ddb99a4Ca383c2b71D9AF95197d",
+  "params": {
+    "ackDeadlineWarning": "1800",
+    "ackDeadlineDanger": "600",
+    "resolveDeadline": "86400",
+    "ownerBond": "100000000000000000000",
+    "ackReward": "5000000000000000000",
+    "resolveReward": "5000000000000000000",
+    "missedAckPenalty": "20000000000000000000",
+    "maxRelayDelay": "900",
+    "lateRelayPenalty": "20000000000000000000",
+    "keeperShareBps": "5000",
+    "dailyRewardCap": "3",
+    "unstakeCooldown": "604800"
+  },
+  "compiler": {
+    "version": "0.8.28",
+    "settings": {
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "evmVersion": "cancun",
+      "viaIR": true,
+      "outputSelection": {
+        "*": {
+          "*": [
+            "abi",
+            "evm.bytecode",
+            "evm.deployedBytecode",
+            "evm.methodIdentifiers",
+            "metadata"
+          ],
+          "": [
+            "ast"
+          ]
+        }
+      }
+    }
+  },
+  "verified": true,
+  "deployedAt": "2026-10-03T06:51:49.014Z",
+  "verifiedAt": "2026-10-03T06:53:39.263Z"
+}

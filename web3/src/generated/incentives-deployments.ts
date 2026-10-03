@@ -17,6 +17,22 @@ export const INCENTIVES_DEPLOYMENTS = Object.freeze({
         },
         "treasury": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
         "operator": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+    },
+    "sepolia": {
+        "network": "sepolia",
+        "chainId": "11155111",
+        "airSafetyLog": "0x45CF175ffd4B1Ad77E87389d1e92945f9Bc88d3A",
+        "token": {
+            "address": "0xD01324896e7cCc099DB95212a54b5473a3B2DE34",
+            "blockNumber": 11834177
+        },
+        "incentives": {
+            "address": "0x4078c3a86708B4C4B3aD61aB5A282e0E6A9FAA04",
+            "blockNumber": 11834182,
+            "activatedAt": "1791010248"
+        },
+        "treasury": "0x7Ee5fAD36702a5228E60D8CDE6Be3FE91f5B1a3F",
+        "operator": "0xe9426f8AbFf21ddb99a4Ca383c2b71D9AF95197d"
     }
 } as const);
 
