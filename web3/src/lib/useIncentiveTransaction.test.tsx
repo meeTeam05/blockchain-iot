@@ -79,7 +79,7 @@ describe('incentives uses the shared Task 5 transaction engine', () => {
   })
   it('lets the user drop a submitted transaction that never produced a receipt, then sends a new one', async () => {
     const hook = await setup()
-    const storage = `smartair-pending-incentives:localhost:${incentivesDeployment!.incentives.address.toLowerCase()}:${mock.account.address.toLowerCase()}:${key}`
+    const storage = `smartair-pending-incentives:${incentivesDeployment!.network}:${incentivesDeployment!.incentives.address.toLowerCase()}:${mock.account.address.toLowerCase()}:${key}`
     mock.public.waitForTransactionReceipt.mockRejectedValueOnce(new Error('receipt timeout'))
     await act(async () => { await hook.result.current.run('slashMissedAck', [key]) })
     expect(hook.result.current.snapshot).toMatchObject({ stage: 'error', txHash: hash })
@@ -94,7 +94,7 @@ describe('incentives uses the shared Task 5 transaction engine', () => {
     expect(hook.result.current.snapshot.stage).toBe('success')
   })
   it('does not resubmit a persisted transaction after remount', async () => {
-    const storage = `smartair-pending-incentives:localhost:${incentivesDeployment!.incentives.address.toLowerCase()}:${mock.account.address.toLowerCase()}:${key}`
+    const storage = `smartair-pending-incentives:${incentivesDeployment!.network}:${incentivesDeployment!.incentives.address.toLowerCase()}:${mock.account.address.toLowerCase()}:${key}`
     localStorage.setItem(storage, JSON.stringify({ version: 1, action: 'stakeDevice', txHash: hash, submittedAt: 1 }))
     const hook = renderHook(() => useIncentiveTransaction(key), { wrapper })
     await waitFor(() => expect(hook.result.current.snapshot.stage).toBe('success'))

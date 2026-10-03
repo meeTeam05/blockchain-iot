@@ -8,8 +8,10 @@ import { useIncentivesGuard, useSettlement, useTokenWallet } from '../../lib/use
 import { useIncentiveTransaction } from '../../lib/useIncentiveTransaction'
 import { isTransactionBusy } from '../../lib/incidentTransaction'
 import type { IncentivesDeployment } from '../../lib/incentives'
-import { PrimaryButton } from '../../components/ui/PrimaryButton'
-import { IncentivesCard, IncentivesGuardNotice, IncentiveTxStatus } from '../B7/IncentivesShared'
+import { ActionButton } from '../../components/ui/ActionButton'
+import { Panel, PanelHeader } from '../../components/ui/Panel'
+import { formatIncidentTime, severityDisplay } from '../../lib/incidentDisplay'
+import { IncentivesGuardNotice, IncentiveTxStatus, NoticeBanner } from '../B7/IncentivesShared'
 
 // API unavailable: use the canonical incident log, in the same bounded RPC chunks
 // as Task 5 history. Never fabricate candidates from a failed RPC response.
@@ -32,6 +34,24 @@ async function scanOverdue(client: PublicClient, deployment: IncentivesDeploymen
     if (s.canSlashLateRelay) result.slash_late_relay.push(row)
   }
   return result
+}
+
+function StatCard({ label, value, danger = false }: { label: string; value: string; danger?: boolean }) {
+  return (
+    <div className="flex flex-col gap-1 rounded-[14px] border border-[#eef1ec] bg-white p-4 shadow-[0_1px_2px_rgba(20,40,25,0.03)] sm:px-[18px]">
+      <span className="text-[12px] font-medium text-[#5d6a60]">{label}</span>
+      <span className={`text-[24px] font-bold ${danger ? 'text-[#c81e3a]' : 'text-[#17201a]'}`}>{value}</span>
+    </div>
+  )
+}
+
+function EmptyRow({ children }: { children: string }) {
+  return (
+    <div className="flex items-center gap-3 px-6 py-7 text-[13px] text-[#5d6a60]">
+      <span className="size-2 rounded-full bg-[#c3cbc4]" />
+      {children}
+    </div>
+  )
 }
 
 function KeeperItem({ item, action }: { item: KeeperCandidate; action: 'slashMissedAck' | 'slashLateRelay' }) {
@@ -70,17 +90,36 @@ function KeeperItem({ item, action }: { item: KeeperCandidate; action: 'slashMis
   })
   // Keep receipt information until reconciliation even after the candidate leaves API.
   if (eligible === false && tx.snapshot.stage === 'idle') return null
-  return <div className="my-3 space-y-2 rounded border border-line p-3">
-    <p className="break-all">Incident key: {item.incident_key}</p>
-    {chain.isPending ? <p>Đang kiểm tra eligibility on-chain…</p> : null}
-    {chain.isError ? <p role="alert">RPC settlement lỗi: {chain.error.message}</p> : null}
-    {token.isError ? <p role="alert">RPC token lỗi: {token.error.message}</p> : null}
-    {eligible === false ? <p>Đã settlement hoặc không còn eligible; không thể gửi lại.</p> : null}
-    {preflight.isError ? <p role="alert">Simulation keeper lỗi; action không khả dụng: {preflight.error.message}</p> : null}
-    {bounty.isError ? <p role="alert">RPC bounty lỗi: {bounty.error.message}</p> : bounty.data !== undefined && token.data ? <p>Bounty canonical: +{formatUnits(bounty.data, token.data.decimals)} ASAFE</p> : null}
-    <PrimaryButton label={action === 'slashMissedAck' ? 'Phạt missed ack' : 'Phạt relay trễ (operator)'}
-      disabled={!tx.guard.canWrite || !eligible || bounty.isPending || bounty.isError || preflight.isPending || preflight.isError || isTransactionBusy(tx.snapshot.stage)}
-      onClick={() => void tx.run(action, [item.incident_key])} />
+  const severity = severityDisplay((['warning', 'warning', 'danger', 'critical'] as const)[item.severity] ?? null)
+  return <div className="flex flex-col gap-2 border-t border-[#eef1ec] px-6 py-4 first:border-t-0">
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+      <div className="flex min-w-[260px] flex-[1_1_320px] flex-col gap-1.5">
+        <div className="flex flex-wrap items-center gap-2.5 text-[13px]">
+          <span className="flex items-center gap-2 font-semibold" style={{ color: severity.color }}>
+            <span className="size-2 rounded-full" style={{ backgroundColor: severity.color }} />
+            {severity.label}
+          </span>
+          <span className="font-mono text-[12px] font-medium text-[#3d4a40]">{formatIncidentTime(String(Math.floor(Date.parse(item.logged_at) / 1000)), true)}</span>
+        </div>
+        <p className="m-0 break-all font-mono text-[12px] font-medium text-[#7a867c]">Incident key: {item.incident_key}</p>
+      </div>
+      <div className="ml-auto flex flex-wrap items-center gap-x-5 gap-y-2">
+      {bounty.isError ? null : bounty.data !== undefined && token.data ? (
+        <span className="text-[13px] font-semibold text-[#15803d]">Bounty canonical: +{formatUnits(bounty.data, token.data.decimals)} ASAFE</span>
+      ) : null}
+      <div className="w-[250px] max-w-full">
+        <ActionButton label={action === 'slashMissedAck' ? 'Phạt missed ack' : 'Phạt relay trễ (operator)'} variant="primary"
+          disabled={!tx.guard.canWrite || !eligible || bounty.isPending || bounty.isError || preflight.isPending || preflight.isError || isTransactionBusy(tx.snapshot.stage)}
+          onClick={() => void tx.run(action, [item.incident_key])} />
+      </div>
+      </div>
+    </div>
+    {chain.isPending ? <p className="m-0 text-[13px] text-[#5d6a60]">Đang kiểm tra eligibility on-chain…</p> : null}
+    {chain.isError ? <NoticeBanner role="alert">RPC settlement lỗi: {chain.error.message}</NoticeBanner> : null}
+    {token.isError ? <NoticeBanner role="alert">RPC token lỗi: {token.error.message}</NoticeBanner> : null}
+    {eligible === false ? <p className="m-0 text-[13px] text-[#5d6a60]">Đã xử lý hoặc không còn đủ điều kiện.</p> : null}
+    {preflight.isError ? <NoticeBanner role="alert">Mô phỏng thất bại: {preflight.error.message}</NoticeBanner> : null}
+    {bounty.isError ? <NoticeBanner role="alert">RPC bounty lỗi: {bounty.error.message}</NoticeBanner> : null}
     <IncentiveTxStatus snapshot={tx.snapshot} onDiscard={tx.discardPending} />
   </div>
 }
@@ -94,19 +133,29 @@ export function KeeperBoard() {
     queryFn: () => scanOverdue(guard.publicClient!, guard.deployment!),
   })
   const data = api.isError ? fallback.data : api.data
-  return <IncentivesCard title="Keeper / Overdue">
+  const missed = data?.slash_missed_ack
+  const late = data?.slash_late_relay
+  const share = api.data && !api.isError ? `${api.data.keeper_share_bps / 100}%` : '—'
+  return <>
     <IncentivesGuardNotice guard={guard} />
-    <p>R1/R2 và P1 được server keeper tự xử lý; bảng này cho phép keeper bên ngoài xử lý khi còn eligible.</p>
-    <p>Relay trễ (P2): phạt operator chỉ bằng thao tác thủ công của ví; server không tự slash P2.</p>
-    {api.isPending && guard.deployment ? <p>Đang tải overdue API…</p> : null}
-    {api.isError ? <p role="alert">{api.error.message}. Đang dùng fallback logs on-chain.</p> : null}
-    {api.isError && fallback.isPending ? <p>Đang quét overdue trên chain…</p> : null}
-    {fallback.isError ? <p role="alert">RPC fallback lỗi: {fallback.error.message}</p> : null}
+    {api.isPending && guard.deployment ? <p className="m-0 text-[13px] text-[#5d6a60]">Đang tải overdue API…</p> : null}
+    {api.isError ? <NoticeBanner role="alert">{api.error.message}. Đang dùng fallback logs on-chain.</NoticeBanner> : null}
+    {api.isError && fallback.isPending ? <p className="m-0 text-[13px] text-[#5d6a60]">Đang quét overdue trên chain…</p> : null}
+    {fallback.isError ? <NoticeBanner role="alert">RPC fallback lỗi: {fallback.error.message}</NoticeBanner> : null}
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <StatCard label="Quá hạn xác nhận (P1)" value={missed ? String(missed.length) : '—'} danger={Boolean(missed?.length)} />
+      <StatCard label="Relay trễ (P2)" value={late ? String(late.length) : '—'} danger={Boolean(late?.length)} />
+      <StatCard label="Bounty cho keeper" value={share} />
+    </div>
     {data ? <>
-      <h3>Quá hạn acknowledge (P1)</h3>
-      {data.slash_missed_ack.length === 0 ? <p>Không có incident quá hạn acknowledge.</p> : data.slash_missed_ack.map((item) => <KeeperItem key={item.incident_key} item={item} action="slashMissedAck" />)}
-      <h3>Relay trễ — phạt operator (P2, manual)</h3>
-      {data.slash_late_relay.length === 0 ? <p>Không có incident relay trễ.</p> : data.slash_late_relay.map((item) => <KeeperItem key={item.incident_key} item={item} action="slashLateRelay" />)}
+      <Panel>
+        <PanelHeader title="Quá hạn acknowledge (P1)" right={<span className="text-[12px] text-[#5d6a60]">{missed!.length} sự cố</span>} />
+        {missed!.length === 0 ? <EmptyRow>Không có incident quá hạn acknowledge.</EmptyRow> : missed!.map((item) => <KeeperItem key={item.incident_key} item={item} action="slashMissedAck" />)}
+      </Panel>
+      <Panel>
+        <PanelHeader title="Relay trễ, phạt operator (P2, thủ công)" right={<span className="text-[12px] text-[#5d6a60]">{late!.length} sự cố</span>} />
+        {late!.length === 0 ? <EmptyRow>Không có incident relay trễ.</EmptyRow> : late!.map((item) => <KeeperItem key={item.incident_key} item={item} action="slashLateRelay" />)}
+      </Panel>
     </> : null}
-  </IncentivesCard>
+  </>
 }
