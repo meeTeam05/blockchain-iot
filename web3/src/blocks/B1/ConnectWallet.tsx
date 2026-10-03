@@ -1,6 +1,5 @@
 import { useAccount, useBalance, useConnect, useDisconnect, useSwitchChain } from 'wagmi'
 import { formatEther } from 'viem'
-import { GhostButton } from '../../components/ui/GhostButton'
 import { Pill } from '../../components/ui/Pill'
 import { chain } from '../../lib/wagmiConfig'
 
@@ -19,10 +18,13 @@ export function ConnectWallet() {
 
   if (!isConnected) {
     return (
-      <GhostButton
-        label={isPending ? 'Đang kết nối…' : 'Kết nối ví'}
+      <button
+        type="button"
         onClick={() => connect({ connector: connectors[0] })}
-      />
+        className="h-[36px] px-4 rounded-full border border-[#16803c] bg-white text-[13px] font-semibold text-[#16803c] hover:bg-[#f0faf3] transition-colors cursor-pointer flex items-center justify-center whitespace-nowrap"
+      >
+        {isPending ? 'Đang kết nối…' : 'Kết nối ví'}
+      </button>
     )
   }
 

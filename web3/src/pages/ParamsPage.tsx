@@ -1,8 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate } from 'react-router'
 import { formatUnits } from 'viem'
 import { AppBar } from '../components/ui/AppBar'
-import { ConnectWallet } from '../blocks/B1/ConnectWallet'
+import { SessionActions } from '../blocks/B1/SessionActions'
 import { SAFETY_INCENTIVES_ABI } from '../generated/incentives-deployments'
 import { useIncentivesGuard, useTokenWallet } from '../lib/useIncentives'
 import { useIncentivesApi, type IncentiveParams } from '../lib/incentivesApi'
@@ -10,7 +9,6 @@ import { IncentivesCard, IncentivesGuardNotice } from '../blocks/B7/IncentivesSh
 import { ExplorerLink } from '../components/ExplorerLink'
 
 export function ParamsPage() {
-  const navigate = useNavigate()
   const guard = useIncentivesGuard()
   const token = useTokenWallet()
   const api = useIncentivesApi<IncentiveParams>('/incentives/params')
@@ -29,7 +27,10 @@ export function ParamsPage() {
       return { params, rewardFund, bond, operator }
     },
   })
-  return <><AppBar variant="back" title="Tham số" actions={<ConnectWallet />} onBack={() => navigate('/')} /><main className="mx-auto max-w-3xl p-6">
+  return (
+    <>
+      <AppBar variant="brand" actions={<SessionActions />} />
+      <main className="mx-auto max-w-3xl p-6">
     <IncentivesCard title="Incentives params (read-only)">
       <IncentivesGuardNotice guard={guard} />
       {token.isError ? <p role="alert">RPC token lỗi: {token.error.message}</p> : null}
@@ -49,6 +50,8 @@ export function ParamsPage() {
           <pre className="overflow-auto text-xs">{JSON.stringify(event.data, null, 2)}</pre>
         </div>)}
       </> : null}
-    </IncentivesCard>
-  </main></>
+        </IncentivesCard>
+      </main>
+    </>
+  )
 }

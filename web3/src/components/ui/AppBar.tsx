@@ -32,7 +32,7 @@ function NavItem({ to, label, end = false }: { to: string; label: string; end?: 
   const inRouter = useInRouterContext()
   if (!inRouter) {
     return (
-      <span className="rounded-pill bg-line-2 px-3 py-1.5 font-medium text-ink">
+      <span className="rounded-full bg-[#eef2ec] px-3.5 py-1.5 font-semibold text-[#17201a]">
         {label}
       </span>
     )
@@ -43,8 +43,8 @@ function NavItem({ to, label, end = false }: { to: string; label: string; end?: 
       end={end}
       className={({ isActive }) =>
         isActive
-          ? 'rounded-pill bg-line-2 px-3.5 py-1.5 font-semibold text-ink shadow-2xs'
-          : 'rounded-pill px-3.5 py-1.5 font-medium text-ink-2 hover:bg-canvas hover:text-ink transition-colors'
+          ? 'rounded-full bg-[#eef2ec] px-3.5 py-1.5 font-semibold text-[#17201a]'
+          : 'rounded-full px-3.5 py-1.5 font-medium text-[#4f5b52] hover:bg-[#f4f6f3] hover:text-[#17201a] transition-colors'
       }
     >
       {label}
