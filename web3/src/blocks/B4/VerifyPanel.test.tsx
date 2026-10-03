@@ -60,7 +60,8 @@ describe('VerifyPanel', () => {
     mount(<VerifyPanel deviceId={deviceId} incident={incident} />)
     await waitFor(() => expect(state()).toBe('ok'))
     expect(screen.getByText('Dữ liệu toàn vẹn')).toBeInTheDocument()
-    expect(screen.getByText('4/4 checks · block 123')).toBeInTheDocument()
+    expect(screen.getByText('4/4 kiểm tra đạt')).toBeInTheDocument()
+    expect(screen.getByText('block 123')).toBeInTheDocument()
   })
 
   it('shows step 3 for invalid evidence and step 4 for a signer mismatch', async () => {

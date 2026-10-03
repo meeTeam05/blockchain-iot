@@ -1,26 +1,57 @@
+import type { ReactNode } from 'react'
 import { useChainNow } from '../../lib/useChainNow'
 import { formatUnits, type Hash } from 'viem'
 import { useCanonicalDeviceIncentives, useSettlement, useTokenWallet } from '../../lib/useIncentives'
 import { useIncentivesApi, type IncidentIncentive, type IncentiveParams } from '../../lib/incentivesApi'
 import type { useIncentiveTransaction } from '../../lib/useIncentiveTransaction'
 import { isTransactionBusy } from '../../lib/incidentTransaction'
-import { PrimaryButton } from '../../components/ui/PrimaryButton'
+import { Panel } from '../../components/ui/Panel'
 import { ExplorerLink } from '../../components/ExplorerLink'
-import { IncentivesCard, IncentivesGuardNotice, IncentiveTxStatus } from '../B7/IncentivesShared'
+import { IncentivesGuardNotice, IncentiveTxStatus } from '../B7/IncentivesShared'
 
 const statusLabels: Record<string, string> = { none: 'Chưa có settlement được index', ack_rewarded: 'Đã thưởng ack',
   resolved_rewarded: 'Đã thưởng resolve', over_cap: 'Vượt trần ngày: không thưởng', slashed: 'Owner đã bị phạt',
   late_relay_slashed: 'Relay trễ: operator bị phạt' }
+function RecordButton({ label, disabled, onClick }: { label: string; disabled: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="h-9 cursor-pointer rounded-[10px] border border-[#16803c] bg-white px-3.5 text-[13px] font-semibold text-[#16803c] transition-colors hover:bg-[#f0faf3] disabled:cursor-not-allowed disabled:border-[#e3e8e1] disabled:text-[#a3ada5]"
+    >
+      {label}
+    </button>
+  )
+}
+
+function formatDeadline(epochSeconds: bigint) {
+  const date = new Date(Number(epochSeconds) * 1000)
+  const time = date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+  const day = date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
+  return `${time} · ${day}`
+}
+
 export function IncidentIncentives({
   deviceId,
   incidentKey,
   projection,
   transaction,
+  resolved = false,
+  actions,
+  note,
+  footer,
 }: {
   deviceId: string
   incidentKey: Hash
   projection?: IncidentIncentive | null
   transaction: ReturnType<typeof useIncentiveTransaction>
+  // A resolved incident swaps the ack countdown for a done summary.
+  resolved?: boolean
+  // Owner controls and the permission note render inside the "Xử lý sự cố" card.
+  actions?: ReactNode
+  note?: ReactNode
+  footer?: ReactNode
 }) {
   const chain = useSettlement(incidentKey)
   const device = useCanonicalDeviceIncentives(deviceId)
@@ -40,181 +71,173 @@ export function IncidentIncentives({
     : undefined
   const projectionValid = Boolean(api.data && projection?.incident_key === incidentKey)
 
-  const isUrgent = remaining !== undefined && remaining < 180n && remaining >= 0n
   const isOverdue = remaining !== undefined && remaining < 0n
   const countdownMinutes = remaining !== undefined && remaining >= 0n ? remaining / 60n : 0n
   const countdownSeconds = remaining !== undefined && remaining >= 0n ? remaining % 60n : 0n
   const countdownDisplay = `${String(countdownMinutes).padStart(2, '0')}:${String(countdownSeconds).padStart(2, '0')}`
+  const timerColor = isOverdue || (remaining !== undefined && remaining <= 60n) ? '#c81e3a' : remaining !== undefined && remaining <= 300n ? '#d97706' : '#16a34a'
 
   // Progress percentage (based on 30 min max window = 1800s)
   const progressPct =
     remaining !== undefined && remaining > 0n
       ? Math.min(100, Math.max(5, Number((remaining * 100n) / 1800n)))
       : 0
+  const penalty = device.data && decimals !== undefined ? formatUnits(device.data.params.missedAckPenalty, decimals) : undefined
+
+  const settled = s?.exists && s.covered ? s : undefined
+  // Only claim what the canonical settlement flags prove: bit 8 = owner slashed, bit 1 = timely ack.
+  const resolvedNote = settled
+    ? settled.flags & 8
+      ? 'Xác nhận trễ · owner đã bị phạt'
+      : settled.flags & 1
+        ? 'Xác nhận đúng hạn · không bị phạt'
+        : undefined
+    : undefined
+  const details = [
+    token.isError ? (
+      <p key="token-error" role="alert" className="m-0 text-[13px] text-[#c81e3a]">RPC token lỗi: {token.error.message}</p>
+    ) : null,
+    device.isError ? (
+      <p key="device-error" role="alert" className="m-0 text-[13px] text-[#c81e3a]">RPC device incentives lỗi: {device.error.message}</p>
+    ) : null,
+    chain.isError ? (
+      <p key="settlement-error" role="alert" className="m-0 text-[13px] text-[#c81e3a]">RPC settlement lỗi: {chain.error.message}</p>
+    ) : null,
+    chain.guard.status === 'ready' && chain.isPending ? (
+      <p key="settlement-pending" className="m-0 text-[13px] text-[#5d6a60]">Đang đọc pendingSettlement từ chain…</p>
+    ) : null,
+    settled ? (
+      <div key="settlement" className="flex flex-col gap-2">
+        <p className="m-0 font-mono text-[11.5px] text-[#8a958c]">
+          Canonical settlement flags: {settled.flags} · Relay delay: {String(settled.relayDelay)} giây
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {settled.flags & 2 ? (
+            <span className="rounded-full bg-[#e8faef] px-2.5 py-0.5 text-[12px] font-semibold text-[#0f7638] before:mr-1 before:content-['✓']">
+              Chain: đã thưởng ack
+            </span>
+          ) : null}
+          {settled.flags & 4 ? (
+            <span className="rounded-full bg-[#e2f9fc] px-2.5 py-0.5 text-[12px] font-semibold text-[#00606f] before:mr-1 before:content-['✓']">
+              Chain: resolve đã settlement (thưởng hoặc skipped)
+            </span>
+          ) : null}
+          {settled.flags & 8 ? (
+            <span className="rounded-full bg-[#fff1f3] px-2.5 py-0.5 text-[12px] font-semibold text-[#a3122e] before:mr-1 before:content-['✕']">
+              Chain: owner đã bị phạt
+            </span>
+          ) : null}
+          {settled.flags & 16 ? (
+            <span className="rounded-full bg-[#fff1f3] px-2.5 py-0.5 text-[12px] font-semibold text-[#a3122e] before:mr-1 before:content-['✕']">
+              Chain: relay trễ, operator bị phạt
+            </span>
+          ) : null}
+        </div>
+        <p className="m-0 text-[11px] text-[#8a958c]">
+          Server keeper tự xử lý R1/R2 và P1; có thể ghi nhận thủ công khi chưa settlement. P2 chỉ do keeper bên ngoài thực hiện.
+        </p>
+        {settled.canRecordAck ? (
+          <RecordButton
+            label="Ghi nhận thưởng ack"
+            disabled={!transaction.guard.canWrite || isTransactionBusy(transaction.snapshot.stage)}
+            onClick={() => void transaction.run('recordTimelyAck', [incidentKey])}
+          />
+        ) : null}
+        {settled.canRecordResolve ? (
+          <RecordButton
+            label="Ghi nhận thưởng resolve"
+            disabled={!transaction.guard.canWrite || isTransactionBusy(transaction.snapshot.stage)}
+            onClick={() => void transaction.run('recordTimelyResolve', [incidentKey])}
+          />
+        ) : null}
+      </div>
+    ) : null,
+    api.isError ? (
+      <p key="api-error" role="alert" className="m-0 text-[13px] text-[#c81e3a]">{api.error.message}</p>
+    ) : api.isPending ? (
+      <p key="api-pending" className="m-0 text-[13px] text-[#5d6a60]">Đang xác minh deployment API incentives…</p>
+    ) : null,
+    projectionValid && projection ? (
+      <div key="projection" className="flex flex-col gap-1.5 text-[12.5px]">
+        <p className="m-0 font-medium text-[#17201a]">
+          API projection: {statusLabels[projection.reward_status] ?? projection.reward_status}
+        </p>
+        {s && indexedFlags !== s.flags ? (
+          <p className="m-0 text-[12px] text-[#7a4f00]">API chưa đồng bộ settlement; chain đã ghi nhận giao dịch.</p>
+        ) : null}
+
+        {projection.events.map((event) => (
+          <p key={event.id} className="m-0 rounded-lg bg-[#f6f8f5] px-2.5 py-1.5 text-[11.5px] text-[#3d4a40]">
+            {event.name} {event.amount && decimals !== undefined ? `${formatUnits(BigInt(event.amount), decimals)} ASAFE` : ''}
+            {event.name === 'RewardSkipped' ? ` · ${String(event.data.reason_name ?? event.data.reason ?? 'Skipped')}` : ''}
+            {' · '}Keeper/owner: {event.account ?? '—'} · <ExplorerLink kind="tx" value={event.tx_hash} /> · <ExplorerLink kind="block" value={event.block_number} />
+          </p>
+        ))}
+      </div>
+    ) : null,
+    transaction.snapshot.stage !== 'idle' ? (
+      <IncentiveTxStatus key="tx-status" snapshot={transaction.snapshot} onDiscard={transaction.discardPending} />
+    ) : null,
+  ]
 
   return (
-    <IncentivesCard title="Khuyến khích & Thưởng phạt (Incentives)">
-      <IncentivesGuardNotice guard={chain.guard} />
-      {token.isError ? <p role="alert" className="text-danger text-[13px]">RPC token lỗi: {token.error.message}</p> : null}
-      {device.isError ? <p role="alert" className="text-danger text-[13px]">RPC device incentives lỗi: {device.error.message}</p> : null}
-      {chain.guard.status === 'ready' && chain.isPending ? (
-        <p className="text-[13px] text-ink-3">Đang đọc pendingSettlement từ chain…</p>
-      ) : null}
-      {chain.isError ? (
-        <p role="alert" className="text-danger text-[13px]">RPC settlement lỗi: {chain.error.message}</p>
-      ) : s ? (
-        <>
-          {!s.exists ? (
-            <p className="text-[13px] text-ink-3">Sự cố chưa tồn tại trên chain.</p>
-          ) : !s.covered ? (
-            <p className="text-[13px] text-ink-3">Sự cố trước khi incentives được kích hoạt.</p>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {/* Prominent Countdown Box */}
-              <div
-                className={`rounded-2xl border p-4 transition-all ${
-                  isOverdue
-                    ? 'border-danger-bright/40 bg-danger-tint/50'
-                    : isUrgent
-                      ? 'border-danger-bright/50 bg-danger-tint/30 shadow-[0_0_0_3px_rgba(255,59,74,0.15)]'
-                      : 'border-brand-bright/30 bg-gradient-to-br from-paper to-brand-tint/30'
-                }`}
-              >
-                <div className="flex items-center justify-between text-[12px]">
-                  <span className="font-semibold text-ink-2 uppercase tracking-wide">
-                    {isOverdue ? 'Hạn xác nhận: Quá hạn' : 'Thời hạn xác nhận'}
-                  </span>
-                  <span
-                    className={`rounded-pill px-2.5 py-0.5 font-mono text-[11px] font-bold ${
-                      isOverdue
-                        ? 'bg-danger text-paper'
-                        : isUrgent
-                          ? 'bg-danger-bright text-paper animate-pulse'
-                          : 'bg-brand-tint text-brand'
-                    }`}
-                  >
-                    {isOverdue ? 'OVERDUE' : isUrgent ? 'URGENT' : 'ON TIME: +5 ASAFE'}
-                  </span>
-                </div>
+    <>
+      <Panel>
+        <div className="flex flex-col gap-3.5 px-[22px] py-5">
+          <h2 className="m-0 text-[16px] font-semibold text-[#17201a]">Xử lý sự cố</h2>
 
-                <div className="my-2 flex items-baseline gap-2">
-                  <span
-                    className={`font-mono text-[36px] font-medium tracking-tight ${
-                      isOverdue || isUrgent ? 'text-danger' : 'text-ink'
-                    }`}
-                  >
-                    {isOverdue ? 'Quá hạn' : countdownDisplay}
-                  </span>
-                </div>
-
-                {/* Visual Progress Bar */}
-                <div className="h-2 w-full overflow-hidden rounded-full bg-line-2">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${
-                      isOverdue
-                        ? 'bg-danger w-full'
-                        : isUrgent
-                          ? 'bg-danger-bright'
-                          : 'bg-brand-bright'
-                    }`}
-                    style={{ width: `${progressPct}%` }}
-                  />
-                </div>
-
-                {/* Canonical test-id paragraph preserved for test assertions */}
-                <p
-                  className={`mt-2 text-[12.5px] ${
-                    remaining !== undefined && remaining < 180n ? 'text-danger font-medium' : 'text-ink-2'
-                  }`}
-                  data-testid="ack-countdown"
-                >
-                  {remaining !== undefined && remaining >= 0n
-                    ? `Hạn acknowledge: ${String(remaining / 60n).padStart(2, '0')}:${String(remaining % 60n).padStart(2, '0')}`
-                    : 'Quá hạn, không có thưởng ack; có thể bị phạt.'}
-                </p>
+          {s && !s.exists ? (
+            <p className="m-0 text-[13px] text-[#5d6a60]">Sự cố chưa tồn tại trên chain.</p>
+          ) : s && !s.covered ? (
+            <p className="m-0 text-[13px] text-[#5d6a60]">Sự cố trước khi incentives được kích hoạt.</p>
+          ) : s && resolved ? (
+            <div className="flex items-center gap-3 rounded-xl bg-[#f0faf3] p-3.5" data-testid="incident-resolved">
+              <span className="grid size-7 shrink-0 place-items-center rounded-full bg-[#dcf5e3] font-bold text-[#15803d]" aria-hidden>✓</span>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[14px] font-semibold text-[#15803d]">Đã xử lý</span>
+                {resolvedNote ? <span className="text-[12px] text-[#5d6a60]">{resolvedNote}</span> : null}
               </div>
-
-              {/* Settlement summary & status badges */}
-              <div className="rounded-xl border border-line-2 bg-canvas/60 p-3 text-[12.5px]">
-                <p className="font-mono text-[11.5px] text-ink-3">
-                  Canonical settlement flags: {s.flags} · Relay delay: {String(s.relayDelay)} giây
-                </p>
-
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {s.flags & 2 ? (
-                    <span className="inline-flex items-center gap-1 rounded-pill bg-brand-tint px-2.5 py-0.5 font-semibold text-brand">
-                      ✓ Chain: đã thưởng ack
-                    </span>
-                  ) : null}
-                  {s.flags & 4 ? (
-                    <span className="inline-flex items-center gap-1 rounded-pill bg-accent-tint px-2.5 py-0.5 font-semibold text-accent">
-                      ✓ Chain: resolve đã settlement (thưởng hoặc skipped)
-                    </span>
-                  ) : null}
-                  {s.flags & 8 ? (
-                    <span className="inline-flex items-center gap-1 rounded-pill bg-danger-tint px-2.5 py-0.5 font-semibold text-danger">
-                      ✕ Chain: owner đã bị phạt
-                    </span>
-                  ) : null}
-                  {s.flags & 16 ? (
-                    <span className="inline-flex items-center gap-1 rounded-pill bg-danger-tint px-2.5 py-0.5 font-semibold text-danger">
-                      ✕ Chain: relay trễ, operator bị phạt
-                    </span>
-                  ) : null}
-                </div>
-
-                {device.data ? (
-                  <p className="mt-2 text-[12px] text-ink-2">
-                    <span className="font-semibold text-ink">{device.data.rewardsToday}/{device.data.params.dailyRewardCap}</span> lượt thưởng hôm nay
-                  </p>
-                ) : null}
-
-                <p className="mt-2 text-[11px] text-ink-4">
-                  Server keeper tự xử lý R1/R2 và P1; có thể ghi nhận thủ công khi chưa settlement. P2 chỉ do keeper bên ngoài thực hiện.
-                </p>
-              </div>
-
-              {s.canRecordAck ? (
-                <PrimaryButton
-                  label="Ghi nhận thưởng ack"
-                  disabled={!transaction.guard.canWrite || isTransactionBusy(transaction.snapshot.stage)}
-                  onClick={() => void transaction.run('recordTimelyAck', [incidentKey])}
-                />
-              ) : null}
-              {s.canRecordResolve ? (
-                <PrimaryButton
-                  label="Ghi nhận thưởng resolve"
-                  disabled={!transaction.guard.canWrite || isTransactionBusy(transaction.snapshot.stage)}
-                  onClick={() => void transaction.run('recordTimelyResolve', [incidentKey])}
-                />
-              ) : null}
             </div>
-          )}
-        </>
-      ) : null}
-
-      {api.isError ? <p role="alert" className="text-danger text-[13px]">{api.error.message}</p> : api.isPending ? <p className="text-[13px] text-ink-3">Đang xác minh deployment API incentives…</p> : null}
-
-      {projectionValid && projection ? (
-        <div className="mt-2 border-t border-line-2 pt-3 text-[12.5px]">
-          <p className="font-medium text-ink">
-            API projection: {statusLabels[projection.reward_status] ?? projection.reward_status}
-          </p>
-          {s && indexedFlags !== s.flags ? (
-            <p className="mt-1 text-warn text-[12px]">API chưa đồng bộ settlement; chain đã ghi nhận giao dịch.</p>
+          ) : s ? (
+            <>
+              <span className="text-[12px] text-[#5d6a60]">Hạn xác nhận</span>
+              <div
+                data-testid="ack-countdown"
+                className="font-mono text-[44px] font-medium leading-none tracking-[-0.02em]"
+                style={{ color: timerColor }}
+              >
+                <span className="sr-only">Hạn acknowledge: </span>
+                {isOverdue ? 'Quá hạn' : countdownDisplay}
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-[3px] bg-[#eef1ec]">
+                <div
+                  className="h-full rounded-[3px] transition-all duration-500"
+                  style={{ width: `${isOverdue ? 100 : progressPct}%`, backgroundColor: timerColor }}
+                />
+              </div>
+              <div className="flex flex-wrap justify-between gap-3 text-[12px] text-[#5d6a60]">
+                <span>Hạn chót {formatDeadline(s.ackDeadline)}</span>
+                {penalty ? <span>Quá hạn: <b className="text-[#c81e3a]">−{penalty} ASAFE</b></span> : null}
+              </div>
+              {isOverdue ? (
+                <p className="m-0 text-[12.5px] text-[#c81e3a]">Quá hạn, không có thưởng ack; có thể bị phạt.</p>
+              ) : null}
+            </>
           ) : null}
 
-          {projection.events.map((event) => (
-            <p key={event.id} className="rounded-lg border border-line-2 bg-canvas px-2.5 py-1.5 text-[11.5px] text-ink-2">
-              {event.name} {event.amount && decimals !== undefined ? `${formatUnits(BigInt(event.amount), decimals)} ASAFE` : ''}
-              {event.name === 'RewardSkipped' ? ` · ${String(event.data.reason_name ?? event.data.reason ?? 'Skipped')}` : ''}
-              {' · '}Keeper/owner: {event.account ?? '—'} · <ExplorerLink kind="tx" value={event.tx_hash} /> · <ExplorerLink kind="block" value={event.block_number} />
-            </p>
-          ))}
+          {actions}
+          {note}
         </div>
-      ) : null}
+      </Panel>
 
-      <IncentiveTxStatus snapshot={transaction.snapshot} onDiscard={transaction.discardPending} />
-    </IncentivesCard>
+      <Panel>
+        <div className="flex flex-col gap-3 px-[22px] py-[18px]">
+          <h2 className="m-0 text-[16px] font-semibold text-[#17201a]">Thưởng phạt sự cố</h2>
+          <IncentivesGuardNotice guard={chain.guard} />
+          {details}
+          {footer}
+        </div>
+      </Panel>
+    </>
   )
 }

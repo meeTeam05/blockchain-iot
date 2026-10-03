@@ -5,14 +5,25 @@ import type { IncentiveAction } from '../../lib/incentives'
 import { ExplorerLink } from '../../components/ExplorerLink'
 import type { useIncentivesGuard } from '../../lib/useIncentives'
 
+function NoticeBanner({ role, children }: { role?: 'alert'; children: ReactNode }) {
+  return (
+    <div className="flex items-start gap-2.5 rounded-[10px] bg-[#fdf4dc] px-3 py-2.5">
+      <span className="mt-1.5 size-2 shrink-0 rounded-full bg-[#d97706]" />
+      <p role={role} className="m-0 min-w-0 flex-1 text-[13px] leading-[1.5] text-[#7a4f00]">
+        {children}
+      </p>
+    </div>
+  )
+}
+
 export function IncentivesGuardNotice({ guard }: { guard: ReturnType<typeof useIncentivesGuard> }) {
-  if (guard.status === 'unavailable') return <p>Token/incentives chưa được deploy trên mạng này.</p>
-  if (guard.status === 'not_deployed') return <p role="alert">Token/incentives chưa được deploy trên RPC hiện hành.</p>
-  if (guard.status === 'rpc_error') return <p role="alert">RPC incentives không khả dụng. Không thể đọc dữ liệu chain.</p>
-  if (guard.status === 'mismatch') return <p role="alert">Sai mạng/domain/deployment incentives.</p>
-  if (guard.status === 'loading') return <p>Đang kiểm tra deployment incentives…</p>
-  if (!guard.account.isConnected) return <p>Kết nối ví để thực hiện giao dịch incentives.</p>
-  if (!guard.canWrite) return <p role="alert">Sai mạng hoặc RPC ví chưa được xác minh cho incentives.</p>
+  if (guard.status === 'unavailable') return <NoticeBanner>Token/incentives chưa được deploy trên mạng này.</NoticeBanner>
+  if (guard.status === 'not_deployed') return <NoticeBanner role="alert">Token/incentives chưa được deploy trên RPC hiện hành.</NoticeBanner>
+  if (guard.status === 'rpc_error') return <NoticeBanner role="alert">RPC incentives không khả dụng. Không thể đọc dữ liệu chain.</NoticeBanner>
+  if (guard.status === 'mismatch') return <NoticeBanner role="alert">Sai mạng/domain/deployment incentives.</NoticeBanner>
+  if (guard.status === 'loading') return <NoticeBanner>Đang kiểm tra deployment incentives…</NoticeBanner>
+  if (!guard.account.isConnected) return <NoticeBanner>Kết nối ví để thực hiện giao dịch incentives.</NoticeBanner>
+  if (!guard.canWrite) return <NoticeBanner role="alert">Sai mạng hoặc RPC ví chưa được xác minh.</NoticeBanner>
   return null
 }
 export function IncentivesCard({ title, children }: { title: string; children: ReactNode }) {

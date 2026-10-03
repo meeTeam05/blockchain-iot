@@ -4,7 +4,6 @@ import { useAccount, usePublicClient, useWalletClient } from 'wagmi'
 import type { Hash } from 'viem'
 import { ExplorerLink } from '../../components/ExplorerLink'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
-import { PrimaryButton } from '../../components/ui/PrimaryButton'
 import { activeNetwork } from '../../config/networks'
 import { AIR_SAFETY_LOG_ABI } from '../../generated/incident-deployments'
 import { decodeError } from '../../lib/errors'
@@ -34,6 +33,36 @@ interface OwnerActionsProps {
 }
 
 const IDLE: TransactionSnapshot = { stage: 'idle', action: null }
+
+function ActionButton({
+  label,
+  variant,
+  loading,
+  disabled,
+  onClick,
+}: {
+  label: string
+  variant: 'primary' | 'outline'
+  loading: boolean
+  disabled: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex h-10 items-center justify-center gap-2 rounded-[10px] text-[14px] font-semibold transition-colors disabled:cursor-not-allowed ${
+        variant === 'primary'
+          ? 'border-0 bg-[#16803c] text-white hover:bg-[#0f5f2c] disabled:bg-[#e3e8e1] disabled:text-[#8a958c]'
+          : 'border border-[#dfe4dc] bg-white text-[#17201a] hover:bg-[#f4f6f3] disabled:border-[#e3e8e1] disabled:bg-white disabled:text-[#a3ada5]'
+      }`}
+    >
+      {loading ? <span className="size-3.5 animate-spin rounded-full border-2 border-current border-r-transparent" aria-hidden /> : null}
+      {label}
+    </button>
+  )
+}
 
 export function OwnerActions({
   deviceId,
@@ -154,16 +183,12 @@ export function OwnerActions({
     : null
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-line bg-paper p-5 shadow-xs">
-      <div className="flex items-center justify-between border-b border-line-2 pb-3">
-        <span className="text-[14px] font-bold text-ink">Thao tác on-chain</span>
-        <span className="font-mono text-[11px] text-ink-3">{chainStatus}</span>
-      </div>
-
-      <div className="flex flex-col gap-2.5">
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2">
         {canAcknowledge ? (
-          <PrimaryButton
-            label="Xác nhận"
+          <ActionButton
+            label="Xác nhận đã biết"
+            variant="primary"
             loading={busy && snapshot.action === 'acknowledgeIncident'}
             disabled={busy}
             onClick={() => {
@@ -173,8 +198,9 @@ export function OwnerActions({
           />
         ) : null}
         {canResolve ? (
-          <PrimaryButton
-            label="Đã xử lý"
+          <ActionButton
+            label="Đánh dấu đã xử lý"
+            variant={canAcknowledge ? 'outline' : 'primary'}
             loading={busy && snapshot.action === 'resolveIncident'}
             disabled={busy}
             onClick={() => {
@@ -184,7 +210,7 @@ export function OwnerActions({
           />
         ) : null}
         {canAcknowledge && !canResolve ? (
-          <p className="text-center text-[11.5px] text-ink-3">Đánh dấu đã xử lý mở sau khi xác nhận</p>
+          <p className="m-0 text-center text-[12px] text-[#8a958c]">Đánh dấu đã xử lý mở sau khi xác nhận</p>
         ) : null}
       </div>
 

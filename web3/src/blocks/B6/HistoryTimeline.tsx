@@ -28,27 +28,38 @@ function eventSub(event: HistoryEvent) {
   )
 }
 
-export function HistoryTimeline({ deviceId }: { deviceId: string }) {
+export function useDeviceHistory(deviceId: string) {
   const publicClient = usePublicClient({ chainId: chain.id })
   const deviceIdHash = computeDeviceIdHash(deviceId)
 
-  const { data: events, isLoading, isError, error, refetch } = useQuery({
+  return useQuery({
     queryKey: ['device-history', deviceId],
     enabled: Boolean(publicClient),
     queryFn: () => fetchDeviceHistory(publicClient!, deviceIdHash),
     staleTime: 30_000,
   })
+}
 
-  if (isLoading) return <p className="text-ink-2">Đang tải lịch sử on-chain…</p>
+export function HistoryTimeline({ deviceId }: { deviceId: string }) {
+  const { data: events, isLoading, isError, error, refetch } = useDeviceHistory(deviceId)
+
+  if (isLoading) return <p className="m-0 px-6 py-7 text-[13px] text-[#5d6a60]">Đang tải lịch sử on-chain…</p>
   if (isError) {
     return (
-      <div className="rounded-card border border-danger-bright/40 bg-paper p-4 text-[13px] text-danger">
+      <div className="px-6 py-5 text-[13px] text-[#c81e3a]">
         <p>Không đọc được lịch sử on-chain: {error.message}</p>
         <button type="button" className="mt-2 underline" onClick={() => void refetch()}>Thử lại</button>
       </div>
     )
   }
-  if (!events || events.length === 0) return <p className="text-ink-2">Chưa có lịch sử on-chain cho thiết bị này.</p>
+  if (!events || events.length === 0) {
+    return (
+      <div className="flex items-center gap-3 px-6 py-7 text-[13px] text-[#5d6a60]">
+        <span className="size-2 rounded-full bg-[#c3cbc4]" />
+        Thiết bị chưa có giao dịch on-chain.
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col divide-y divide-line">

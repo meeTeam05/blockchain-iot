@@ -42,7 +42,7 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText('Mật khẩu'), { target: { value: 'password-123' } })
     fireEvent.click(screen.getByRole('button', { name: 'Đăng nhập' }))
 
-    expect(await screen.findByText('Sự cố')).toBeInTheDocument()
+    expect(await screen.findByText('Đang tải…')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Kết nối ví' })).toBeInTheDocument()
     expect(window.location.pathname).toBe(directPath)
   })
