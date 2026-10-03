@@ -132,7 +132,7 @@ export function LoginForm() {
             id="auth-email"
             type="email"
             required
-            placeholder="ban@congty.vn"
+            placeholder="name@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="h-[52px] px-4 rounded-[12px] border border-[#d6dfd9] bg-white text-[16px] text-[#0f1712] placeholder:text-[#9aa69f] outline-none transition-all focus:border-[#0a8f4e] focus:ring-4 focus:ring-[#1ee07f]/22"
