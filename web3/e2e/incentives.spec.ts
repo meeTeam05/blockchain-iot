@@ -101,8 +101,8 @@ test('one day through the real UI: approve/stake, R1/R2, P1, manual P2, daily ca
   await expect(page.getByText(/On-chain MissedAckSlashed/)).toBeVisible()
 
   await page.goto('/dapp/params')
-  await expect(page.getByText('Quỹ thưởng canonical: 49980 ASAFE', { exact: true })).toBeVisible()
-  await expect(page.getByText('Operator bond canonical: 980 ASAFE', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('params-reward-fund')).toHaveText('49980 ASAFE')
+  await expect(page.getByTestId('params-operator-bond')).toHaveText('980 ASAFE')
   await expect(page.getByText(/ParamsUpdated ·/)).toBeVisible()
 
   await control('set-params', { ackReward: String(60000n * 10n ** 18n), dailyRewardCap: 100 })
