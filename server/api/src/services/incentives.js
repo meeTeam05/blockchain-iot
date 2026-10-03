@@ -65,10 +65,14 @@ export function formatIncentiveEvent(row) {
 }
 
 // Only the deployment selected for this process may supply API data. Older contract
-// snapshots remain in the DB after a deployment change.
-function activeContract(fastify) {
-    return (fastify.incentivesContractAddress
-        ?? INCENTIVES_DEPLOYMENTS[config.incentives.deployment]?.incentives.address)?.toLowerCase() ?? null;
+// snapshots remain in the DB after a deployment change, and the whole feature is off
+// (every incentives answer is "not available") while INCENTIVES_ENABLED is not true, even
+// when a snapshot from an earlier enabled run is still in the DB. An explicit
+// `incentivesContractAddress` decoration (tests, local harness) selects one deployment.
+export function activeContract(fastify) {
+    if (fastify.incentivesContractAddress !== undefined) return fastify.incentivesContractAddress?.toLowerCase() ?? null;
+    if (!config.incentives.enabled) return null;
+    return INCENTIVES_DEPLOYMENTS[config.incentives.deployment]?.incentives.address?.toLowerCase() ?? null;
 }
 
 export async function getIncentiveState(fastify) {
@@ -96,10 +100,11 @@ function bounty(penalty, available, state) {
 }
 
 // `incentive` block of GET /api/devices/:id/incidents/:incidentId (row from getIncidentRow).
+// null while incentives are disabled or the configured deployment is not indexed yet.
 export async function getIncidentIncentive(fastify, row) {
     const state = await getIncentiveState(fastify);
-    const covered = state && row.logged_at
-        ? new Date(row.logged_at) >= new Date(state.activated_at) : null;
+    if (!state) return null;
+    const covered = row.logged_at ? new Date(row.logged_at) >= new Date(state.activated_at) : null;
     const events = covered && row.chain_incident_key
         ? (await fastify.db.query(
             `SELECT * FROM incentive_events WHERE contract = $1 AND incident_key = $2 ORDER BY block_number, log_index`,
@@ -117,7 +122,7 @@ export async function getIncidentIncentive(fastify, row) {
         if (REWARD_STATUS_RANK.indexOf(effect.status) > REWARD_STATUS_RANK.indexOf(status)) status = effect.status;
     }
     const loggedAt = row.logged_at ? new Date(row.logged_at).getTime() : 0;
-    const ackSeconds = state?.params[Number(row.severity) === 1 ? 'ack_deadline_warning' : 'ack_deadline_danger'];
+    const ackSeconds = state.params[Number(row.severity) === 1 ? 'ack_deadline_warning' : 'ack_deadline_danger'];
     return {
         incident_key: row.chain_incident_key ?? null,
         covered,
@@ -131,10 +136,12 @@ export async function getIncidentIncentive(fastify, row) {
 }
 
 // GET /api/devices/:id/incentives: bond, today's reward count and reward/penalty history.
+// null (404) while incentives are disabled or not indexed, like the public routes.
 export async function getDeviceIncentives(fastify, deviceId, { limit = 50, beforeId = null } = {}) {
     const state = await getIncentiveState(fastify);
+    if (!state) return null;
     const hash = computeDeviceIdHash(deviceId);
-    const contract = state?.contract ?? null;
+    const contract = state.contract;
 
     const { rows: bonds } = await fastify.db.query(
         'SELECT * FROM device_bonds WHERE contract = $1 AND device_id_hash = $2',
@@ -164,10 +171,10 @@ export async function getDeviceIncentives(fastify, deviceId, { limit = 50, befor
     );
 
     const bond = bonds[0] && BigInt(bonds[0].amount) > 0n ? bonds[0] : null;
-    const params = state?.params ?? null;
-    const cap = params ? params.daily_reward_cap : null;
+    const params = state.params;
+    const cap = params.daily_reward_cap;
     const warnings = [];
-    if (params) {
+    {
         if (!bond) warnings.push('no_bond');
         else if (BigInt(bond.amount) < BigInt(params.owner_bond)) warnings.push('bond_below_owner_bond');
         if (bond && BigInt(bond.amount) < BigInt(params.missed_ack_penalty)) warnings.push('bond_cannot_cover_penalty');
@@ -178,7 +185,7 @@ export async function getDeviceIncentives(fastify, deviceId, { limit = 50, befor
     return {
         device_id: deviceId,
         device_id_hash: hash,
-        enabled: state !== null,
+        enabled: true,
         contract,
         bond: bond
             ? {
@@ -192,16 +199,14 @@ export async function getDeviceIncentives(fastify, deviceId, { limit = 50, befor
             : null,
         rewards_today: { day, count: counts.rewards_today, cap },
         totals: { rewarded: counts.rewarded, slashed: counts.slashed },
-        params: params
-            ? {
-                owner_bond: params.owner_bond,
-                missed_ack_penalty: params.missed_ack_penalty,
-                ack_reward: params.ack_reward,
-                resolve_reward: params.resolve_reward,
-                daily_reward_cap: params.daily_reward_cap,
-                unstake_cooldown: params.unstake_cooldown,
-            }
-            : null,
+        params: {
+            owner_bond: params.owner_bond,
+            missed_ack_penalty: params.missed_ack_penalty,
+            ack_reward: params.ack_reward,
+            resolve_reward: params.resolve_reward,
+            daily_reward_cap: params.daily_reward_cap,
+            unstake_cooldown: params.unstake_cooldown,
+        },
         warnings,
         events: events.map(formatIncentiveEvent),
     };
@@ -330,6 +335,10 @@ export async function getIncentiveParams(fastify, { historyLimit = 20 } = {}) {
 
 // GET /api/incentives/leaderboard (Token_incentive_task.md): owners by rewards earned and
 // keepers by bounty actually received. Addresses only; never device ids.
+// Each slash pays floor(amount * keeperShareBps / 10000) with the keeperShareBps of the
+// latest ParamsUpdated at or before it, as the contract does. The indexer backfills the
+// constructor ParamsUpdated even when INCENTIVES_START_BLOCK is later, so a slash always
+// has one; should it not, the slash is still listed (count and unpriced_slashes), never dropped.
 export async function getLeaderboard(fastify, { limit = 10 } = {}) {
     const state = await getIncentiveState(fastify);
     if (!state) return null;
@@ -344,10 +353,11 @@ export async function getLeaderboard(fastify, { limit = 10 } = {}) {
     );
     const { rows: keepers } = await fastify.db.query(
         `SELECT e.account,
-                SUM(FLOOR(e.amount * (p.data->'params'->>'keeperShareBps')::numeric / 10000))::text AS slashed,
-                COUNT(*)::int AS slashes
+                COALESCE(SUM(FLOOR(e.amount * (p.data->'params'->>'keeperShareBps')::numeric / 10000)), 0)::text AS slashed,
+                COUNT(*)::int AS slashes,
+                COUNT(*) FILTER (WHERE p.data IS NULL)::int AS unpriced_slashes
          FROM incentive_events e
-         JOIN LATERAL (
+         LEFT JOIN LATERAL (
              SELECT data FROM incentive_events p
              WHERE p.contract = e.contract AND p.name = 'ParamsUpdated'
                AND (p.block_number, p.log_index) <= (e.block_number, e.log_index)
@@ -355,7 +365,7 @@ export async function getLeaderboard(fastify, { limit = 10 } = {}) {
          ) p ON TRUE
          WHERE e.contract = $1 AND e.name IN ('MissedAckSlashed', 'LateRelaySlashed') AND e.amount > 0
          GROUP BY e.account
-         ORDER BY SUM(FLOOR(e.amount * (p.data->'params'->>'keeperShareBps')::numeric / 10000)) DESC, e.account
+         ORDER BY COALESCE(SUM(FLOOR(e.amount * (p.data->'params'->>'keeperShareBps')::numeric / 10000)), 0) DESC, e.account
          LIMIT $2`,
         [state.contract, limit]
     );

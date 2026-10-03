@@ -10,7 +10,8 @@ import { useNotifications } from '@/queries/notifications';
 import { NotificationItem } from '@/models/notification';
 import { AtmospherePalette } from '@/theme/palette';
 import { Env } from '@/config/env';
-import { openNotificationDestination } from '@/lib/dappLink';
+import { incidentTarget, openNotificationDestination } from '@/lib/dappLink';
+import { IncidentChainStatus } from '@/components/incident/IncidentChainStatus';
 
 const ICON_BY_TYPE: Record<string, typeof AppIcons.check> = {
   'device.online': AppIcons.check,
@@ -65,6 +66,7 @@ function NotificationTile({ item }: { item: NotificationItem }) {
   const router = useRouter();
   const Icon = ICON_BY_TYPE[item.type] ?? AppIcons.notifications;
   const isIncident = item.type === 'incident.warning' || item.type === 'incident.danger';
+  const incident = incidentTarget(item);
 
   return (
     <Pressable
@@ -96,6 +98,12 @@ function NotificationTile({ item }: { item: NotificationItem }) {
         {isIncident ? (
           <>
             <View style={{ height: AtmosphereTokens.space8 }} />
+            {incident ? (
+              <>
+                <IncidentChainStatus deviceId={incident.deviceId} incidentId={incident.incidentId} />
+                <View style={{ height: AtmosphereTokens.space6 }} />
+              </>
+            ) : null}
             <Text style={AtmosphereTextStyles.caption(c.brand)}>Xem trên chain</Text>
           </>
         ) : null}

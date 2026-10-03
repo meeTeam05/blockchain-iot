@@ -16,12 +16,11 @@ import { RealtimeSync } from './lib/RealtimeSync'
 import { WalletPage } from './pages/WalletPage'
 import { KeeperPage } from './pages/KeeperPage'
 import { ParamsPage } from './pages/ParamsPage'
+import { VerifyPage } from './pages/VerifyPage'
+import { ROUTER_BASENAME } from './config/routes'
 import { incentivesDeployment } from './lib/incentives'
 
 const queryClient = new QueryClient()
-// Canonical public mount. Vite's base is also /dapp/, but the router must not
-// silently become root-relative in test/dev modes where BASE_URL can be '/'.
-const routerBasename = '/dapp'
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { accessToken } = useAuth()
@@ -59,6 +58,7 @@ function AppRoutes() {
       <Route path="/" element={<RequireAuth><HomePage /></RequireAuth>} />
       <Route path="/d/:deviceId" element={<RequireAuth><DevicePage /></RequireAuth>} />
       <Route path="/d/:deviceId/i/:incidentId" element={<RequireAuth><IncidentPage /></RequireAuth>} />
+      <Route path="/verify/:deviceId/:incidentId" element={<RequireAuth><VerifyPage /></RequireAuth>} />
       <Route path="/wallet" element={<RequireAuth><WalletPage /></RequireAuth>} />
       <Route path="/keeper" element={<KeeperPage />} />
       <Route path="/params" element={<ParamsPage />} />
@@ -72,7 +72,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <DomainStatusProvider>
-            <BrowserRouter basename={routerBasename}>
+            <BrowserRouter basename={ROUTER_BASENAME}>
               <AppRoutes />
             </BrowserRouter>
           </DomainStatusProvider>

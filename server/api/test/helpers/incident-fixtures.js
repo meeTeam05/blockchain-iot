@@ -19,6 +19,7 @@ const MIGRATION_019 = path.resolve(__dirname, '../../../db/migrations/019_outbox
 const MIGRATION_020_INCENTIVES = path.resolve(__dirname, '../../../db/migrations/020_incentives.sql');
 const MIGRATION_020 = path.resolve(__dirname, '../../../db/migrations/020_positive_incident_sequence_and_bounded_chain_ops.sql');
 const MIGRATION_021 = path.resolve(__dirname, '../../../db/migrations/021_chain_worker_operations.sql');
+const MIGRATION_022 = path.resolve(__dirname, '../../../db/migrations/022_incentives_deployment_scope.sql');
 
 export const VECTOR_FILES = Object.freeze({
     earlyWarning: 'incident-v2-model-early-warning.json',
@@ -122,7 +123,10 @@ function queryAdapter(target) {
     };
 }
 
-export async function createIncidentDb({ signerAddress = null, applyLatestMigration = true } = {}) {
+export const MIGRATION_022_FILE = MIGRATION_022;
+
+// applyScopeMigration=false stops before 022, to test its upgrade of 020-era data.
+export async function createIncidentDb({ signerAddress = null, applyLatestMigration = true, applyScopeMigration = true } = {}) {
     const pg = new PGlite();
     await pg.exec(BASE_SCHEMA);
     await pg.exec(await readFile(MIGRATION_017, 'utf8'));
@@ -132,6 +136,7 @@ export async function createIncidentDb({ signerAddress = null, applyLatestMigrat
     if (applyLatestMigration) await pg.exec(await readFile(MIGRATION_020, 'utf8'));
     // 021 is independent of 020's constraints, so tests of 020 itself still get it.
     await pg.exec(await readFile(MIGRATION_021, 'utf8'));
+    if (applyScopeMigration) await pg.exec(await readFile(MIGRATION_022, 'utf8'));
 
     await pg.query('INSERT INTO users (id) VALUES ($1), ($2)', [USER_ID, OUTSIDER_ID]);
     await pg.query('INSERT INTO homes (id) VALUES ($1)', [HOME_ID]);

@@ -34,7 +34,8 @@ export default async function incentivesRoutes(fastify) {
         if (beforeId !== null && !/^[1-9][0-9]{0,18}$/.test(String(beforeId))) {
             return reply.code(400).send({ error: 'before_id must be a positive integer' });
         }
-        return getDeviceIncentives(fastify, deviceId, { limit, beforeId });
+        const result = await getDeviceIncentives(fastify, deviceId, { limit, beforeId });
+        return result ?? reply.code(404).send(NOT_AVAILABLE);
     });
 
     fastify.get('/incentives/overdue', publicRateLimit, async (request, reply) => {

@@ -103,6 +103,7 @@ export async function setupIncentives({
         chain: ctx,
         config: { ...chainConfig, stateRefreshMs: incentivesConfig.stateRefreshMs },
         startBlock,
+        deploymentBlock: deployment.incentives.blockNumber,
         log,
     });
     log.info({

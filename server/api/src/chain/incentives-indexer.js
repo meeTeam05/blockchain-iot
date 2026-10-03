@@ -3,13 +3,19 @@
 // deep are read, events are stored idempotently by (contract, tx_hash, log_index) and a
 // batch commits together with its own chain_checkpoints row (key = incentives address).
 //
-//   incentive_events   every SafetyIncentives event
-//   incidents          incentive_flags / reward_status per event; logged_at, deadlines
-//                      and coverage from pendingSettlement() (syncIncidents)
+//   incentive_events     every SafetyIncentives event
+//   incident_incentives  per (contract, incident): flags / reward_status per event;
+//                        coverage and deadlines from pendingSettlement() (syncIncidents).
+//                        incidents.logged_at (the AirSafetyLog loggedAt) is shared.
 //   device_bonds       device bonds and the operator bond (OPERATOR_BOND_ID)
 //   incentive_state    params, reward fund and operator bond snapshot for the API
 //
 // Every event that maps to a device in the DB emits realtime `incentive.updated`.
+// Everything is keyed by this contract address, so a redeployed SafetyIncentives (B) never
+// reads or overwrites the state of an earlier deployment (A) in the same database.
+// When startBlock lies after the deployment block, the ParamsUpdated events of that gap
+// (at least the constructor one) are backfilled first, so every later event has the
+// params that were in force when it happened (keeper share for the leaderboard).
 import { keccak256, toUtf8Bytes } from 'ethers';
 
 import { createRealtimeEvent } from '../services/realtime-events.js';
@@ -98,13 +104,14 @@ function eventColumns(name, args) {
     }
 }
 
-export function createIncentivesIndexer({ db, chain, config, startBlock = 0, log = console }) {
+export function createIncentivesIndexer({ db, chain, config, startBlock = 0, deploymentBlock = null, log = console }) {
     const contract = chain.address.toLowerCase();
     let deviceIds = new Map();
     const blockTimes = new Map();
     let constants = null;
     let stateRefreshedAt = 0;
     let stateDirty = true;
+    let paramsBackfilled = deploymentBlock === null || startBlock <= deploymentBlock;
 
     async function resolveDeviceId(client, hash) {
         if (!hash || hash === OPERATOR_BOND_ID) return null;
@@ -137,15 +144,17 @@ export function createIncentivesIndexer({ db, chain, config, startBlock = 0, log
 
     async function markIncident(client, incidentRowId, effect) {
         const { rows } = await client.query(
-            `UPDATE incidents
-             SET incentive_flags = incentive_flags | $2::smallint,
+            `INSERT INTO incident_incentives AS ii (contract, incident_row_id, flags, reward_status)
+             VALUES ($1, $2, $3::smallint, COALESCE($4::text, 'none'))
+             ON CONFLICT (contract, incident_row_id) DO UPDATE SET
+                 flags = ii.flags | EXCLUDED.flags,
                  reward_status = CASE
-                     WHEN $3::text IS NOT NULL
-                          AND array_position($4::text[], $3::text) > array_position($4::text[], reward_status)
-                     THEN $3::text ELSE reward_status END
-             WHERE id = $1
-             RETURNING reward_status, incentive_flags`,
-            [incidentRowId, effect.flags, effect.status, REWARD_STATUS_RANK]
+                     WHEN $4::text IS NOT NULL
+                          AND array_position($5::text[], $4::text) > array_position($5::text[], ii.reward_status)
+                     THEN $4::text ELSE ii.reward_status END,
+                 updated_at = NOW()
+             RETURNING reward_status, flags AS incentive_flags`,
+            [contract, incidentRowId, effect.flags, effect.status, REWARD_STATUS_RANK]
         );
         return rows[0] ?? null;
     }
@@ -203,11 +212,13 @@ export function createIncentivesIndexer({ db, chain, config, startBlock = 0, log
     // Deadlines move with the params (the contract reads them at call time).
     async function recomputeDeadlines(client, params) {
         await client.query(
-            `UPDATE incidents
-             SET ack_deadline_at = logged_at + (CASE WHEN severity = 1 THEN $1::bigint ELSE $2::bigint END) * INTERVAL '1 second',
-                 resolve_deadline_at = logged_at + $3::bigint * INTERVAL '1 second'
-             WHERE logged_at IS NOT NULL AND incentive_covered = TRUE`,
-            [params.ackDeadlineWarning, params.ackDeadlineDanger, params.resolveDeadline]
+            `UPDATE incident_incentives ii
+             SET ack_deadline_at = i.logged_at + (CASE WHEN i.severity = 1 THEN $1::bigint ELSE $2::bigint END) * INTERVAL '1 second',
+                 resolve_deadline_at = i.logged_at + $3::bigint * INTERVAL '1 second',
+                 updated_at = NOW()
+             FROM incidents i
+             WHERE ii.contract = $4 AND ii.incident_row_id = i.id AND ii.covered = TRUE AND i.logged_at IS NOT NULL`,
+            [params.ackDeadlineWarning, params.ackDeadlineDanger, params.resolveDeadline, contract]
         );
     }
 
@@ -246,6 +257,7 @@ export function createIncentivesIndexer({ db, chain, config, startBlock = 0, log
             deviceId,
             occurredAt: at,
             payload: {
+                contract,
                 event: name,
                 incident_id: incident?.incident_id ?? null,
                 incident_key: cols.incidentKey ?? null,
@@ -274,8 +286,75 @@ export function createIncentivesIndexer({ db, chain, config, startBlock = 0, log
         return rows.length ? Number(rows[0].last_block) : startBlock - 1;
     }
 
+    // Stores one parsed log; returns false when it was already stored.
+    async function insertEvent(client, entry, parsed, args, cols, at) {
+        const { rows } = await client.query(
+            `INSERT INTO incentive_events (contract, tx_hash, log_index, block_number, block_hash, block_time, name,
+                                           incident_key, device_id_hash, account, amount, data)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::numeric, $12::jsonb)
+             ON CONFLICT (contract, tx_hash, log_index) DO NOTHING
+             RETURNING id`,
+            [
+                contract,
+                lower(entry.transactionHash),
+                entry.index,
+                entry.blockNumber,
+                lower(entry.blockHash),
+                at,
+                parsed.name,
+                cols.incidentKey ?? null,
+                await deviceHashFor(client, cols),
+                cols.account ?? null,
+                cols.amount ?? null,
+                JSON.stringify(args),
+            ]
+        );
+        return rows.length > 0;
+    }
+
+    function parse(entry) {
+        try {
+            return chain.read.interface.parseLog(entry);
+        } catch {
+            return null;
+        }
+    }
+
+    // startBlock after the deployment block skipped the constructor ParamsUpdated (and
+    // any params change before startBlock). Index those, and only those, once, before
+    // any other event, so keeper shares and deadlines always have their params.
+    async function backfillParams() {
+        if (paramsBackfilled) return;
+        const { rows } = await db.query(
+            `SELECT 1 FROM incentive_events WHERE contract = $1 AND name = 'ParamsUpdated' AND block_number <= $2 LIMIT 1`,
+            [contract, deploymentBlock]
+        );
+        if (rows.length === 0) {
+            const topic = chain.read.interface.getEvent('ParamsUpdated').topicHash;
+            const logs = [];
+            for (let from = deploymentBlock; from < startBlock; from += config.logBatchBlocks) {
+                const to = Math.min(startBlock - 1, from + config.logBatchBlocks - 1);
+                logs.push(...await chain.provider.getLogs({ address: chain.address, topics: [topic], fromBlock: from, toBlock: to }));
+            }
+            let stored = 0;
+            await db.withTransaction(async (client) => {
+                for (const entry of logs) {
+                    const parsed = parse(entry);
+                    if (parsed?.name !== 'ParamsUpdated') continue;
+                    if (await insertEvent(client, entry, parsed, jsonArgs(parsed), {}, await blockTime(entry.blockNumber))) stored++;
+                }
+            });
+            if (stored === 0) {
+                throw new Error(`no ParamsUpdated found between deployment block ${deploymentBlock} and start block ${startBlock}`);
+            }
+            log.info({ from: deploymentBlock, to: startBlock - 1, stored }, 'initial incentive params backfilled');
+        }
+        paramsBackfilled = true;
+    }
+
     // Processes at most one batch; returns the number of new events.
     async function tick() {
+        await backfillParams();
         const head = await chain.provider.getBlockNumber();
         const safe = head - (config.confirmations - 1);
         const from = (await checkpoint()) + 1;
@@ -285,39 +364,13 @@ export function createIncentivesIndexer({ db, chain, config, startBlock = 0, log
         let applied = 0;
         await db.withTransaction(async (client) => {
             for (const entry of logs) {
-                let parsed;
-                try {
-                    parsed = chain.read.interface.parseLog(entry);
-                } catch {
-                    parsed = null;
-                }
+                const parsed = parse(entry);
                 if (!parsed) continue;
                 const args = jsonArgs(parsed);
                 if (parsed.name === 'RewardSkipped') args.reason_name = SKIP_REASONS[Number(args.reason)] ?? null;
                 const cols = eventColumns(parsed.name, args);
                 const at = await blockTime(entry.blockNumber);
-                const { rows } = await client.query(
-                    `INSERT INTO incentive_events (contract, tx_hash, log_index, block_number, block_hash, block_time, name,
-                                                   incident_key, device_id_hash, account, amount, data)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::numeric, $12::jsonb)
-                     ON CONFLICT (contract, tx_hash, log_index) DO NOTHING
-                     RETURNING id`,
-                    [
-                        contract,
-                        lower(entry.transactionHash),
-                        entry.index,
-                        entry.blockNumber,
-                        lower(entry.blockHash),
-                        at,
-                        parsed.name,
-                        cols.incidentKey ?? null,
-                        await deviceHashFor(client, cols),
-                        cols.account ?? null,
-                        cols.amount ?? null,
-                        JSON.stringify(args),
-                    ]
-                );
-                if (rows.length === 0) continue;
+                if (!(await insertEvent(client, entry, parsed, args, cols, at))) continue;
                 await apply(client, parsed.name, args, cols, entry, at);
                 applied++;
             }
@@ -334,30 +387,40 @@ export function createIncentivesIndexer({ db, chain, config, startBlock = 0, log
         return applied;
     }
 
-    // Logged-on-chain incidents not checked yet: coverage, loggedAt and deadlines from
-    // pendingSettlement(). Pre-activation incidents are marked once and never re-read.
+    // Logged-on-chain incidents this deployment has not checked yet: coverage and deadlines
+    // from its pendingSettlement(), plus the shared AirSafetyLog loggedAt. Pre-activation
+    // incidents are marked once (covered = FALSE) and never re-read for this contract.
     async function syncIncidents(limit = config.batchSize) {
         const { rows } = await db.query(
             `SELECT i.id, o.incident_key
              FROM incidents i JOIN blockchain_outbox o ON o.incident_row_id = i.id
-             WHERE o.status = 'confirmed' AND o.incident_key IS NOT NULL AND i.incentive_covered IS NULL
+             WHERE o.status = 'confirmed' AND o.incident_key IS NOT NULL
+               AND NOT EXISTS (
+                   SELECT 1 FROM incident_incentives ii
+                   WHERE ii.contract = $2 AND ii.incident_row_id = i.id AND ii.covered IS NOT NULL
+               )
              ORDER BY i.id
              LIMIT $1`,
-            [limit]
+            [limit, contract]
         );
         let synced = 0;
         for (const row of rows) {
             const s = await readSettlement(chain, row.incident_key);
             if (!s.exists) continue;
-            await db.query(
-                `UPDATE incidents
-                 SET incentive_covered = $2,
-                     logged_at = to_timestamp($3::double precision),
-                     ack_deadline_at = CASE WHEN $2 THEN to_timestamp($4::double precision) END,
-                     resolve_deadline_at = CASE WHEN $2 THEN to_timestamp($5::double precision) END
-                 WHERE id = $1`,
-                [row.id, s.covered, s.loggedAt, s.ackDeadline, s.resolveDeadline]
-            );
+            await db.withTransaction(async (client) => {
+                await client.query('UPDATE incidents SET logged_at = to_timestamp($2::double precision) WHERE id = $1', [row.id, s.loggedAt]);
+                await client.query(
+                    `INSERT INTO incident_incentives AS ii (contract, incident_row_id, covered, ack_deadline_at, resolve_deadline_at)
+                     VALUES ($1, $2, $3, CASE WHEN $3 THEN to_timestamp($4::double precision) END,
+                             CASE WHEN $3 THEN to_timestamp($5::double precision) END)
+                     ON CONFLICT (contract, incident_row_id) DO UPDATE SET
+                         covered = EXCLUDED.covered,
+                         ack_deadline_at = EXCLUDED.ack_deadline_at,
+                         resolve_deadline_at = EXCLUDED.resolve_deadline_at,
+                         updated_at = NOW()`,
+                    [contract, row.id, s.covered, s.ackDeadline, s.resolveDeadline]
+                );
+            });
             synced++;
         }
         return synced;

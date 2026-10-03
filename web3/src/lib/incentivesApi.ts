@@ -37,7 +37,7 @@ export class IncentivesApiError extends Error {
   status: number
   constructor(status: number) {
     super(status === 401 || status === 403 ? 'Không có quyền xem incentives (API)' :
-      status === 404 ? 'API chưa index deployment incentives hiện hành' : `API incentives lỗi (${status})`)
+      status === 404 ? 'API incentives chưa bật hoặc chưa index deployment hiện hành' : `API incentives lỗi (${status})`)
     this.status = status
   }
 }

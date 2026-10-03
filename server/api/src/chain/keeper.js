@@ -8,8 +8,10 @@
 //
 // Invariants:
 // * Every call is decided from pendingSettlement() on chain and simulated first.
-// * keeper_actions holds one row per (incident, action): an incident is never processed
-//   twice. Someone else settling first (AlreadySettled) or a passed deadline
+// * keeper_actions holds one row per (contract, incident, action) and the settlement
+//   projection comes from incident_incentives of the same contract: an incident is never
+//   processed twice by one deployment, and a redeployed SafetyIncentives evaluates it
+//   independently of any earlier deployment. Someone else settling first (AlreadySettled) or a passed deadline
 //   (AckDeadlinePassed) is a normal outcome: logged and stored as 'skipped'.
 // * The tx hash is committed as 'pending' before anything waits on it; reconcile turns
 //   it into 'done' after CHAIN_CONFIRMATIONS, or back to 'retry' when dropped/reverted.
@@ -78,6 +80,7 @@ export function decideAction(action, s, row, nowSeconds) {
 
 export function createKeeper({ db, chain, config, log = console }) {
     const batchSize = config.batchSize ?? 20;
+    const contract = chain.address.toLowerCase();
 
     function backoff(attempts) {
         const delaySeconds = Math.min(15 * 2 ** attempts, 300);
@@ -87,9 +90,9 @@ export function createKeeper({ db, chain, config, log = console }) {
     async function setAction(row, action, status, fields = {}) {
         await db.query(
             `INSERT INTO keeper_actions (incident_row_id, incident_key, action, status, tx_hash, block_number, attempts,
-                                         next_attempt_at, last_error)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-             ON CONFLICT (incident_row_id, action) DO UPDATE SET
+                                         next_attempt_at, last_error, contract)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+             ON CONFLICT (contract, incident_row_id, action) DO UPDATE SET
                  status = EXCLUDED.status, tx_hash = EXCLUDED.tx_hash, block_number = EXCLUDED.block_number,
                  attempts = EXCLUDED.attempts, next_attempt_at = EXCLUDED.next_attempt_at,
                  last_error = EXCLUDED.last_error, updated_at = NOW()`,
@@ -103,6 +106,7 @@ export function createKeeper({ db, chain, config, log = console }) {
                 fields.attempts ?? Number(row.keeper_attempts ?? 0),
                 fields.next_attempt_at ?? new Date(),
                 fields.last_error ?? null,
+                contract,
             ]
         );
     }
@@ -186,39 +190,40 @@ export function createKeeper({ db, chain, config, log = console }) {
     }
 
     const CANDIDATE_SELECT = `
-        SELECT i.id, i.device_id, i.incident_id, i.sequence, i.owner_status, i.ack_deadline_at, i.resolve_deadline_at,
-               i.incentive_flags, COALESCE(i.acknowledged_at, i.resolved_at) AS reacted_at, o.incident_key,
+        SELECT i.id, i.device_id, i.incident_id, i.sequence, i.owner_status, ii.ack_deadline_at, ii.resolve_deadline_at,
+               ii.flags AS incentive_flags, COALESCE(i.acknowledged_at, i.resolved_at) AS reacted_at, o.incident_key,
                COALESCE(k.attempts, 0) AS keeper_attempts
         FROM incidents i
         JOIN blockchain_outbox o ON o.incident_row_id = i.id
-        LEFT JOIN keeper_actions k ON k.incident_row_id = i.id AND k.action = $2
-        WHERE o.status = 'confirmed' AND o.incident_key IS NOT NULL AND i.incentive_covered = TRUE
+        JOIN incident_incentives ii ON ii.incident_row_id = i.id AND ii.contract = $4
+        LEFT JOIN keeper_actions k ON k.incident_row_id = i.id AND k.action = $2 AND k.contract = $4
+        WHERE o.status = 'confirmed' AND o.incident_key IS NOT NULL AND ii.covered = TRUE
           AND (k.id IS NULL OR (k.status = 'retry' AND k.next_attempt_at <= NOW()))`;
 
     // DB pre-filter; the chain has the final say in decideAction().
     const CANDIDATES = Object.freeze({
         record_ack: `${CANDIDATE_SELECT}
             AND i.owner_status IN ('acknowledged', 'resolved')
-            AND (i.incentive_flags & ${F.TIMELY_ACK | F.ACK_SLASHED}) = 0
-            AND i.ack_deadline_at >= $1
-            ORDER BY i.ack_deadline_at LIMIT $3`,
+            AND (ii.flags & ${F.TIMELY_ACK | F.ACK_SLASHED}) = 0
+            AND ii.ack_deadline_at >= $1
+            ORDER BY ii.ack_deadline_at LIMIT $3`,
         record_resolve: `${CANDIDATE_SELECT}
             AND i.owner_status = 'resolved'
-            AND (i.incentive_flags & ${F.ACK_REWARDED}) <> 0
-            AND (i.incentive_flags & ${F.RESOLVE_SETTLED}) = 0
-            AND i.resolve_deadline_at >= $1
-            ORDER BY i.resolve_deadline_at LIMIT $3`,
+            AND (ii.flags & ${F.ACK_REWARDED}) <> 0
+            AND (ii.flags & ${F.RESOLVE_SETTLED}) = 0
+            AND ii.resolve_deadline_at >= $1
+            ORDER BY ii.resolve_deadline_at LIMIT $3`,
         // Not acknowledged before the deadline: still open, or acknowledged late.
         slash_missed_ack: `${CANDIDATE_SELECT}
-            AND (i.incentive_flags & ${F.TIMELY_ACK | F.ACK_SLASHED}) = 0
-            AND i.ack_deadline_at < $1
+            AND (ii.flags & ${F.TIMELY_ACK | F.ACK_SLASHED}) = 0
+            AND ii.ack_deadline_at < $1
             AND (COALESCE(i.acknowledged_at, i.resolved_at) IS NULL
-                 OR COALESCE(i.acknowledged_at, i.resolved_at) > i.ack_deadline_at)
-            ORDER BY i.ack_deadline_at LIMIT $3`,
+                 OR COALESCE(i.acknowledged_at, i.resolved_at) > ii.ack_deadline_at)
+            ORDER BY ii.ack_deadline_at LIMIT $3`,
     });
 
     async function candidates(action, now, limit) {
-        const { rows } = await db.query(CANDIDATES[action], [now, action, limit]);
+        const { rows } = await db.query(CANDIDATES[action], [now, action, limit, contract]);
         return rows;
     }
 
@@ -226,9 +231,9 @@ export function createKeeper({ db, chain, config, log = console }) {
         const { rows } = await db.query(
             `SELECT k.id, k.incident_row_id AS row_id, k.incident_key, k.action, k.tx_hash, k.attempts, i.device_id
              FROM keeper_actions k JOIN incidents i ON i.id = k.incident_row_id
-             WHERE k.status = 'pending'
+             WHERE k.status = 'pending' AND k.contract = $2
              ORDER BY k.id LIMIT $1`,
-            [batchSize]
+            [batchSize, contract]
         );
         if (rows.length === 0) return 0;
         const head = await chain.provider.getBlockNumber();

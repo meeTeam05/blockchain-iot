@@ -292,3 +292,73 @@ test('KEEPER_BATCH_SIZE bounds the incidents handled per tick, rewards first', a
         assert.deepEqual(fake.state.calls.map((c) => c.method), ['recordTimelyAck', 'recordTimelyAck', 'recordTimelyAck', 'slashMissedAck']);
     }, { config: { ...CONFIG, batchSize: 2 } });
 });
+
+test('deployment isolation: work done by incentives deployment A never blocks deployment B on the same incident', async () => {
+    const store = await createIncidentDb();
+    try {
+        const A_ADDRESS = '0x' + 'a'.repeat(40);
+        const t = NOW - 300;
+        const acked = await insertChainIncident(store, {
+            sequence: 1, observedAt: t, ownerStatus: 'acknowledged', acknowledgedAt: t + 120,
+            contract: A_ADDRESS, flags: F.TIMELY_ACK | F.ACK_REWARDED, rewardStatus: 'ack_rewarded',
+        });
+        const missed = await insertChainIncident(store, {
+            sequence: 2, severity: 2, observedAt: NOW - 3_000, contract: A_ADDRESS, flags: F.ACK_SLASHED, rewardStatus: 'slashed',
+        });
+
+        // Deployment A: its keeper already settled both incidents.
+        const fakeA = createFakeIncentivesChain({ now: NOW });
+        fakeA.chain.address = A_ADDRESS;
+        const keeperA = createKeeper({ db: store, chain: fakeA.chain, config: CONFIG, log: silentLog });
+        await store.query(
+            `INSERT INTO keeper_actions (contract, incident_row_id, incident_key, action, status, tx_hash)
+             VALUES ($1, $2, $3, 'record_ack', 'done', $4), ($1, $5, $6, 'slash_missed_ack', 'pending', $7)`,
+            [A_ADDRESS, acked.id, acked.key, `0x${'1'.repeat(64)}`, missed.id, missed.key, `0x${'2'.repeat(64)}`]
+        );
+        assert.deepEqual(await keeperA.candidates('record_ack', new Date(NOW * 1000), 20), [], 'A sees its own flags');
+
+        // Switch the configuration to deployment B: same AirSafetyLog, same incidents, fresh state.
+        const fakeB = createFakeIncentivesChain({ now: NOW });
+        const B_ADDRESS = fakeB.chain.address.toLowerCase();
+        const keeperB = createKeeper({ db: store, chain: fakeB.chain, config: CONFIG, log: silentLog });
+        for (const incident of [acked, missed]) {
+            const ackDeadline = incident.loggedAt + (incident.severity === 1 ? 1800 : 600);
+            await store.query(
+                `INSERT INTO incident_incentives (contract, incident_row_id, covered, ack_deadline_at, resolve_deadline_at)
+                 VALUES ($1, $2, TRUE, to_timestamp($3::double precision), to_timestamp($4::double precision))`,
+                [B_ADDRESS, incident.id, ackDeadline, incident.loggedAt + 86_400]
+            );
+        }
+        fakeB.state.settlements.set(acked.key, settlementFor(acked, { status: 2, canRecordAck: true }));
+        fakeB.state.settlements.set(missed.key, settlementFor(missed, { canSlashMissedAck: true }));
+        fakeB.state.bonds.set(missed.hash, { amount: 100n * ASAFE, since: 0 });
+
+        const result = await keeperB.tick();
+        assert.deepEqual(result, { confirmed: 0, sent: 2, skipped: 0 }, 'B evaluates and sends independently; A pending is not B\'s to reconcile');
+        assert.deepEqual(fakeB.state.calls.map((c) => [c.method, c.key]), [['recordTimelyAck', acked.key], ['slashMissedAck', missed.key]]);
+        assert.equal(fakeA.state.calls.length, 0);
+
+        const { rows } = await store.query(
+            `SELECT contract, incident_row_id::int AS id, action, status FROM keeper_actions ORDER BY contract, incident_row_id, action`
+        );
+        assert.deepEqual(rows, [
+            { contract: A_ADDRESS, id: Number(acked.id), action: 'record_ack', status: 'done' },
+            { contract: A_ADDRESS, id: Number(missed.id), action: 'slash_missed_ack', status: 'pending' },
+            { contract: B_ADDRESS, id: Number(acked.id), action: 'record_ack', status: 'pending' },
+            { contract: B_ADDRESS, id: Number(missed.id), action: 'slash_missed_ack', status: 'pending' },
+        ].sort((x, y) => x.contract.localeCompare(y.contract) || x.id - y.id || x.action.localeCompare(y.action)));
+
+        // The chain stays the final authority for B: once B's settlement says done, nothing is re-sent.
+        fakeB.state.settlements.set(acked.key, settlementFor(acked, { status: 2, flags: F.TIMELY_ACK }));
+        for (const call of fakeB.state.calls) fakeB.mine(call.hash, { blockNumber: 100 });
+        assert.equal((await keeperB.tick()).confirmed, 2);
+        await keeperB.tick();
+        assert.equal(fakeB.state.calls.length, 2);
+        const { rows: [stillA] } = await store.query(
+            `SELECT status FROM keeper_actions WHERE contract = $1 AND action = 'slash_missed_ack'`, [A_ADDRESS]
+        );
+        assert.equal(stillA.status, 'pending', 'B never touches A rows');
+    } finally {
+        await store.close();
+    }
+});

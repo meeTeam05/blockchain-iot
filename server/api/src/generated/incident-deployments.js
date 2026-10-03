@@ -10,7 +10,7 @@ export const INCIDENT_DEPLOYMENTS = Object.freeze({
         "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
         "domainSeparator": "0x3696d3186087b7d951859d495019cfe08620f9b7b134ed4a7678f80312879bc2",
         "legacyAddresses": [],
-        "deployTxHash": "0xd966928812f86db483e79c96f68d044db340d6a8b822b474fa2fc5a38f2c0043",
+        "deployTxHash": "0xda502d56c24f5ef7a61359998c1c2df48fd6ed5bb86877006057489e9fa7c3d9",
         "blockNumber": 1
     },
     "sepolia": {

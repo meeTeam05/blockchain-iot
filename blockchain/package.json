@@ -12,7 +12,7 @@
     "deploy:localhost": "hardhat run scripts/deploy.js --network localhost",
     "verify:sepolia": "hardhat run scripts/verify.js --network sepolia",
     "roles:sepolia": "hardhat roles --network sepolia",
-    "coverage": "hardhat coverage",
+    "coverage": "hardhat coverage && hardhat compile --force",
     "deploy:incentives:localhost": "hardhat run scripts/deploy-incentives.js --network localhost",
     "deploy:incentives:sepolia": "hardhat run scripts/deploy-incentives.js --network sepolia",
     "fund:incentives:localhost": "hardhat run scripts/fund-incentives.js --network localhost",

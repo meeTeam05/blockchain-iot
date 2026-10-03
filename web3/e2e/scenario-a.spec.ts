@@ -173,6 +173,13 @@ test.describe('Kich ban A: E2E incident', () => {
       .some((key) => key?.startsWith('smartair-pending-incident-tx:')), null, { timeout: 10_000 })
     await page.reload()
 
+    // The wagmi mock connectors all share the id "mock", so unlike MetaMask the owner
+    // account is not restored on reload: reconnect the same way as above. The pending
+    // acknowledge is resumed from the public RPC meanwhile and never re-sent.
+    await page.getByRole('button', { name: 'Kết nối ví' }).click()
+    await page.getByRole('button', { name: 'Đổi tài khoản' }).click()
+    await expect(page.getByText('là chủ thiết bị này')).toBeVisible()
+
     // A7: sau khi acknowledge, nut "Da xu ly" (resolve) phai hien ra.
     const resolveButton = page.getByRole('button', { name: 'Đã xử lý' })
     await expect(resolveButton).toBeVisible({ timeout: 20_000 })
@@ -191,5 +198,11 @@ test.describe('Kich ban A: E2E incident', () => {
     await expect(page.getByText('IncidentLogged')).toBeVisible()
     await expect(page.getByText('IncidentAcknowledged')).toBeVisible()
     await expect(page.getByText('IncidentResolved')).toBeVisible()
+
+    // B4 standalone route: direct load (as from a shared link) verifies from chain.
+    await page.goto(`/dapp/verify/${deviceId}/${incidentId}`)
+    await expect(page.getByText('Xác minh sự cố')).toBeVisible()
+    await expect(page.getByText('Dữ liệu toàn vẹn')).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByText('4/4 checks', { exact: false })).toBeVisible()
   })
 })

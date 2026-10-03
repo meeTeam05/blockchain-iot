@@ -17,7 +17,16 @@ const hre = require("hardhat");
 const { exportAbi } = require("./export-abi");
 
 const { ethers, network } = hre;
-const CONFIRMATIONS = network.name === "hardhat" || network.name === "localhost" ? 1 : 5;
+const LOCAL = network.name === "hardhat" || network.name === "localhost";
+const CONFIRMATIONS = LOCAL ? 1 : 5;
+// Fixed fees on a local node so a fresh `hardhat node` always yields the same deploy
+// tx hash as spec/incident/deployments/localhost.json (the dApp pins it, B0). Live
+// networks keep the provider's fee estimate.
+const LOCAL_TX_OVERRIDES = Object.freeze({
+  gasLimit: 6_000_000n,
+  maxFeePerGas: 3_000_000_000n,
+  maxPriorityFeePerGas: 1_000_000_000n,
+});
 const SPEC_NETWORKS = new Set(["localhost", "sepolia"]);
 const SPEC_DIR = path.join(__dirname, "..", "..", "spec", "incident", "deployments");
 
@@ -62,7 +71,7 @@ async function main() {
   console.log(`Network ${network.name} (chain ${chainId}), deployer ${deployer.address}`);
   console.log(`Balance ${ethers.formatEther(await ethers.provider.getBalance(deployer.address))} ETH`);
 
-  const log = await ethers.deployContract("AirSafetyLog", [admin]);
+  const log = await ethers.deployContract("AirSafetyLog", [admin], LOCAL ? { ...LOCAL_TX_OVERRIDES } : {});
   const deployTx = log.deploymentTransaction();
   console.log(`Deploy tx ${deployTx.hash}`);
   const receipt = await deployTx.wait(CONFIRMATIONS);

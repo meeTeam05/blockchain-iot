@@ -19,7 +19,8 @@ export interface ApiIncidentSummary {
 }
 
 export interface ApiIncidentDetail extends ApiIncidentSummary {
-  incentive?: IncidentIncentive
+  // null while incentives are disabled or the configured deployment is not indexed.
+  incentive?: IncidentIncentive | null
   observed_at_iso: string | null
   incident_kind: string | null
   time_source: string | null
@@ -79,14 +80,25 @@ export function useIncidents(deviceId: string) {
   })
 }
 
+// API failures keep their HTTP status so pages can tell "not found" from "API down".
+export class IncidentApiError extends Error {
+  status: number
+  constructor(status: number) {
+    super(status === 404 ? 'API không có sự cố này cho thiết bị đã chọn'
+      : status === 401 || status === 403 ? 'Không có quyền xem sự cố này (API)'
+      : `Không tải được sự cố (API lỗi ${status})`)
+    this.status = status
+  }
+}
+
 export function useIncidentDetail(deviceId: string, incidentId: string) {
   const { accessToken, request } = useAuth()
   return useQuery({
     queryKey: ['incident', deviceId, incidentId],
     enabled: Boolean(accessToken) && Boolean(deviceId) && Boolean(incidentId),
     queryFn: async (): Promise<ApiIncidentDetail> => {
-      const res = await request(`/devices/${deviceId}/incidents/${incidentId}`)
-      if (!res.ok) throw new Error('Không tải được sự cố')
+      const res = await request(`/devices/${encodeURIComponent(deviceId)}/incidents/${incidentId}`)
+      if (!res.ok) throw new IncidentApiError(res.status)
       return res.json()
     },
   })

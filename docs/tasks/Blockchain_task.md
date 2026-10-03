@@ -159,10 +159,12 @@ tùy chọn). ABI và address lấy từ `blockchain/abi/` và
 `spec/incident/deployments/<network>.json`, không gõ tay.
 
 Mọi thao tác với ví và contract chuyển từ app mobile sang dApp. App mobile
-(`app/`, `app_new/`) giữ phần không thể làm trên web: provision BLE/Wi-Fi,
-telemetry, điều khiển thiết bị, thông báo realtime. Màn hình incident trong app
-chỉ hiển thị `chain_status` và mở dApp bằng link
-`<dapp>/incident/<device_id>/<incident_id>`.
+(`app_new/`; `app/` là bản legacy) giữ phần không thể làm trên web: provision
+BLE/Wi-Fi, telemetry, điều khiển thiết bị, thông báo realtime. Thông báo incident
+trong app chỉ hiển thị `chain_status` (và hạn acknowledge khi incentives bật) rồi
+mở dApp bằng route canonical `/dapp/d/:deviceId/i/:incidentId` (qua
+`metamask.app.link/dapp/<host>/dapp/d/...` trên điện thoại). Link xác minh độc lập:
+`/dapp/verify/:deviceId/:incidentId`.
 
 - **Kết nối ví:** MetaMask, bắt buộc mạng Sepolia (chain ID `11155111`). Dùng
   `wallet_switchEthereumChain` khi sai mạng. Không lưu và không yêu cầu private key.

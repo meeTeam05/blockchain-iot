@@ -1,4 +1,4 @@
-import { buildIncidentDappLink, openNotificationDestination } from './dappLink';
+import { buildIncidentDappLink, incidentTarget, openNotificationDestination } from './dappLink';
 
 const incidentId = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
 
@@ -52,5 +52,17 @@ describe('buildIncidentDappLink', () => {
     );
     expect(openDevice).toHaveBeenCalledTimes(2);
     expect(openUrl).not.toHaveBeenCalled();
+  });
+});
+
+describe('incidentTarget', () => {
+  const incidentId = `0x${'cd'.repeat(32)}`;
+  it('selects only incident notifications with a valid incident id', () => {
+    expect(incidentTarget({ type: 'incident.danger', deviceId: 'dev-1', payload: { incident_id: incidentId } }))
+      .toEqual({ deviceId: 'dev-1', incidentId });
+    expect(incidentTarget({ type: 'incident.warning', deviceId: 'dev-1', payload: { incident_id: 'bad' } })).toBeNull();
+    for (const type of ['device.offline', 'command.done', 'ota.failed']) {
+      expect(incidentTarget({ type, deviceId: 'dev-1', payload: { incident_id: incidentId } })).toBeNull();
+    }
   });
 });

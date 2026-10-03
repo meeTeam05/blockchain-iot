@@ -47,6 +47,29 @@ describe('App', () => {
     expect(window.location.pathname).toBe(directPath)
   })
 
+  it('opens the standalone verify route directly (new tab / reload) with the decoded ids', async () => {
+    sessionStorage.setItem('smartair-web3-auth', JSON.stringify({
+      accessToken: 'access-1',
+      refreshToken: 'refresh-1',
+      user: { id: 'user-1', email: 'owner@example.com', full_name: null },
+    }))
+    const incidentId = `0x${'34'.repeat(32)}`
+    const directPath = `/dapp/verify/${encodeURIComponent('dc:b4:d9:13:ed:8c')}/${incidentId}`
+    window.history.replaceState({}, '', directPath)
+    const requested: string[] = []
+    vi.stubGlobal('fetch', vi.fn(async (input) => {
+      requested.push(String(input))
+      return new Promise<Response>(() => {})
+    }))
+
+    render(<App />)
+    expect(await screen.findByText('Xác minh sự cố')).toBeInTheDocument()
+    expect(screen.getByTestId('verify-target')).toHaveTextContent(`device dc:b4:d9:13:ed:8c · incident ${incidentId}`)
+    expect(screen.getByText('Đang tải evidence từ API…')).toBeInTheDocument()
+    await waitFor(() => expect(requested.some((url) => url.endsWith(`/devices/dc%3Ab4%3Ad9%3A13%3Aed%3A8c/incidents/${incidentId}`))).toBe(true))
+    expect(window.location.pathname).toBe(directPath)
+  })
+
   it('exposes logout globally and clears the browser session', async () => {
     sessionStorage.setItem('smartair-web3-auth', JSON.stringify({
       accessToken: 'access-1',

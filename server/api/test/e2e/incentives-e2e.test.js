@@ -159,8 +159,14 @@ async function setup() {
     }
     async function incident(sequence) {
         const { rows: [row] } = await store.query(
-            `SELECT i.*, o.status AS chain_status FROM incidents i JOIN blockchain_outbox o ON o.incident_row_id = i.id WHERE i.sequence = $1`,
-            [sequence]
+            // Settlement projection of the configured deployment only (migration 022).
+            `SELECT i.*, o.status AS chain_status,
+                    COALESCE(ii.reward_status, 'none') AS reward_status, COALESCE(ii.flags, 0) AS incentive_flags,
+                    ii.covered AS incentive_covered, ii.ack_deadline_at, ii.resolve_deadline_at
+             FROM incidents i JOIN blockchain_outbox o ON o.incident_row_id = i.id
+             LEFT JOIN incident_incentives ii ON ii.incident_row_id = i.id AND ii.contract = $2
+             WHERE i.sequence = $1`,
+            [sequence, inc ? inc.ctx.address.toLowerCase() : `0x${'0'.repeat(40)}`]
         );
         return row;
     }

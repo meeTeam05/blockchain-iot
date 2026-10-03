@@ -12,7 +12,7 @@ const statusLabels: Record<string, string> = { none: 'Chưa có settlement đư�
   resolved_rewarded: 'Đã thưởng resolve', over_cap: 'Vượt trần ngày: không thưởng', slashed: 'Owner đã bị phạt',
   late_relay_slashed: 'Relay trễ: operator bị phạt' }
 export function IncidentIncentives({ deviceId, incidentKey, projection, transaction }: {
-  deviceId: string; incidentKey: Hash; projection?: IncidentIncentive; transaction: ReturnType<typeof useIncentiveTransaction>
+  deviceId: string; incidentKey: Hash; projection?: IncidentIncentive | null; transaction: ReturnType<typeof useIncentiveTransaction>
 }) {
   const chain = useSettlement(incidentKey)
   const device = useCanonicalDeviceIncentives(deviceId)

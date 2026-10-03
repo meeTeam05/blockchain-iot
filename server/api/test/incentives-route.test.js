@@ -19,6 +19,7 @@ import {
     OWNER,
     createFakeIncentivesChain,
     insertChainIncident,
+    setIncidentIncentive,
     silentLog,
 } from './helpers/incentive-fixtures.js';
 
@@ -90,27 +91,78 @@ test('public incentive routes answer 404 until the worker indexed incentives', a
             assert.deepEqual(res.json(), { error: 'Incentives are not available' });
         }
         const device = await app.inject({ method: 'GET', url: `/api/devices/${DEVICE_ID}/incentives`, headers: { 'x-test-user': USER_ID } });
-        assert.equal(device.statusCode, 200);
-        assert.equal(device.json().enabled, false);
-        assert.equal(device.json().bond, null);
+        assert.equal(device.statusCode, 404);
+        assert.deepEqual(device.json(), { error: 'Incentives are not available' });
     });
 });
 
+async function withEnv(values, run) {
+    const previous = Object.fromEntries(Object.keys(values).map((name) => [name, process.env[name]]));
+    try {
+        for (const [name, value] of Object.entries(values)) {
+            if (value === undefined) delete process.env[name];
+            else process.env[name] = value;
+        }
+        await run();
+    } finally {
+        for (const [name, value] of Object.entries(previous)) {
+            if (value === undefined) delete process.env[name];
+            else process.env[name] = value;
+        }
+    }
+}
+
 test('API resolves the configured generated deployment and never falls back to an arbitrary snapshot', async () => {
-    const previous = process.env.INCENTIVES_DEPLOYMENT;
     const store = await createIncidentDb();
     const app = await buildApp(store, null);
     try {
         await seed(store);
-        process.env.INCENTIVES_DEPLOYMENT = 'localhost';
-        const params = await app.inject({ method: 'GET', url: '/api/incentives/params' });
-        assert.equal(params.statusCode, 200);
-        assert.equal(params.json().contract, INCENTIVES_ADDRESS.toLowerCase());
-        process.env.INCENTIVES_DEPLOYMENT = 'unavailable-deployment';
-        assert.equal((await app.inject({ method: 'GET', url: '/api/incentives/params' })).statusCode, 404);
+        await withEnv({ INCENTIVES_ENABLED: 'true', INCENTIVES_DEPLOYMENT: 'localhost' }, async () => {
+            const params = await app.inject({ method: 'GET', url: '/api/incentives/params' });
+            assert.equal(params.statusCode, 200);
+            assert.equal(params.json().contract, INCENTIVES_ADDRESS.toLowerCase());
+        });
+        await withEnv({ INCENTIVES_ENABLED: 'true', INCENTIVES_DEPLOYMENT: 'unavailable-deployment' }, async () => {
+            assert.equal((await app.inject({ method: 'GET', url: '/api/incentives/params' })).statusCode, 404);
+        });
     } finally {
-        if (previous === undefined) delete process.env.INCENTIVES_DEPLOYMENT;
-        else process.env.INCENTIVES_DEPLOYMENT = previous;
+        await app.close();
+        await store.close();
+    }
+});
+
+test('INCENTIVES_ENABLED=false: a snapshot from an earlier enabled run is never served as active', async () => {
+    const store = await createIncidentDb();
+    const app = await buildApp(store, null);
+    try {
+        const { rewarded } = await seed(store);
+        const headers = { 'x-test-user': USER_ID };
+        const urls = ['/api/incentives/params', '/api/incentives/overdue', '/api/incentives/leaderboard', `/api/devices/${DEVICE_ID}/incentives`];
+        const detailUrl = `/api/devices/${DEVICE_ID}/incidents/${rewarded.incidentId}`;
+
+        // Enabled: every route answers from the indexed deployment.
+        await withEnv({ INCENTIVES_ENABLED: 'true', INCENTIVES_DEPLOYMENT: 'localhost' }, async () => {
+            for (const url of urls) assert.equal((await app.inject({ method: 'GET', url, headers })).statusCode, 200, url);
+            assert.equal((await app.inject({ method: 'GET', url: detailUrl, headers })).json().incentive.reward_status, 'resolved_rewarded');
+        });
+
+        // Disabled afterwards (the DB still holds the snapshot, events and bonds), and never set.
+        for (const enabled of ['false', undefined]) {
+            await withEnv({ INCENTIVES_ENABLED: enabled, INCENTIVES_DEPLOYMENT: 'localhost' }, async () => {
+                for (const url of urls) {
+                    const res = await app.inject({ method: 'GET', url, headers });
+                    assert.equal(res.statusCode, 404, `${url} with INCENTIVES_ENABLED=${enabled}`);
+                    assert.deepEqual(res.json(), { error: 'Incentives are not available' });
+                }
+                const detail = await app.inject({ method: 'GET', url: detailUrl, headers });
+                assert.equal(detail.statusCode, 200, 'the incident itself (Task 3-5) is unaffected');
+                assert.equal(detail.json().incentive, null);
+                assert.equal(detail.json().incident_id, rewarded.incidentId);
+            });
+        }
+        const { rows: [kept] } = await store.query('SELECT COUNT(*)::int AS n FROM incentive_events');
+        assert.ok(kept.n > 0, 'historical data is kept');
+    } finally {
         await app.close();
         await store.close();
     }
@@ -212,7 +264,7 @@ test('GET /incentives/params and /leaderboard are public snapshots', async () =>
 
         const board = (await app.inject({ method: 'GET', url: '/api/incentives/leaderboard' })).json();
         assert.deepEqual(board.owners, [{ account: OWNER, rewarded: A(10), rewards: 2 }]);
-        assert.deepEqual(board.keepers, [{ account: KEEPER, slashed: A(20), slashes: 2 }]);
+        assert.deepEqual(board.keepers, [{ account: KEEPER, slashed: A(20), slashes: 2, unpriced_slashes: 0 }]);
     });
 });
 
@@ -245,7 +297,7 @@ test('leaderboard pays keeper the historical share for each P1/P2 slash', async 
         await seed(store, { shareAfterMissed: 2500 });
         const board = (await app.inject({ method: 'GET', url: '/api/incentives/leaderboard' })).json();
         assert.deepEqual(board.owners, [{ account: OWNER, rewarded: A(10), rewards: 2 }]);
-        assert.deepEqual(board.keepers, [{ account: KEEPER, slashed: A(15), slashes: 2 }],
+        assert.deepEqual(board.keepers, [{ account: KEEPER, slashed: A(15), slashes: 2, unpriced_slashes: 0 }],
             'P1 pays 10 at 50%; P2 pays 5 at 25%; treasury retains the other 25');
         const params = (await app.inject({ method: 'GET', url: '/api/incentives/params' })).json();
         assert.equal(params.params.keeper_share_bps, 2500);
@@ -259,7 +311,7 @@ test('all incentives APIs ignore a newer snapshot, events and bond from another 
         const oldContract = `0x${'a'.repeat(40)}`;
         const oldIncident = await insertChainIncident(store, {
             sequence: 70, observedAt: 1_600_000_000, loggedAt: 1_600_000_060,
-            severity: 2, flags: 8, rewardStatus: 'slashed',
+            severity: 2, flags: 8, rewardStatus: 'slashed', contract: oldContract,
         });
         await store.query(
             `INSERT INTO incentive_state (contract, token, air_safety_log, treasury, operator, params,
@@ -286,8 +338,11 @@ test('all incentives APIs ignore a newer snapshot, events and bond from another 
                     name, key, h, KEEPER, A(999)]
             );
         }
-        // These shared incident columns may have been projected by deployment A.
-        // B must reconstruct its own settlement and deadlines from scoped data.
+        // Deployment A also projected these incidents (and the deprecated 020 columns are
+        // stale). B must answer from its own scoped rows only.
+        for (const id of [rewarded.id, overdue.id, lateRelay.id]) {
+            await setIncidentIncentive(store, id, { contract: oldContract, covered: false, flags: 31, rewardStatus: 'slashed', ackDeadline: 2_000_000_000 });
+        }
         await store.query(
             `UPDATE incidents SET incentive_flags = 31, incentive_covered = FALSE,
                                   reward_status = 'slashed', ack_deadline_at = to_timestamp(2000000000)
@@ -308,7 +363,7 @@ test('all incentives APIs ignore a newer snapshot, events and bond from another 
 
         const board = (await app.inject({ method: 'GET', url: '/api/incentives/leaderboard' })).json();
         assert.deepEqual(board.owners, [{ account: OWNER, rewarded: A(10), rewards: 2 }]);
-        assert.deepEqual(board.keepers, [{ account: KEEPER, slashed: A(20), slashes: 2 }]);
+        assert.deepEqual(board.keepers, [{ account: KEEPER, slashed: A(20), slashes: 2, unpriced_slashes: 0 }]);
 
         const overdueBody = (await app.inject({ method: 'GET', url: '/api/incentives/overdue' })).json();
         assert.equal(overdueBody.contract, INCENTIVES_ADDRESS.toLowerCase());
@@ -333,6 +388,43 @@ test('all incentives APIs ignore a newer snapshot, events and bond from another 
         assert.equal((await app.inject({ method: 'GET', url: '/api/incentives/params' })).statusCode, 404);
         assert.equal((await app.inject({ method: 'GET', url: '/api/incentives/overdue' })).statusCode, 404);
         assert.equal((await app.inject({ method: 'GET', url: '/api/incentives/leaderboard' })).statusCode, 404);
-        assert.equal((await app.inject({ method: 'GET', url: `/api/devices/${DEVICE_ID}/incentives`, headers })).json().enabled, false);
+        assert.equal((await app.inject({ method: 'GET', url: `/api/devices/${DEVICE_ID}/incentives`, headers })).statusCode, 404);
+    });
+});
+
+test('leaderboard with INCENTIVES_START_BLOCK after the constructor ParamsUpdated keeps every slash at its historical share', async () => {
+    await withApp(async ({ store, app }) => {
+        const fake = createFakeIncentivesChain({ now: NOW, head: 100 });
+        const t = NOW - 7_200;
+        const missed = await insertChainIncident(store, { sequence: 1, severity: 2, observedAt: t });
+        const late = await insertChainIncident(store, { sequence: 2, observedAt: t + 100, loggedAt: t + 100 + 1_200 });
+        const later = await insertChainIncident(store, { sequence: 3, observedAt: t + 200, loggedAt: t + 200 + 1_200 });
+        const quarter = { ...DEFAULT_PARAMS, keeperShareBps: 2_500n };
+        // Constructor 50% at the deployment block (2); 25% from block 5. Both before startBlock 10.
+        fake.emit('ParamsUpdated', [Object.values(DEFAULT_PARAMS)], { blockNumber: 2, time: t - 500 });
+        fake.emit('ParamsUpdated', [Object.values(quarter)], { blockNumber: 5, time: t - 400 });
+        fake.emit('MissedAckSlashed', [missed.key, missed.hash, BigInt(A(20)), KEEPER], { blockNumber: 20, time: t + 900 });
+        fake.emit('LateRelaySlashed', [late.key, 1_200, BigInt(A(20)), KEEPER], { blockNumber: 30, time: t + 1_400 });
+        // Back to 50% inside the indexed window: the next slash pays half again.
+        fake.emit('ParamsUpdated', [Object.values(DEFAULT_PARAMS)], { blockNumber: 35, time: t + 1_450 });
+        fake.emit('LateRelaySlashed', [later.key, 1_200, BigInt(A(20)), KEEPER], { blockNumber: 40, time: t + 1_500 });
+        const indexer = createIncentivesIndexer({
+            db: store, chain: fake.chain, config: { confirmations: 1, logBatchBlocks: 3, batchSize: 20 },
+            startBlock: 10, deploymentBlock: 2, log: silentLog,
+        });
+        await indexer.catchUp();
+
+        const board = (await app.inject({ method: 'GET', url: '/api/incentives/leaderboard' })).json();
+        assert.deepEqual(board.keepers, [{ account: KEEPER, slashed: A(20), slashes: 3, unpriced_slashes: 0 }],
+            '5 (25% of 20) + 5 (25% of 20) + 10 (50% of 20): what the keeper really received');
+    });
+});
+
+test('leaderboard never drops a slash that has no indexed params (listed as unpriced)', async () => {
+    await withApp(async ({ store, app }) => {
+        await seed(store);
+        await store.query(`DELETE FROM incentive_events WHERE name = 'ParamsUpdated'`);
+        const board = (await app.inject({ method: 'GET', url: '/api/incentives/leaderboard' })).json();
+        assert.deepEqual(board.keepers, [{ account: KEEPER, slashed: '0', slashes: 2, unpriced_slashes: 2 }]);
     });
 });

@@ -37,8 +37,8 @@ function iso(seconds) {
     return seconds === null || seconds === undefined ? null : new Date(seconds * 1000);
 }
 
-// An incident already logged on chain (outbox confirmed) with its incentive columns.
-// Times are unix seconds.
+// An incident already logged on chain (outbox confirmed) with its incident_incentives row
+// for `contract` (none when covered === null: not synced yet). Times are unix seconds.
 export async function insertChainIncident(store, {
     deviceId = DEVICE_ID,
     sequence,
@@ -54,6 +54,7 @@ export async function insertChainIncident(store, {
     flags = 0,
     rewardStatus = 'none',
     outboxStatus = 'confirmed',
+    contract = INCENTIVES_ADDRESS,
 } = {}) {
     const hash = computeDeviceIdHash(deviceId);
     const incidentId = computeIncidentId(hash, String(sequence));
@@ -68,28 +69,56 @@ export async function insertChainIncident(store, {
              incident_kind, severity, firmware_version_hash, model_sha256, calibration_revision, calibration_hash,
              firmware_version, evidence_hash, eip712_digest, signature, signer_address, domain_name, domain_version,
              domain_chain_id, domain_verifying_contract, raw_payload, payload, observed_at_ts, received_at,
-             owner_status, acknowledged_at, resolved_at, incentive_covered, logged_at, ack_deadline_at,
-             resolve_deadline_at, incentive_flags, reward_status)
+             owner_status, acknowledged_at, resolved_at, logged_at)
          VALUES ($1, 2, $2, $3, $4, $5, 1, 15, 2, 2500, 6000, 52000, 100, $6, $6, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                  $6, $6, $7, $7, 1, $7, 'fw', $7, $7, $8, $9, 'AirSafetyLog', '1', 11155111, $10, '\\x00', '{}',
-                 $11, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+                 $11, $11, $12, $13, $14, $15)
          RETURNING id`,
         [
             deviceId, hash, incidentId, sequence, observedAt, severity, bytes, `0x${'2'.repeat(130)}`,
             '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266', LOG_ADDRESS.toLowerCase(), iso(observedAt),
-            ownerStatus, iso(acknowledgedAt), iso(resolvedAt), covered,
+            ownerStatus, iso(acknowledgedAt), iso(resolvedAt),
             covered === null ? null : iso(loggedAt),
-            covered ? iso(ackDeadline) : null,
-            covered ? iso(resolveDeadline) : null,
-            flags, rewardStatus,
         ]
     );
+    if (covered !== null) {
+        await setIncidentIncentive(store, row.id, {
+            contract, covered, ackDeadline: covered ? ackDeadline : null, resolveDeadline: covered ? resolveDeadline : null, flags, rewardStatus,
+        });
+    }
     await store.query(
         `INSERT INTO blockchain_outbox (incident_row_id, device_id, incident_id, sequence, status, incident_key, tx_hash, confirmed_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
         [row.id, deviceId, incidentId, sequence, outboxStatus, key, `0x${sequence.toString(16).padStart(64, 'a')}`]
     );
     return { id: row.id, key, incidentId, hash, sequence, severity, observedAt, loggedAt, ackDeadline, resolveDeadline };
+}
+
+// Upserts the incident_incentives row of one deployment.
+export async function setIncidentIncentive(store, incidentRowId, {
+    contract = INCENTIVES_ADDRESS, covered = true, ackDeadline = null, resolveDeadline = null, flags = 0, rewardStatus = 'none',
+} = {}) {
+    await store.query(
+        `INSERT INTO incident_incentives (contract, incident_row_id, covered, ack_deadline_at, resolve_deadline_at, flags, reward_status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (contract, incident_row_id) DO UPDATE SET covered = EXCLUDED.covered,
+             ack_deadline_at = EXCLUDED.ack_deadline_at, resolve_deadline_at = EXCLUDED.resolve_deadline_at,
+             flags = EXCLUDED.flags, reward_status = EXCLUDED.reward_status`,
+        [contract.toLowerCase(), incidentRowId, covered, iso(ackDeadline), iso(resolveDeadline), flags, rewardStatus]
+    );
+}
+
+// Settlement projection of one incident for one deployment, with the 020 column names.
+export async function incidentIncentive(store, sequence, contract = INCENTIVES_ADDRESS) {
+    const { rows } = await store.query(
+        `SELECT COALESCE(ii.reward_status, 'none') AS reward_status, COALESCE(ii.flags, 0) AS incentive_flags,
+                ii.covered AS incentive_covered, i.logged_at, ii.ack_deadline_at, ii.resolve_deadline_at
+         FROM incidents i
+         LEFT JOIN incident_incentives ii ON ii.incident_row_id = i.id AND ii.contract = $2
+         WHERE i.sequence = $1`,
+        [sequence, contract.toLowerCase()]
+    );
+    return rows[0];
 }
 
 // pendingSettlement() result for an inserted incident, as readSettlement() returns it.

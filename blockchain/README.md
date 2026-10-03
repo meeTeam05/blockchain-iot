@@ -147,7 +147,7 @@ field evidence/attestation/mask nào đều làm verify thất bại.
 
 ## Incentives: token ASAFE thưởng/phạt (Task 6)
 
-Luật đầy đủ: [`Token_incentive_task.md`](../Token_incentive_task.md). Hai contract
+Luật đầy đủ: [`Token_incentive_task.md`](../docs/tasks/Token_incentive_task.md). Hai contract
 mới **chỉ đọc** `AirSafetyLog` qua `getIncident`/`getDevice`
 ([`IAirSafetyLogView.sol`](contracts/IAirSafetyLogView.sol)); `AirSafetyLog`,
 domain EIP-712 và firmware không đổi.
@@ -166,7 +166,7 @@ scripts/verify-incentives.js      Verify cả hai contract trên Etherscan
 ### Lệnh
 
 ```bash
-npm test && npm run coverage                 # SafetyIncentives: 100% dòng
+npm test && npm run coverage                 # SafetyIncentives: 100% dòng; tự compile lại artifact sạch sau khi đo
 
 # Local (sau `npx hardhat node` và `npm run deploy:localhost`)
 npm run deploy:incentives:localhost

@@ -16,7 +16,7 @@ import mqtt from 'mqtt';
 import pg from 'pg';
 import { SigningKey, computeAddress } from 'ethers';
 
-import { domainFromConfig } from '../../src/services/incident-verify.js';
+import { resolveIncidentDomains } from '../../src/services/incident-domains.js';
 import { clearEmqxAuthorizationCache, syncDeviceRules } from '../../src/services/emqx.js';
 import { registerSigner } from '../../src/services/device-signers.js';
 import { config } from '../../src/config.js';
@@ -98,7 +98,8 @@ async function emqxPutRules(deviceId, rules) {
 
 test('device publishes a signed incident through EMQX and receives an idempotent ACK', { skip, timeout: 120_000 }, async () => {
     const vector = JSON.parse(await readFile(VECTOR_PATH, 'utf8'));
-    const domain = domainFromConfig(config.incident);
+    // Same resolution as the API (INCIDENT_DEPLOYMENT or the explicit AIR_SAFETY_LOG_ADDRESS/INCIDENT_CHAIN_ID).
+    const domain = resolveIncidentDomains(config.incident).current;
     const signingKey = new SigningKey(`0x${randomBytes(32).toString('hex')}`);
     const deviceId = randomMac();
 
@@ -266,12 +267,18 @@ test('device publishes a signed incident through EMQX and receives an idempotent
         assert.equal(futureAck.ack.accepted, false);
         assert.equal(futureAck.ack.error_code, 'OBSERVED_AT_OUT_OF_WINDOW');
 
+        // Intake writes every outbox row as `queued` and never sends a transaction. When a
+        // chain worker is running on the same stack its signer gate may already have moved
+        // a row to `waiting_signer` (this device's signer exists only in the DB); nothing
+        // here may ever be submitted on chain.
+        const UNSENT = ['queued', 'waiting_signer'];
         const counts = await pool.query(
             `SELECT (SELECT COUNT(*) FROM incidents WHERE device_id = $1)::int AS incidents,
-                    (SELECT COUNT(*) FROM blockchain_outbox WHERE device_id = $1 AND status = 'queued')::int AS queued,
+                    (SELECT COUNT(*) FROM blockchain_outbox WHERE device_id = $1 AND status = ANY($2::text[])
+                        AND tx_hash IS NULL)::int AS queued,
                     (SELECT COUNT(*) FROM realtime_events WHERE device_id = $1 AND type = 'incident.created')::int AS realtime,
                     (SELECT COUNT(*) FROM notification_events WHERE device_id = $1 AND type = 'incident.warning')::int AS notifications`,
-            [deviceId]
+            [deviceId, UNSENT]
         );
         assert.deepEqual(counts.rows[0], { incidents: 4, queued: 4, realtime: 4, notifications: 4 });
 
@@ -286,15 +293,16 @@ test('device publishes a signed incident through EMQX and receives an idempotent
         assert.equal(verify.status, 200);
         assert.equal(verify.body.valid, true, JSON.stringify(verify.body));
         assert.equal(verify.body.signature.signer_status, 'active');
-        assert.equal(verify.body.chain.status, 'queued');
+        assert.ok(UNSENT.includes(verify.body.chain.status), verify.body.chain.status);
 
         const list = await api('GET', `/api/devices/${deviceId}/incidents`, { token });
-        assert.deepEqual(list.body.map((i) => [i.sequence, i.severity, i.chain_status]), [
-            ['5', 'warning', 'queued'],
-            ['4', 'warning', 'queued'],
-            ['3', 'warning', 'queued'],
-            ['1', 'warning', 'queued'],
+        assert.deepEqual(list.body.map((i) => [i.sequence, i.severity]), [
+            ['5', 'warning'],
+            ['4', 'warning'],
+            ['3', 'warning'],
+            ['1', 'warning'],
         ]);
+        assert.ok(list.body.every((i) => UNSENT.includes(i.chain_status) && i.tx_hash === null), JSON.stringify(list.body));
     } finally {
         await client.endAsync();
         await pool.end();

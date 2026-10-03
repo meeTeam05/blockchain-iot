@@ -85,6 +85,11 @@ Không copy artifact bằng tay. Chạy `npm run build` trong `web3/`, sau đó 
 `web3/dist` vào `/var/www/dapp`; nginx phục vụ `/dapp/` và fallback mọi route SPA
 về `/dapp/index.html`.
 
+Route chính: `/dapp/d/:deviceId/i/:incidentId` (incident, B3/B4/B5/B9) và
+`/dapp/verify/:deviceId/:incidentId` (B4 độc lập: mở thẳng, reload được, không cần
+ví; vẫn cần đăng nhập API để lấy evidence). Nút **Sao chép link xác minh** tạo link
+này theo origin hiện tại.
+
 `npm run test:e2e` (`e2e/scenario-a.spec.ts`) tự khởi động một `vite` dev
 server riêng (cổng `5174`, không đụng cổng `5173` bạn đang dùng tay) với
 `VITE_E2E_MOCK_ACCOUNT` đặt sẵn -- `src/lib/wagmiConfig.ts` khi thấy biến này

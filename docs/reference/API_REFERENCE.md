@@ -70,10 +70,6 @@
 | GET    | `/api/devices/:id/incidents`      |   🔒   |            | Danh sách incident đã ký (Schema v2)                      |
 | GET    | `/api/devices/:id/incidents/:incidentId` | 🔒 |          | Chi tiết incident + trạng thái chain                      |
 | GET    | `/api/devices/:id/incidents/:incidentId/verify` | 🔒 |   | Tính lại hash/chữ ký từ payload gốc đã lưu                |
-| GET    | `/api/devices/:id/incentives`   |   🔒   |            | Stake và lịch sử thưởng/phạt                              |
-| GET    | `/api/incentives/overdue`       |        |   60/min   | Incident có thể phạt                                      |
-| GET    | `/api/incentives/params`        |        |   60/min   | Tham số, quỹ thưởng, stake operator                       |
-| GET    | `/api/incentives/leaderboard`   |        |   60/min   | Bảng thưởng/phạt                                          |
 | GET    | `/api/devices/:id/incentives`     |   🔒   |            | Ký quỹ, lượt thưởng hôm nay, lịch sử thưởng/phạt          |
 | GET    | `/api/incentives/overdue`         |       |   60/min   | Incident có thể `slashMissedAck` / `slashLateRelay`       |
 | GET    | `/api/incentives/params`          |       |   60/min   | Tham số, quỹ thưởng, stake operator                       |
@@ -1183,7 +1179,11 @@ Lý do `degraded`: chưa có heartbeat; heartbeat cũ hơn `CHAIN_HEALTH_MAX_TIC
 `text/plain; version=0.0.4`. Cần quyền ops (`401` khi sai token, `404` khi bị tắt). Các metric: `smartair_chain_healthy`, `smartair_chain_outbox_items{status}`, `smartair_chain_outbox_oldest_queued_age_seconds`, `smartair_chain_outbox_oldest_pending_age_seconds`, `smartair_chain_outbox_max_attempts`, `smartair_chain_device_ops_items{status}`, `smartair_chain_device_ops_oldest_queued_age_seconds`, `smartair_chain_worker_last_tick_age_seconds`, `smartair_chain_worker_consecutive_failures`, `smartair_chain_worker_rpc_errors_total`, `smartair_chain_head_block`, `smartair_chain_indexed_block`, `smartair_chain_index_lag_blocks`, `smartair_chain_relayer_balance_eth`, `smartair_chain_alerts_open`, `smartair_chain_alerts_undelivered`.
 ## 8c. Incentives — Token thưởng/phạt
 
-Luật: `Token_incentive_task.md`; contract: `blockchain/contracts/SafetyIncentives.sol`. Chain worker (bật `INCENTIVES_ENABLED=true`) index event của `SafetyIncentives` vào `incentive_events`, `device_bonds`, `incidents.reward_status` và chụp tham số/quỹ vào `incentive_state` (migration `020_incentives.sql`). API **chỉ đọc DB**, không gọi RPC; chain vẫn là nguồn sự thật (dApp đối chiếu bằng `eth_call`).
+Luật: `Token_incentive_task.md`; contract: `blockchain/contracts/SafetyIncentives.sol`. Chain worker (bật `INCENTIVES_ENABLED=true`) index event của `SafetyIncentives` vào `incentive_events`, `device_bonds`, `incident_incentives` (trạng thái thưởng/phạt theo từng incident) và chụp tham số/quỹ vào `incentive_state` (migration `020_incentives.sql`, `022_incentives_deployment_scope.sql`). API **chỉ đọc DB**, không gọi RPC; chain vẫn là nguồn sự thật (dApp đối chiếu bằng `eth_call`).
+
+**Phạm vi deployment.** Mọi bảng incentives đều có khóa theo địa chỉ `SafetyIncentives` (`contract`); `keeper_actions` duy nhất theo `(contract, incident_row_id, action)`. API và keeper chỉ dùng deployment đang cấu hình (`INCENTIVES_DEPLOYMENT`, mặc định `INCIDENT_DEPLOYMENT`); dữ liệu của deployment cũ còn trong DB không bao giờ được trộn vào. Các cột `incidents.reward_status` / `incentive_flags` / `incentive_covered` của 020 đã ngừng dùng.
+
+**Tắt incentives.** Khi `INCENTIVES_ENABLED` khác `true`, hoặc deployment cấu hình chưa được index, mọi route incentives trả `404 { "error": "Incentives are not available" }` (kể cả `GET /api/devices/:id/incentives`) và `incentive` trong chi tiết incident là `null`. Dữ liệu lịch sử trong DB được giữ nguyên nhưng không được trả như đang hoạt động. Route incident của Task 3–5 không đổi.
 
 Quy ước số: số token là **wei dạng chuỗi thập phân** (ASAFE có 18 chữ số thập phân, `"5000000000000000000"` = 5 ASAFE); thời lượng là giây dạng chuỗi; thời điểm là ISO. Khi worker chưa từng index incentives, các route công khai trả `404 { "error": "Incentives are not available" }`.
 
@@ -1305,11 +1305,11 @@ Công khai, rate limit 60/phút. `limit` mặc định 10, tối đa 100.
 {
   "contract": "0x…",
   "owners": [ { "account": "0x4ac8…f30b", "rewarded": "20000000000000000000", "rewards": 4 } ],
-  "keepers": [ { "account": "0x…", "slashed": "20000000000000000000", "slashes": 2 } ]
+  "keepers": [ { "account": "0x…", "slashed": "20000000000000000000", "slashes": 2, "unpriced_slashes": 0 } ]
 }
 ```
 
-`keepers.slashed` là tổng bounty keeper thực nhận sau khi áp dụng `keeper_share_bps` tại thời điểm từng lần slash (phần còn lại chuyển treasury).
+`keepers.slashed` là tổng bounty keeper thực nhận: mỗi lần slash tính `floor(amount × keeperShareBps / 10000)` với `keeperShareBps` của `ParamsUpdated` gần nhất tại hoặc trước event đó (phần còn lại chuyển treasury). Khi `INCENTIVES_START_BLOCK` nằm sau block deploy, worker tự backfill các `ParamsUpdated` trong khoảng đó (ít nhất event của constructor) trước mọi event khác. Slash không bao giờ bị bỏ khỏi bảng: nếu thiếu tham số thì vẫn đếm trong `slashes` và báo ở `unpriced_slashes`.
 
 ### `incentive` trong chi tiết incident
 
@@ -1328,13 +1328,14 @@ Công khai, rate limit 60/phút. `limit` mặc định 10, tối đa 100.
 }
 ```
 
+- Cả khối là `null` khi incentives tắt hoặc chưa được index.
 - `covered`: `null` khi worker chưa kiểm tra, `false` khi incident được ghi trước lúc bật thưởng/phạt (`activatedAt`), khi đó các hạn chót là `null`.
 - `deadline_at` = `loggedAt + ACK_DEADLINE[severity]` (warning 30 phút, danger 10 phút), đổi theo `ParamsUpdated`.
 - `reward_status`: `none` | `ack_rewarded` | `resolved_rewarded` | `over_cap` (ack đúng hạn nhưng vượt trần ngày) | `slashed` (P1) | `late_relay_slashed` (P2, operator bị phạt). Khi có nhiều kết quả, giữ kết quả quan trọng nhất (`slashed` > `resolved_rewarded` > `ack_rewarded` > `over_cap` > `late_relay_slashed`); `flags` giữ đủ mọi kết quả (ví dụ incident relay trễ vẫn có thể `ack_rewarded`, `flags.relay_slashed = true`).
 
 ### Realtime
 
-Mỗi event incentives gắn với một device trong DB phát SSE `incentive.updated` với payload `{ event, incident_id, incident_key, account, amount, reward_status, tx_hash, block_number }`.
+Mỗi event incentives gắn với một device trong DB phát SSE `incentive.updated` với payload `{ contract, event, incident_id, incident_key, account, amount, reward_status, tx_hash, block_number }` (`contract` là địa chỉ `SafetyIncentives` đã phát event).
 
 ---
 

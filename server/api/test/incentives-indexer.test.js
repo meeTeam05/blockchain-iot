@@ -14,6 +14,7 @@ import {
     KEEPER,
     OWNER,
     createFakeIncentivesChain,
+    incidentIncentive,
     insertChainIncident,
     settlementFor,
     silentLog,
@@ -39,11 +40,7 @@ async function withSetup(run) {
 }
 
 async function incident(store, sequence) {
-    const { rows } = await store.query(
-        'SELECT reward_status, incentive_flags, incentive_covered, logged_at, ack_deadline_at, resolve_deadline_at FROM incidents WHERE sequence = $1',
-        [sequence]
-    );
-    return rows[0];
+    return incidentIncentive(store, sequence);
 }
 
 async function bond(store, hash) {
@@ -198,5 +195,83 @@ test('refreshState snapshots params, fund and operator bond for the API', async 
         assert.equal(state.operator_bond.amount, String(1_000n * ASAFE));
         assert.equal(Number(state.current_day), Math.floor(NOW / 86_400));
         assert.equal(new Date(state.block_time).getTime(), NOW * 1000);
+    });
+});
+
+test('deployment isolation: indexers of deployments A and B keep separate coverage, deadlines, flags and checkpoints', async () => {
+    const store = await createIncidentDb();
+    try {
+        const A_ADDRESS = '0x' + 'a'.repeat(40);
+        const i1 = await insertChainIncident(store, { sequence: 1, observedAt: NOW - 3_000, covered: null });
+        const fakeA = createFakeIncentivesChain({ now: NOW, head: 50 });
+        fakeA.chain.address = A_ADDRESS;
+        const fakeB = createFakeIncentivesChain({ now: NOW, head: 50 });
+        const B_ADDRESS = fakeB.chain.address.toLowerCase();
+        const indexerA = createIncentivesIndexer({ db: store, chain: fakeA.chain, config: CONFIG, startBlock: 10, log: silentLog });
+        const indexerB = createIncentivesIndexer({ db: store, chain: fakeB.chain, config: CONFIG, startBlock: 10, log: silentLog });
+
+        fakeA.state.settlements.set(i1.key, settlementFor(i1));
+        fakeA.emit('AckRewarded', [i1.key, OWNER, 5n * ASAFE], { blockNumber: 20, time: NOW - 2_000 });
+        await indexerA.catchUp();
+        assert.deepEqual(await incidentIncentive(store, 1, A_ADDRESS).then((r) => [r.incentive_covered, r.incentive_flags, r.reward_status]),
+            [true, 3, 'ack_rewarded']);
+
+        // B activated later: the incident predates it. A's projection must not leak into B.
+        assert.deepEqual(await incidentIncentive(store, 1, B_ADDRESS).then((r) => [r.incentive_covered, r.incentive_flags, r.reward_status]),
+            [null, 0, 'none']);
+        fakeB.state.settlements.set(i1.key, settlementFor(i1, { covered: false }));
+        assert.equal(await indexerB.syncIncidents(), 1, 'B checks the incident itself even though A already did');
+        assert.deepEqual(await incidentIncentive(store, 1, B_ADDRESS).then((r) => [r.incentive_covered, r.ack_deadline_at]), [false, null]);
+        assert.equal((await incidentIncentive(store, 1, A_ADDRESS)).incentive_covered, true, 'B never rewrites A');
+
+        // B's own events and checkpoint.
+        fakeB.emit('MissedAckSlashed', [i1.key, i1.hash, 0n, KEEPER], { blockNumber: 30, time: NOW - 1_000 });
+        await indexerB.catchUp();
+        assert.deepEqual(await incidentIncentive(store, 1, B_ADDRESS).then((r) => [r.incentive_flags, r.reward_status]), [8, 'slashed']);
+        assert.deepEqual(await incidentIncentive(store, 1, A_ADDRESS).then((r) => [r.incentive_flags, r.reward_status]), [3, 'ack_rewarded']);
+        const { rows: checkpoints } = await store.query('SELECT contract_address FROM chain_checkpoints ORDER BY contract_address');
+        assert.deepEqual(checkpoints.map((r) => r.contract_address), [A_ADDRESS, B_ADDRESS].sort());
+        const { rows: realtime } = await store.query(`SELECT payload FROM realtime_events WHERE type = 'incentive.updated' ORDER BY id`);
+        assert.deepEqual(realtime.map((r) => r.payload.contract), [A_ADDRESS, B_ADDRESS], 'realtime events name their deployment');
+    } finally {
+        await store.close();
+    }
+});
+
+test('INCENTIVES_START_BLOCK after the deployment block: the ParamsUpdated of the gap are backfilled once, before other events', async () => {
+    await withSetup(async ({ store, fake }) => {
+        const changed = { ...DEFAULT_PARAMS, keeperShareBps: 2_500n };
+        fake.emit('ParamsUpdated', [Object.values(DEFAULT_PARAMS)], { blockNumber: 3, time: NOW - 5_000 }); // constructor
+        fake.emit('Staked', [OPERATOR_BOND_ID, OWNER, 1_000n * ASAFE, 1_000n * ASAFE], { blockNumber: 4, time: NOW - 4_900 });
+        fake.emit('ParamsUpdated', [Object.values(changed)], { blockNumber: 6, time: NOW - 4_000 });
+        fake.emit('LateRelaySlashed', [`0x${'9'.repeat(64)}`, 1_200, 20n * ASAFE, KEEPER], { blockNumber: 20, time: NOW - 1_000 });
+        const indexer = createIncentivesIndexer({
+            db: store, chain: fake.chain, config: CONFIG, startBlock: 10, deploymentBlock: 3, log: silentLog,
+        });
+        await indexer.catchUp();
+        const { rows } = await store.query('SELECT name, block_number::int AS block FROM incentive_events ORDER BY block_number, log_index');
+        assert.deepEqual(rows, [
+            { name: 'ParamsUpdated', block: 3 },
+            { name: 'ParamsUpdated', block: 6 },
+            { name: 'LateRelaySlashed', block: 20 },
+        ], 'only params are taken from the gap; the Staked at block 4 stays skipped as configured');
+
+        // Idempotent: a restarted indexer does not duplicate them.
+        const again = createIncentivesIndexer({
+            db: store, chain: fake.chain, config: CONFIG, startBlock: 10, deploymentBlock: 3, log: silentLog,
+        });
+        await again.catchUp();
+        assert.equal((await store.query(`SELECT COUNT(*)::int AS n FROM incentive_events WHERE name = 'ParamsUpdated'`)).rows[0].n, 2);
+    });
+});
+
+test('params backfill refuses to index events when the deployment block has no ParamsUpdated', async () => {
+    await withSetup(async ({ store, fake }) => {
+        fake.emit('LateRelaySlashed', [`0x${'9'.repeat(64)}`, 1_200, 20n * ASAFE, KEEPER], { blockNumber: 20, time: NOW - 1_000 });
+        const indexer = createIncentivesIndexer({
+            db: store, chain: fake.chain, config: CONFIG, startBlock: 10, deploymentBlock: 3, log: silentLog,
+        });
+        await assert.rejects(indexer.tick(), /no ParamsUpdated found between deployment block 3 and start block 10/);
+        assert.equal((await store.query('SELECT COUNT(*)::int AS n FROM incentive_events')).rows[0].n, 0);
     });
 });
