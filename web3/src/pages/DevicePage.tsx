@@ -16,11 +16,11 @@ import { addressesMatch } from '../lib/ownership'
 
 type Tab = 'incidents' | 'history'
 
-function Kpi({ label, value, className = '' }: { label: string; value: string; className?: string }) {
+function StatCard({ label, value, danger = false }: { label: string; value: string; danger?: boolean }) {
   return (
-    <div className={`flex flex-col gap-1 px-[22px] py-3.5 ${className}`}>
-      <span className="text-[12px] text-[#5d6a60]">{label}</span>
-      <span className="text-[22px] font-bold">{value}</span>
+    <div className="flex flex-col gap-1 rounded-[14px] border border-[#eef1ec] bg-white p-4 shadow-[0_1px_2px_rgba(20,40,25,0.03)] sm:px-[18px]">
+      <span className="text-[12px] font-medium text-[#5d6a60]">{label}</span>
+      <span className={`text-[24px] font-bold ${danger ? 'text-[#c81e3a]' : 'text-[#17201a]'}`}>{value}</span>
     </div>
   )
 }
@@ -90,46 +90,41 @@ export function DevicePage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-start gap-5">
-        <div className="flex min-w-0 flex-[999_1_640px] flex-col gap-4">
-          <div className="flex gap-1 border-b border-[#d6dcd3]">
-            {tabs.map(({ key, label, count }) => {
-              const on = tab === key
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setTab(key)}
-                  className={`-mb-px flex h-11 cursor-pointer items-center gap-2 border-0 border-b-2 bg-transparent px-3.5 text-[14px] font-semibold ${
-                    on ? 'border-[#16803c] text-[#16803c]' : 'border-transparent text-[#5d6a60]'
-                  }`}
-                >
-                  {label}
-                  {count !== undefined ? (
-                    <span className={`rounded-full px-2 py-px text-[12px] ${on ? 'bg-[#dcf5e3]' : 'bg-[#e3e8e1]'}`}>{count}</span>
-                  ) : null}
-                </button>
-              )
-            })}
-          </div>
-          {tab === 'incidents' ? (
-            <IncidentList deviceId={deviceId} />
-          ) : (
-            <Panel>
-              <PanelHeader title="Lịch sử on-chain" />
-              <HistoryTimeline deviceId={deviceId} />
-            </Panel>
-          )}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatCard label="Sự cố đang mở" value={`${incidents.openCount}${more}`} danger={incidents.openCount > 0} />
+        <StatCard label="Đã xử lý" value={`${incidents.doneCount}${more}`} />
+        <StatCard label="Tổng sự cố" value={`${incidents.rows.length}${more}`} />
+      </div>
+
+      <div className="flex min-w-0 flex-col gap-4">
+        <div className="flex gap-1 border-b border-[#d6dcd3]">
+          {tabs.map(({ key, label, count }) => {
+            const on = tab === key
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setTab(key)}
+                className={`-mb-px flex h-11 cursor-pointer items-center gap-2 border-0 border-b-2 bg-transparent px-3.5 text-[14px] font-semibold ${
+                  on ? 'border-[#16803c] text-[#16803c]' : 'border-transparent text-[#5d6a60]'
+                }`}
+              >
+                {label}
+                {count !== undefined ? (
+                  <span className={`rounded-full px-2 py-px text-[12px] ${on ? 'bg-[#dcf5e3]' : 'bg-[#e3e8e1]'}`}>{count}</span>
+                ) : null}
+              </button>
+            )
+          })}
         </div>
-        <aside className="flex min-w-0 max-w-full flex-[1_1_340px] flex-col gap-5">
+        {tab === 'incidents' ? (
+          <IncidentList deviceId={deviceId} />
+        ) : (
           <Panel>
-            <PanelHeader title="Tổng quan sự cố" />
-            <div className="grid grid-cols-2">
-              <Kpi label="Đang mở" value={`${incidents.openCount}${more}`} className={`border-r border-[#eef1ec] ${incidents.openCount > 0 ? 'text-[#c81e3a]' : ''}`} />
-              <Kpi label="Đã xử lý" value={`${incidents.doneCount}${more}`} />
-            </div>
+            <PanelHeader title="Lịch sử on-chain" />
+            <HistoryTimeline deviceId={deviceId} />
           </Panel>
-        </aside>
+        )}
       </div>
     </PageShell>
   )
