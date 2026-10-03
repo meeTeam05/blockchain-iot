@@ -45,6 +45,14 @@
           "isBackgroundEnabled": false,
           "bluetoothAlwaysPermission": "Allow $(PRODUCT_NAME) to connect to Smart Air devices via Bluetooth to set them up."
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
       ]
     ]
   }
