@@ -72,7 +72,7 @@ export function BondControls({ deviceId }: { deviceId: string }) {
         {!owner ? <NoticeBanner>Chỉ ví owner của thiết bị được stake.</NoticeBanner> : null}
         <div className="flex flex-col gap-2">
           <ActionButton label="Approve → Stake" variant="primary" disabled={!ready || !owner || busy} onClick={() => void stake()} />
-          <p className="m-0 text-[12px] text-[#8a958c]">Approve nếu thiếu allowance, rồi stake. Hủy giữa chừng vẫn giữ allowance đã approve.</p>
+          <p className="m-0 text-[12px] text-[#8a958c]">Tự approve nếu thiếu allowance, rồi stake.</p>
         </div>
         {requested > 0n ? (
           <NoticeBanner>Còn {formatDuration(availableAt > now ? availableAt - now : 0n)} cooldown. Trong thời gian chờ vẫn có thể bị phạt.</NoticeBanner>

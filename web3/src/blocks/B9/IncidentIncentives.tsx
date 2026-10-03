@@ -109,7 +109,7 @@ export function IncidentIncentives({
     settled ? (
       <div key="settlement" className="flex flex-col gap-2">
         <p className="m-0 font-mono text-[11.5px] text-[#8a958c]">
-          Canonical settlement flags: {settled.flags} · Relay delay: {String(settled.relayDelay)} giây
+          Settlement: cờ {settled.flags} · relay {String(settled.relayDelay)} giây
         </p>
         <div className="flex flex-wrap gap-1.5">
           {settled.flags & 2 ? (
@@ -134,7 +134,7 @@ export function IncidentIncentives({
           ) : null}
         </div>
         <p className="m-0 text-[11px] text-[#8a958c]">
-          Keeper tự xử lý R1, R2, P1. P2 do keeper bên ngoài thực hiện.
+          Thưởng và phạt trễ xác nhận do server tự xử lý.
         </p>
         {settled.canRecordAck ? (
           <RecordButton
@@ -163,7 +163,7 @@ export function IncidentIncentives({
           API projection: {statusLabels[projection.reward_status] ?? projection.reward_status}
         </p>
         {s && indexedFlags !== s.flags ? (
-          <p className="m-0 text-[12px] text-[#7a4f00]">API chưa đồng bộ settlement; chain đã ghi nhận giao dịch.</p>
+          <p className="m-0 text-[12px] text-[#7a4f00]">API chưa đồng bộ settlement, chain đã ghi nhận.</p>
         ) : null}
 
         {projection.events.map((event) => (
@@ -220,7 +220,7 @@ export function IncidentIncentives({
                 {penalty ? <span>Quá hạn: <b className="text-[#c81e3a]">−{penalty} ASAFE</b></span> : null}
               </div>
               {isOverdue ? (
-                <p className="m-0 text-[12.5px] text-[#c81e3a]">Quá hạn, không có thưởng ack; có thể bị phạt.</p>
+                <p className="m-0 text-[12.5px] text-[#c81e3a]">Quá hạn: mất thưởng xác nhận, có thể bị phạt.</p>
               ) : null}
             </>
           ) : null}

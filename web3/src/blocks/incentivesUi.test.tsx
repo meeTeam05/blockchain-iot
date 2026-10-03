@@ -96,7 +96,7 @@ describe('B9/B10 projection vs canonical state', () => {
     mount(<DeviceIncentives deviceId="device" />)
     expect(screen.getByTestId('device-bond')).toHaveTextContent('80 / 100 ASAFE')
     expect(screen.getByTestId('device-indexed')).toHaveTextContent('Thưởng 5 · Phạt 20')
-    expect(screen.getByText(/API đang chậm hoặc chưa index giao dịch/)).toBeInTheDocument()
+    expect(screen.getByText(/API chưa đồng bộ với chain/)).toBeInTheDocument()
     expect(screen.queryByText('Giao dịch chưa hoàn tất.')).not.toBeInTheDocument()
   })
   it('shows API and RPC errors instead of unbonded/empty incentives', () => {

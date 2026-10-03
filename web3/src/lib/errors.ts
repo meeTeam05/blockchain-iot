@@ -9,10 +9,10 @@ const MESSAGES: Record<string, string> = {
   BondHeldByOther: 'Bond hiện còn thuộc ví chủ sở hữu trước',
   CooldownActive: 'Chưa hết thời gian chờ rút bond',
   NotStaker: 'Ví đang kết nối không phải người stake bond này',
-  AlreadySettled: 'Hành động đã được settlement bởi keeper khác; hãy làm mới',
-  AckDeadlinePassed: 'Đã quá hạn acknowledge; không còn thưởng',
-  AckDeadlineNotPassed: 'Chưa quá hạn acknowledge; không thể phạt',
-  ResolveDeadlinePassed: 'Đã quá hạn resolve; không còn thưởng',
+  AlreadySettled: 'Đã được keeper khác xử lý, hãy làm mới',
+  AckDeadlinePassed: 'Đã quá hạn xác nhận, không còn thưởng',
+  AckDeadlineNotPassed: 'Chưa quá hạn xác nhận, chưa thể phạt',
+  ResolveDeadlinePassed: 'Đã quá hạn xử lý, không còn thưởng',
   IncidentNotCovered: 'Sự cố xảy ra trước khi incentives được kích hoạt',
   NoUnstakeRequest: 'Chưa yêu cầu unstake',
   UnstakeAlreadyRequested: 'Bond đã có yêu cầu unstake',
@@ -20,7 +20,7 @@ const MESSAGES: Record<string, string> = {
   NotResolved: 'Sự cố chưa được resolve trên chain',
   RelayNotLate: 'Relay chưa vượt quá hạn cho phép',
   ERC20InsufficientBalance: 'Không đủ ASAFE trong ví',
-  ERC20InsufficientAllowance: 'Allowance không đủ; cần approve trước',
+  ERC20InsufficientAllowance: 'Allowance không đủ, cần approve trước',
 }
 
 export interface DecodedError {

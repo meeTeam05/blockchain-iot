@@ -128,7 +128,7 @@ export function DeviceIncentives({ deviceId }: { deviceId: string }) {
       {stale ? (
         <div className="flex items-start gap-2.5 rounded-[10px] bg-[#fdf4dc] px-3 py-2.5">
           <span className="mt-1.5 size-2 shrink-0 rounded-full bg-[#d97706]" />
-          <p className="m-0 min-w-0 flex-1 text-[13px] leading-[1.5] text-[#7a4f00]">API đang chậm hoặc chưa index giao dịch; chain vẫn là canonical.</p>
+          <p className="m-0 min-w-0 flex-1 text-[13px] leading-[1.5] text-[#7a4f00]">API chưa đồng bộ với chain, số liệu chain là chuẩn.</p>
         </div>
       ) : null}
     </div>
@@ -188,7 +188,7 @@ export function DeviceIncentives({ deviceId }: { deviceId: string }) {
         <div className="flex-1 overflow-y-auto">
           <div className="flex flex-col gap-3 px-6 py-4 empty:hidden">
             <IncentivesGuardNotice guard={canonical.guard} />
-            {stale ? <p className="m-0 text-[13px] text-[#7a4f00]">API đang chậm hoặc chưa index giao dịch; chain vẫn là canonical.</p> : null}
+            {stale ? <p className="m-0 text-[13px] text-[#7a4f00]">API chưa đồng bộ với chain, số liệu chain là chuẩn.</p> : null}
           </div>
           <div className={`${RECON_GRID} bg-[#f6f8f5] py-2.5 text-[11px] font-bold tracking-[0.06em] text-[#5d6a60]`}>
             <span>CHỈ SỐ</span><span>CHAIN</span><span>API INDEX</span><span />

@@ -167,7 +167,7 @@ export function IncidentPage() {
                       <p className="m-0 text-[13px] text-[#5d6a60]">
                         {isConnected
                           ? 'Chỉ chủ thiết bị được thao tác.'
-                          : 'Kết nối ví chủ sở hữu thiết bị để thao tác.'}
+                          : 'Kết nối ví chủ thiết bị để thao tác.'}
                       </p>
                     ) : null
                   }

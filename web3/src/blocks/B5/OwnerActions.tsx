@@ -222,7 +222,7 @@ export function OwnerActions({
 
       {snapshot.stage === 'success' && snapshot.apiSyncDelayed ? (
         <div className="rounded-xl border border-warn/30 bg-warn-tint p-3 text-[13px] text-warn">
-          <p>API đang chậm, giao dịch đã được ghi nhận trên chain.</p>
+          <p>Đã ghi trên chain, API đang cập nhật.</p>
         </div>
       ) : null}
 
