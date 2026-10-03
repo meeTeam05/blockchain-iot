@@ -5,7 +5,7 @@ import type { IncentiveAction } from '../../lib/incentives'
 import { ExplorerLink } from '../../components/ExplorerLink'
 import type { useIncentivesGuard } from '../../lib/useIncentives'
 
-function NoticeBanner({ role, children }: { role?: 'alert'; children: ReactNode }) {
+export function NoticeBanner({ role, children }: { role?: 'alert'; children: ReactNode }) {
   return (
     <div className="flex items-start gap-2.5 rounded-[10px] bg-[#fdf4dc] px-3 py-2.5">
       <span className="mt-1.5 size-2 shrink-0 rounded-full bg-[#d97706]" />

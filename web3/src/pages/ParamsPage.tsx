@@ -9,15 +9,7 @@ import { useIncentivesGuard, useTokenWallet } from '../lib/useIncentives'
 import { useIncentivesApi, type IncentiveParams } from '../lib/incentivesApi'
 import { IncentivesGuardNotice } from '../blocks/B7/IncentivesShared'
 import { ExplorerLink } from '../components/ExplorerLink'
-
-// 1800 -> "30 phút", 86400 -> "24 giờ", 604800 -> "7 ngày" (contract values are seconds).
-function formatDuration(value: bigint | number) {
-  const seconds = Number(value)
-  if (seconds >= 2 * 86400 && seconds % 86400 === 0) return `${seconds / 86400} ngày`
-  if (seconds >= 3600 && seconds % 3600 === 0) return `${seconds / 3600} giờ`
-  if (seconds >= 60 && seconds % 60 === 0) return `${seconds / 60} phút`
-  return `${seconds} giây`
-}
+import { formatDuration } from '../lib/formatDuration'
 
 function Notice({ role, children }: { role?: 'alert'; children: ReactNode }) {
   return (

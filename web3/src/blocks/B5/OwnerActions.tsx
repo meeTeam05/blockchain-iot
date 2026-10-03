@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi'
 import type { Hash } from 'viem'
 import { ExplorerLink } from '../../components/ExplorerLink'
+import { ActionButton } from '../../components/ui/ActionButton'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { activeNetwork } from '../../config/networks'
 import { AIR_SAFETY_LOG_ABI } from '../../generated/incident-deployments'
@@ -33,36 +34,6 @@ interface OwnerActionsProps {
 }
 
 const IDLE: TransactionSnapshot = { stage: 'idle', action: null }
-
-function ActionButton({
-  label,
-  variant,
-  loading,
-  disabled,
-  onClick,
-}: {
-  label: string
-  variant: 'primary' | 'outline'
-  loading: boolean
-  disabled: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`flex h-10 items-center justify-center gap-2 rounded-[10px] text-[14px] font-semibold transition-colors disabled:cursor-not-allowed ${
-        variant === 'primary'
-          ? 'border-0 bg-[#16803c] text-white hover:bg-[#0f5f2c] disabled:bg-[#e3e8e1] disabled:text-[#8a958c]'
-          : 'border border-[#dfe4dc] bg-white text-[#17201a] hover:bg-[#f4f6f3] disabled:border-[#e3e8e1] disabled:bg-white disabled:text-[#a3ada5]'
-      }`}
-    >
-      {loading ? <span className="size-3.5 animate-spin rounded-full border-2 border-current border-r-transparent" aria-hidden /> : null}
-      {label}
-    </button>
-  )
-}
 
 export function OwnerActions({
   deviceId,

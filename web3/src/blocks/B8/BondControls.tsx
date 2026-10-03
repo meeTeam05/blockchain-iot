@@ -1,13 +1,15 @@
 import { useRef, useState } from 'react'
 import { useChainNow } from '../../lib/useChainNow'
 import { formatUnits } from 'viem'
-import { PrimaryButton } from '../../components/ui/PrimaryButton'
+import { ActionButton } from '../../components/ui/ActionButton'
+import { Panel, PanelHeader } from '../../components/ui/Panel'
 import { useCanonicalDeviceIncentives, useTokenWallet } from '../../lib/useIncentives'
 import { useIncentiveTransaction } from '../../lib/useIncentiveTransaction'
 import { parseBondAmount, stakeWithApproval } from '../../lib/incentives'
+import { formatDuration } from '../../lib/formatDuration'
 import { addressesMatch } from '../../lib/ownership'
 import { isTransactionBusy } from '../../lib/incidentTransaction'
-import { IncentiveTxStatus, IncentivesCard, IncentivesGuardNotice } from '../B7/IncentivesShared'
+import { IncentiveTxStatus, IncentivesGuardNotice, NoticeBanner } from '../B7/IncentivesShared'
 
 export function BondControls({ deviceId }: { deviceId: string }) {
   const canonical = useCanonicalDeviceIncentives(deviceId)
@@ -42,25 +44,48 @@ export function BondControls({ deviceId }: { deviceId: string }) {
     } catch (err) { setError(err instanceof Error ? err.message : 'Không stake được') }
     finally { lock.current = false; setFlowBusy(false) }
   }
-  return <IncentivesCard title="Approve / Bond">
-    <IncentivesGuardNotice guard={canonical.guard} />
-    {canonical.guard.status === 'ready' && canonical.isPending ? <p>Đang đọc bond từ chain…</p> : null}
-    {token.isError ? <p role="alert">RPC token lỗi: {token.error.message}</p> : null}
-    {canonical.isError ? <p role="alert">RPC bond lỗi: {canonical.error.message}</p> : data && decimals !== undefined ? <>
-      <p data-testid="bond-amount">Bond chain: {formatUnits(data.bond.amount, decimals)} ASAFE</p>
-      <p>Required bond: {formatUnits(data.params.ownerBond, decimals)} ASAFE</p>
-      <label className="block">Số lượng ASAFE<input aria-label="Số lượng ASAFE" className="mx-3 border p-2" value={value}
-        placeholder={formatUnits(data.params.ownerBond, decimals)} onChange={(e) => setValue(e.target.value)} disabled={busy} /></label>
-      {!owner ? <p>Chỉ ví owner hiện tại trên chain được stake cho thiết bị.</p> : null}
-      <p>Bước 1/2: approve đúng số lượng nếu thiếu allowance. Bước 2/2: stake. Khi hủy, allowance đã xác nhận được giữ để tiếp tục.</p>
-      <PrimaryButton label="Approve → Stake" disabled={!ready || !owner || busy} onClick={() => void stake()} />
-      {requested > 0n ? <p>Còn {String(availableAt > now ? availableAt - now : 0n)} giây cooldown. Trong thời gian chờ vẫn có thể bị phạt.</p> : null}
-      <PrimaryButton label="Yêu cầu unstake" disabled={!ready || !staker || data.bond.amount === 0n || requested > 0n || busy}
-        onClick={() => void tx.run('requestUnstake', [canonical.hash])} />
-      <PrimaryButton label="Withdraw bond" disabled={!ready || !staker || requested === 0n || now < availableAt || busy}
-        onClick={() => void tx.run('withdraw', [canonical.hash])} />
-    </> : null}
-    {error ? <p role="alert">{error}</p> : null}
-    <IncentiveTxStatus snapshot={tx.snapshot} onDiscard={tx.discardPending} />
-  </IncentivesCard>
+  const bondPct = data && data.params.ownerBond > 0n
+    ? Math.min(100, Number((data.bond.amount * 100n) / data.params.ownerBond))
+    : 0
+  return <Panel>
+    <PanelHeader title="Bond" />
+    <div className="flex flex-col gap-4 px-6 py-5">
+      <IncentivesGuardNotice guard={canonical.guard} />
+      {canonical.guard.status === 'ready' && canonical.isPending ? <p className="m-0 text-[13px] text-[#5d6a60]">Đang đọc bond từ chain…</p> : null}
+      {token.isError ? <NoticeBanner role="alert">RPC token lỗi: {token.error.message}</NoticeBanner> : null}
+      {canonical.isError ? <NoticeBanner role="alert">RPC bond lỗi: {canonical.error.message}</NoticeBanner> : data && decimals !== undefined ? <>
+        <div className="flex flex-col gap-2">
+          <span className="text-[12px] text-[#5d6a60]">Bond hiện có</span>
+          <div className="flex flex-wrap items-baseline gap-2">
+            <span data-testid="bond-amount" className="text-[24px] font-bold text-[#17201a]">{formatUnits(data.bond.amount, decimals)} ASAFE</span>
+            <span className="text-[13px] text-[#5d6a60]">Tối thiểu {formatUnits(data.params.ownerBond, decimals)} ASAFE{data.bond.amount >= data.params.ownerBond ? ' · đã đủ' : ''}</span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-[3px] bg-[#eef1ec]">
+            <div className={`h-full rounded-[3px] transition-all duration-500 ${bondPct >= 100 ? 'bg-[#16a34a]' : 'bg-[#d97706]'}`} style={{ width: `${bondPct}%` }} />
+          </div>
+        </div>
+        <label className="flex flex-col gap-1.5 text-[12px] text-[#5d6a60]">
+          Số lượng ASAFE
+          <input aria-label="Số lượng ASAFE" className="h-10 rounded-[10px] border border-[#dfe4dc] bg-white px-3 text-[14px] text-[#17201a] outline-none placeholder:text-[#8a958c] focus:border-[#16803c] disabled:bg-[#f6f8f5]"
+            value={value} placeholder={formatUnits(data.params.ownerBond, decimals)} onChange={(e) => setValue(e.target.value)} disabled={busy} />
+        </label>
+        {!owner ? <NoticeBanner>Chỉ ví owner của thiết bị được stake.</NoticeBanner> : null}
+        <div className="flex flex-col gap-2">
+          <ActionButton label="Approve → Stake" variant="primary" disabled={!ready || !owner || busy} onClick={() => void stake()} />
+          <p className="m-0 text-[12px] text-[#8a958c]">Approve nếu thiếu allowance, rồi stake. Hủy giữa chừng vẫn giữ allowance đã approve.</p>
+        </div>
+        {requested > 0n ? (
+          <NoticeBanner>Còn {formatDuration(availableAt > now ? availableAt - now : 0n)} cooldown. Trong thời gian chờ vẫn có thể bị phạt.</NoticeBanner>
+        ) : null}
+        <div className="grid grid-cols-2 gap-2">
+          <ActionButton label="Yêu cầu unstake" variant="outline" disabled={!ready || !staker || data.bond.amount === 0n || requested > 0n || busy}
+            onClick={() => void tx.run('requestUnstake', [canonical.hash])} />
+          <ActionButton label="Withdraw bond" variant="outline" disabled={!ready || !staker || requested === 0n || now < availableAt || busy}
+            onClick={() => void tx.run('withdraw', [canonical.hash])} />
+        </div>
+      </> : null}
+      {error ? <NoticeBanner role="alert">{error}</NoticeBanner> : null}
+      <IncentiveTxStatus snapshot={tx.snapshot} onDiscard={tx.discardPending} />
+    </div>
+  </Panel>
 }

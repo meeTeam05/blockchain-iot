@@ -42,7 +42,7 @@ describe('B7/B8 UI', () => {
   it('renders chain balance and allowance, never a false zero on RPC failure', () => {
     const view = mount(<TokenWallet />)
     expect(screen.getByTestId('token-balance')).toHaveTextContent('100 ASAFE')
-    expect(screen.getByText('Allowance SafetyIncentives: 0 ASAFE')).toBeInTheDocument()
+    expect(screen.getByTestId('token-allowance')).toHaveTextContent('0 ASAFE')
     mocks.token.isError = true; mocks.token.error = new Error('offline')
     view.rerender(<TokenWallet />)
     expect(screen.getByRole('alert')).toHaveTextContent('RPC token lỗi')
@@ -88,7 +88,7 @@ describe('B7/B8 UI', () => {
     mount(<BondControls deviceId="device" />)
     expect(screen.getByRole('button', { name: 'Approve → Stake' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Withdraw bond' })).toBeDisabled()
-    expect(screen.getByText(/604800 giây cooldown/)).toBeInTheDocument()
+    expect(screen.getByText(/7 ngày cooldown/)).toBeInTheDocument()
   })
 })
 describe('B9/B10 projection vs canonical state', () => {
