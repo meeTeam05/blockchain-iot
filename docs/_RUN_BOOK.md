@@ -1,9 +1,11 @@
 # Runbook demo báo cáo (Task 1 đến Task 8)
 
-Nhánh: `feature/task8-incentives-dapp` (chứa toàn bộ Task 1 đến 8).
-Thư mục gốc repo: `/home/nhat/workspace/prjs/blockchain-iot`. Mọi lệnh chạy từ thư mục gốc trừ khi có dòng `cd`.
+Nhánh: `feature/task8-incentives-dapp` (chứa toàn bộ Task 1 đến 8), tối thiểu commit `e252c682` **cộng commit sửa `web3/src/lib/deploymentValidation.ts`** (xem D5). Thiếu commit sửa đó thì dApp build với RPC công khai sẽ khóa mọi giao dịch.
+Máy demo: laptop Linux của Nhật (có kit, ESP-IDF, adb). Thư mục gốc repo: `/home/nhat/workspace/prjs/blockchain-iot`. Mọi lệnh chạy từ thư mục gốc trừ khi có dòng `cd`.
 
-Runbook vận hành server: [`ops/_RUN_BOOK.md`](ops/_RUN_BOOK.md). Runbook chain-worker: [`ops/CHAIN_WORKER_RUNBOOK.md`](ops/CHAIN_WORKER_RUNBOOK.md).
+Runbook chain-worker: [`ops/CHAIN_WORKER_RUNBOOK.md`](ops/CHAIN_WORKER_RUNBOOK.md). Hướng dẫn E2E cho người nhận `.env`: [`ops/E2E_GUIDE_SERVER_ENV_HOLDER.md`](ops/E2E_GUIDE_SERVER_ENV_HOLDER.md).
+
+**Quy tắc một máy:** trong suốt buổi tổng duyệt và buổi demo, **chỉ máy demo** được chạy `sa-cloudflared` (tunnel `minhnhat05.xyz`) và `sa-chain-worker` (ví relayer). Hai tunnel cùng token chia đôi traffic; hai worker cùng ví relayer tranh nonce và ăn chung quota Infura của server. A10 lệnh 0 kiểm tra điều này.
 
 ## Cách đọc file này
 
@@ -27,12 +29,15 @@ Ba tầng demo:
 
 Quy tắc: chạy tầng 1, rồi tầng 2. Nếu một bước tầng 2 quá 3 phút không ra kết quả đúng, chuyển sang Phần C, không sửa lỗi trước hội đồng.
 
+Tầng 2 chỉ được đưa vào demo nếu **A11 (tổng duyệt E2E, trước 1 đến 2 ngày)** đã chạy trọn B7 đến B12 và đổi các nhãn `(theo tài liệu)` của các bước đó thành `(đã chạy)`. Chưa tổng duyệt thì trình bày tầng 2 bằng Phần C.
+
 ---
 
 ## Run sheet (một màn hình)
 
 | # | Tầng | Việc | Lệnh chính | Đúng khi |
 |---|---|---|---|---|
+| A10 | chuẩn bị | Dựng stack (một máy, image mới) | `make server-up-build` + chain-worker | 7 container `Up`, health `ok`, log `incentives enabled` |
 | B1 | 1 | Cấu hình firmware | `idf.py ... menuconfig` | Thấy mục `Blockchain incidents` = Sepolia |
 | B2 | 1 | Build firmware | `idf.py ... build` | `Project build complete` |
 | B3 | 1 | Test contract | `cd blockchain && npm test` | `84 passing` |
@@ -55,14 +60,15 @@ Quy tắc: chạy tầng 1, rồi tầng 2. Nếu một bước tầng 2 quá 3 
 - [ ] A1 Công cụ
 - [ ] A2 Cài app lên điện thoại
 - [ ] A3 Lấy `server/.env` Sepolia
-- [ ] A4 Kiểm tra `server/.env` và tạo ví keeper
-- [ ] A5 Build dApp cho Sepolia
+- [ ] A4 Kiểm tra `server/.env`, IP LAN và tạo ví keeper
+- [ ] A5 Key RPC riêng cho dApp và build dApp cho Sepolia
 - [ ] A6 Build sẵn 2 bản firmware
 - [ ] A7 Provision board bằng app
 - [ ] A8 Cấp ASAFE cho ví owner
 - [ ] A8b (tùy chọn) Nới `maxRelayDelay`
 - [ ] A9 Quay video dự phòng
-- [ ] A10 Sáng ngày demo: dựng stack và kiểm tra
+- [ ] A10 Dựng stack và kiểm tra (dùng cho cả A11 và sáng ngày demo)
+- [ ] A11 Tổng duyệt E2E trên Sepolia (trước demo 1 đến 2 ngày)
 
 ## A1. Công cụ trên laptop
 
@@ -209,24 +215,69 @@ curl -s -X POST -H 'content-type: application/json' --data "{\"jsonrpc\":\"2.0\"
 ```
 **Đúng khi (theo tài liệu):** `result` lớn hơn `0x2386f26fc10000` (0.01 ETH = 10^16 wei). Worker cảnh báo `keeper wallet is low on ETH` khi dưới 0.002 ETH và thoát nếu số dư bằng 0.
 
-## A5. Build dApp cho Sepolia
+Không có faucet: ví admin `0x7Ee5...1a3F` còn khoảng 0.092 ETH. Trên máy có `blockchain/.env` của admin (máy Hưng), chạy `cd blockchain && npx hardhat console --network sepolia` rồi:
+```js
+await (await (await ethers.getSigners())[0].sendTransaction({ to: "0x<keeper>", value: ethers.parseEther("0.01") })).wait(2)
+```
 
-`web3/.env.local` đang là `VITE_NETWORK=localhost`. Biến đặt ở dòng lệnh có ưu tiên cao hơn file `.env`, nên không cần sửa file.
+**Lệnh 7: `MQTT_LAN_BIND_IP` đúng IP của laptop ở nơi demo**
 
-**Lệnh**
+Compose bind cổng `8883` của EMQX vào IP này. IP sai thì EMQX kẹt ở `Starting` với lỗi `can't bind on the specified endpoint`. IP đổi theo mạng (nhà, hotspot, hội trường), nên kiểm tra lại **sau khi đã nối mạng sẽ dùng khi demo**.
+```bash
+grep '^MQTT_LAN_BIND_IP=' server/.env
+ip -4 -o addr show scope global | awk '{print $2, $4}'
+```
+**Đúng khi:** IP trong `.env` trùng với IP (bỏ phần `/24`) của card mạng đang dùng (`wlan0`, `wlp...`).
+**Sai thì:** sửa `MQTT_LAN_BIND_IP` trong `server/.env`, rồi `cd server && docker compose up -d emqx`.
+
+## A5. Key RPC riêng cho dApp và build dApp cho Sepolia
+
+dApp đọc chain trong trình duyệt qua `VITE_RPC_URL`. Giá trị này nhúng vào bundle công khai. Đã kiểm tra ngày 2026-10-03 `(đã chạy)`:
+
+| RPC | Kiểm tra deployment (banner đỏ) | Lịch sử on-chain (tab Lịch sử, `/keeper` dự phòng) |
+|---|---|---|
+| Infura, key riêng cho dApp | đạt | đủ: 26 lần `eth_getLogs` từ block deploy, 8 log của kit, không 429 |
+| `ethereum-sepolia-rpc.publicnode.com` | đạt **chỉ khi có commit sửa `deploymentValidation.ts`** (node này xóa receipt cũ) | **thiếu**: node chỉ giữ log khoảng 10.000 đến 20.000 block (1,5 đến 2,5 ngày) và trả mảng rỗng, không báo lỗi. Incident tạo trong buổi demo vẫn hiện |
+| Key Infura của server (`CHAIN_RPC_URL`) | **không dùng** | lộ key của relayer; dApp làm hết quota là relayer ngừng gửi incident |
+
+Chọn: **Infura key riêng cho dApp** làm chính, publicnode làm dự phòng.
+
+**Lệnh 1: tạo key và khóa theo domain (làm một lần, trên web)**
+1. `https://developer.metamask.io` > Create new API key, tên `smart-air-dapp`, chỉ bật Ethereum Sepolia.
+2. Settings > Allowlist > **Origins**: thêm `https://minhnhat05.xyz` (và `http://127.0.0.1:5173` nếu cần chạy dev). Không bật "Require API key secret".
+3. Không bật allowlist Contract addresses (chặn các lệnh không có địa chỉ như `eth_blockNumber`, `eth_getTransactionReceipt`).
+
+**Lệnh 2: allowlist có hiệu lực**
+```bash
+DAPP_RPC=https://sepolia.infura.io/v3/<KEY_DAPP>
+for o in https://minhnhat05.xyz https://evil.example; do
+  curl -s -X POST -H 'content-type: application/json' -H "Origin: $o" \
+    --data '{"jsonrpc":"2.0","id":1,"method":"eth_chainId"}' "$DAPP_RPC"; echo "  <- $o"
+done
+```
+**Đúng khi:** dòng `minhnhat05.xyz` có `"result":"0xaa36a7"`; dòng `evil.example` **không** có `result` (bị từ chối).
+**Sai thì:** cả hai đều có `result` nghĩa là allowlist chưa lưu (đã gặp ngày 2026-10-03). Lưu lại allowlist, chờ 1 phút, chạy lại.
+
+**Lệnh 3: build**
+
+`web3/.env.local` trên máy này là `VITE_NETWORK=localhost` (giữ nguyên: unit test của `web3` cần giá trị này). Biến đặt ở dòng lệnh ưu tiên hơn file `.env`, nên không sửa file.
 ```bash
 cd web3
+git log --oneline -5 -- src/lib/deploymentValidation.ts   # phải thấy commit sửa receipt
 VITE_NETWORK=sepolia \
 VITE_API_BASE_URL=https://minhnhat05.xyz/api \
-VITE_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com \
+VITE_RPC_URL="$DAPP_RPC" \
 npm run build
 grep -l 'minhnhat05.xyz/api' dist/assets/*.js
+grep -c 'sepolia.infura.io' dist/assets/index-*.js
 ```
 **Đúng khi:**
-- Có dòng `built in ...` (đã chạy, `(đã chạy)` bằng `vite build` ra thư mục tạm).
-- `grep -l` in ra ít nhất một file `dist/assets/index-*.js`.
+- Có dòng `built in ...` (`(đã chạy)` trên máy Hưng với commit sửa).
+- `grep -l` in ít nhất một file `dist/assets/index-*.js`; `grep -c` in số lớn hơn `0`.
 
-nginx mount `web3/dist` chỉ đọc tại `/dapp/`, file mới có hiệu lực ngay, không cần restart. `VITE_RPC_URL` bị nhúng vào bundle công khai: không dùng RPC có API key riêng.
+Dự phòng khi chưa có key dApp: thay `VITE_RPC_URL="$DAPP_RPC"` bằng `VITE_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com`. Chấp nhận tab Lịch sử của incident cũ hơn khoảng 1,5 ngày bị trống.
+
+nginx mount `web3/dist` chỉ đọc tại `/dapp/`, file mới có hiệu lực ngay, không cần restart.
 
 ## A6. Build sẵn 2 bản firmware (làm sớm, lần đầu mất vài phút)
 
@@ -258,7 +309,7 @@ Không bao giờ chạy `idf.py erase-flash`: lệnh này xóa signer, sequence 
 
 ## A8. Cấp ASAFE cho ví owner (cần cho B12)
 
-Ví owner `0x4aC8fe56c966496a12fCDEc5a1B01c21a97CF30B` có **0 ASAFE** và 0.05 ETH (`(đã chạy)`, 2026-10-03). Treasury (admin `0x7Ee5...1a3F`) đang giữ 949000 ASAFE. Cần file `blockchain/.env` với `DEPLOYER_PRIVATE_KEY` của admin; máy này chưa có file đó.
+Ví owner `0x4aC8fe56c966496a12fCDEc5a1B01c21a97CF30B` có **0 ASAFE** và 0.05 ETH (`(đã chạy)`, 2026-10-03). Treasury (admin `0x7Ee5...1a3F`) đang giữ 949000 ASAFE. Cần file `blockchain/.env` với `DEPLOYER_PRIVATE_KEY` của admin. Máy demo chưa có file đó; **máy Hưng (Windows) có**, nên A8 và A8b chạy trên máy Hưng (lệnh `npx hardhat console` giống nhau trên PowerShell).
 
 **Lệnh (chưa chạy thử)**
 ```bash
@@ -318,20 +369,33 @@ Quay sẵn, mỗi đoạn dưới 1 phút, lưu ngoài git:
 3. Ack và resolve bằng MetaMask.
 4. `/wallet` stake và `+5`.
 
-## A10. Sáng ngày demo: dựng stack và kiểm tra (làm trước giờ báo cáo khoảng 30 phút)
+## A10. Dựng stack và kiểm tra (làm trong A11, và sáng ngày demo trước giờ báo cáo khoảng 30 phút)
 
-**Lệnh 1: dựng server**
+**Lệnh 0: không máy nào khác đang giữ tunnel hoặc worker**
+
+Nhắn mọi người từng chạy stack với `.env` Sepolia (người giữ `.env`, Hưng) chạy trên máy họ:
 ```bash
+docker ps --format '{{.Names}}' | grep -E 'sa-(cloudflared|chain-worker)' || echo NONE
+```
+**Đúng khi:** **mọi** máy khác trả lời `NONE`. Máy nào in tên container thì máy đó chạy `cd server && docker compose --profile chain stop chain-worker cloudflared` rồi kiểm tra lại. Chờ xác nhận bằng tin nhắn, không đoán.
+
+**Lệnh 1: lấy code mới và dựng server (luôn build lại image)**
+
+`sa-api` và `sa-chain-worker` dùng chung image `smart-air-api:local`. Image cũ thiếu sửa của `keeper.js`, `relayer.js` (commit `e252c682`) và địa chỉ incentives trong `server/api/src/generated/`, nên luôn dùng `server-up-build`, không dùng `server-up`.
+```bash
+git pull --ff-only && git log --oneline -1
 make server-env-check
-make server-up
-cd server && docker compose --profile chain up -d chain-worker && cd ..
+make server-up-build
+cd server && docker compose --profile chain up -d --force-recreate chain-worker && cd ..
 make server-ps
 ```
 **Đúng khi:**
+- `git log` in commit mới nhất của nhánh (không cũ hơn commit sửa `deploymentValidation.ts`).
 - `make server-env-check` không in dòng `Missing`.
-- `make server-ps` liệt kê `sa-postgres`, `sa-redis`, `sa-emqx`, `sa-api`, `sa-nginx`, `sa-cloudflared`, `sa-chain-worker` đều ở trạng thái `Up`, và 5 service đầu có `(healthy)` (theo tài liệu).
+- `make server-up-build` kết thúc không lỗi (cần mạng, lần đầu vài phút).
+- `make server-ps` liệt kê `sa-postgres`, `sa-redis`, `sa-emqx`, `sa-api`, `sa-nginx`, `sa-cloudflared`, `sa-chain-worker` đều `Up`, và 5 service đầu có `(healthy)` (theo tài liệu).
 
-`make server-up-build` chỉ cần khi code API đổi (build lại image `smart-air-api:local`, cần mạng).
+**Sai thì:** `sa-emqx` kẹt `Starting`: A4 lệnh 7. Code dApp đổi sau khi pull: build lại A5 lệnh 3.
 
 **Lệnh 2: server và tunnel**
 ```bash
@@ -379,6 +443,29 @@ docker exec sa-api node scripts/device-signer.js show dc:b4:d9:13:ed:8c
 Mở MetaMask trên trình duyệt desktop, chọn mạng **Sepolia**. Nếu MetaMask còn mạng tùy chỉnh trùng chain ID `11155111` trỏ về `127.0.0.1:8545`, xóa hoặc đổi tên nó.
 
 **Đúng khi:** dApp không hiện banner đỏ wrong RPC hoặc domain (xem B10). Không bỏ qua banner đó.
+
+## A11. Tổng duyệt E2E trên Sepolia (trước demo 1 đến 2 ngày)
+
+Mục tiêu: chạy thật một lần toàn bộ chuỗi `board -> EMQX -> API -> chain-worker -> Sepolia -> indexer -> app/dApp -> MetaMask -> keeper`, tức các bước B7 đến B12 hiện còn nhãn `(theo tài liệu)`. Đây là phần E2E chưa từng chạy (D4).
+
+Điều kiện: A1 đến A8 xong, A10 lệnh 0 đến 6 đạt.
+
+| # | Bước | Ghi lại vào runbook khi đạt |
+|---|---|---|
+| T1 | B7: board replay, `accepted:true` | dòng log domain và ACK thật |
+| T2 | B8: outbox `confirmed`, receipt `status 0x1`, Etherscan có `IncidentLogged` | `tx_hash` và thời gian từ ACK đến `confirmed` |
+| T3 | B9: app nhận thông báo, deep-link MetaMask Mobile mở đúng incident | đạt hay không (deep-link chưa từng chạy) |
+| T4 | B10: dApp đăng nhập, thiết bị `active`, nhãn "Bạn", không banner đỏ | |
+| T5 | B11: verify 4 dòng pass, ack, đổi ví thì nút ẩn, resolve, Lịch sử 3 event | 2 `tx_hash` (ack, resolve) |
+| T6 | B12: stake 100 ASAFE, ack và resolve trong hạn, nhận `+5` và `+5` | số dư trước và sau; ai ghi nhận (dApp hay keeper) |
+| T7 | Log keeper: `docker logs sa-chain-worker 2>&1 \| grep -i keeper \| tail` | có lần keeper gửi giao dịch hoặc gặp `AlreadySettled` |
+| T8 | `/keeper` dùng API: trang không hiện "Đang dùng fallback logs on-chain" | |
+
+Sau tổng duyệt:
+- Đổi nhãn các bước đã đạt thành `(đã chạy)` kèm ngày, cập nhật D4.
+- Bước nào không đạt: ghi lỗi vào D5, quyết định trước ngày demo là sửa hay trình bày bằng Phần C.
+- Kiểm tra số dư ETH relayer, manager, keeper (D1); dưới 0.05 ETH thì nạp thêm.
+- Incident và stake tạo trong tổng duyệt nằm lại trên chain: dùng được làm bằng chứng ở C3. Không unstake (cooldown 7 ngày). `stakeDevice` cho phép stake thêm (`blockchain/contracts/SafetyIncentives.sol`), nên 200 ASAFE ở A8 đủ cho 100 ASAFE stake lúc tổng duyệt và 100 ASAFE stake thêm lúc demo (bond thành 200). Ở B12 bước 3, stake hiện tăng từ 100 lên 200.
 
 ---
 
@@ -484,7 +571,7 @@ Muốn hội đồng nhìn thấy trình duyệt: `npm run test:incentives-e2e -
 
 ## Tầng 2. Live (Sepolia + board thật)
 
-Điều kiện: A3 đến A10 đã xong và đúng.
+Điều kiện: A3 đến A10 đã xong và đúng, và A11 (tổng duyệt) đã chạy trọn các bước dưới đây ít nhất một lần.
 
 ### B7. Board tạo incident bằng bản replay
 
@@ -515,9 +602,9 @@ Chờ 1 đến 2 phút (3 confirmations). Trong lúc chờ, kể kiến trúc.
 
 **Lệnh 1**
 ```bash
-docker exec sa-postgres sh -c 'psql -U $POSTGRES_USER -d $POSTGRES_DB -c "SELECT status, tx_hash, fail_reason FROM blockchain_outbox ORDER BY 1;"'
+docker exec sa-postgres sh -c 'psql -U $POSTGRES_USER -d $POSTGRES_DB -c "SELECT created_at, sequence, status, tx_hash, fail_reason FROM blockchain_outbox ORDER BY created_at DESC LIMIT 5;"'
 ```
-**Đúng khi (theo tài liệu):** có dòng mới nhất với `status` là `confirmed` và cột `tx_hash` có giá trị `0x...`.
+**Đúng khi (theo tài liệu):** dòng **đầu tiên** (mới nhất) có `status` là `confirmed` và cột `tx_hash` có giá trị `0x...`. `sequence` lớn hơn `lastSequence` cũ của kit (11 tại 2026-10-03, xem C3).
 
 | `status` | Ý nghĩa và việc làm |
 |---|---|
@@ -526,6 +613,9 @@ docker exec sa-postgres sh -c 'psql -U $POSTGRES_USER -d $POSTGRES_DB -c "SELECT
 | `waiting_signer` | Chưa xong A10 lệnh 5, hoặc `sa-chain-worker` không chạy |
 | `failed`, `blocked` | Xem cột `fail_reason` và `docker logs sa-chain-worker` |
 | `legacy_domain` | Ký cho contract cũ, đúng thiết kế, không gửi lên chain |
+| `stale_signer` | Ký bằng khóa đã bị rotate, đúng thiết kế, không gửi lên chain. Kiểm tra signer bằng A10 lệnh 5 |
+
+Lệnh 2 dùng RPC công khai được vì giao dịch vừa tạo; publicnode xóa receipt cũ hơn khoảng 1 ngày (receipt deploy AirSafetyLog đã trả `null`), nên tra giao dịch cũ thì dùng Etherscan.
 
 **Lệnh 2: kiểm tra giao dịch trên Sepolia bằng RPC công khai** (thay `0x...` bằng `tx_hash` ở trên)
 ```bash
@@ -565,7 +655,12 @@ Mở `https://minhnhat05.xyz/dapp/`. Đăng nhập bằng tài khoản app (A7),
 - Có nhãn "Bạn" vì owner của thiết bị khớp ví đang kết nối.
 - Không có banner đỏ.
 
-**Sai thì:** banner wrong RPC hoặc domain: làm A10 lệnh 6, không bỏ qua banner. Lỗi `VITE_NETWORK="..." has no entry`: giá trị chỉ được là `localhost` hoặc `sepolia`, build lại A5.
+**Sai thì:**
+Banner đỏ có dạng `Public RPC: <lý do>` (RPC của dApp, `VITE_RPC_URL`) và/hoặc `Wallet RPC: <lý do>` (RPC của MetaMask), kết thúc bằng `Mọi hành động gửi giao dịch đã bị khóa.` (`web3/src/blocks/B0/domainStatus.tsx`).
+- `Public RPC: RPC ví đang trỏ tới deployment khác dù chain ID trùng.`: bundle dùng publicnode nhưng thiếu commit sửa `deploymentValidation.ts`. Pull, build lại A5 lệnh 3.
+- `Public RPC: Không thể kiểm tra RPC lúc này.`: RPC của dApp lỗi hoặc 429. Kiểm tra A5 lệnh 2 (key đúng, allowlist có `https://minhnhat05.xyz`). Hết cách thì build lại với publicnode.
+- `Wallet RPC: ...`: làm A10 lệnh 6 (MetaMask đúng Sepolia, xóa mạng tùy chỉnh trùng chain ID). Không bỏ qua banner.
+- Lỗi `VITE_NETWORK="..." has no entry`: giá trị chỉ được là `localhost` hoặc `sepolia`, build lại A5.
 
 Các route (`web3/src/App.tsx`):
 
@@ -595,6 +690,8 @@ Mở route `/d/dc:b4:d9:13:ed:8c` rồi chọn incident vừa tạo ở B7.
 
 Mỗi giao dịch Sepolia mất khoảng 15 đến 60 giây.
 
+Tab Lịch sử đọc `eth_getLogs` qua `VITE_RPC_URL` từ block deploy. Với key Infura (A5) thấy đủ lịch sử của kit; với publicnode chỉ thấy event của khoảng 1,5 ngày gần nhất (incident vừa tạo vẫn đủ 3 event).
+
 **Sai thì:**
 - Nút "Review alerts" của MetaMask bị xám: lỗi extension MetaMask đã được xác nhận, không phải code dự án (ghi trong `tmp/05_reports/2026-10-02_task5-progress-report.md`). Tải lại trang và thử lại.
 - Giao dịch revert với báo lỗi tiếng Việt: bảng lỗi nằm ở mục 6 của `tasks/Web3_task.md`.
@@ -608,8 +705,8 @@ Lưu ý: tiêu chí hoàn thành M3 của Task 5 là chạy trọn kịch bản 
 | Bước | Làm gì | Đúng khi (theo tài liệu) |
 |---|---|---|
 | 1 | Mở `/params` (không cần đăng nhập) | Bảng tham số: `ownerBond` 100 ASAFE, `ackReward` 5, `resolveReward` 5, `dailyRewardCap` 3, `unstakeCooldown` 7 ngày. Các giá trị này khớp `blockchain/deployments/sepolia.incentives.json` |
-| 2 | Mở `/wallet` | Số dư ASAFE của ví owner đọc từ chain, bằng `200` nếu A8 đã chuyển 200 |
-| 3 | Stake 100 ASAFE cho thiết bị | dApp làm 2 giao dịch (approve đúng số lượng, rồi stake), ký 2 lần trong MetaMask. Số dư giảm 100, stake hiện 100 |
+| 2 | Mở `/wallet` | Số dư ASAFE của ví owner đọc từ chain. Sau A11: khoảng `110` (200 - 100 stake + 10 thưởng); ghi số thật từ A11 vào đây |
+| 3 | Stake 100 ASAFE cho thiết bị | dApp làm 2 giao dịch (approve đúng số lượng, rồi stake), ký 2 lần trong MetaMask. Số dư giảm 100, stake tăng từ 100 lên 200 (lần đầu stake thì từ 0 lên 100) |
 | 4 | Tạo incident mới (lặp B7), rồi **ack trong hạn** | Hạn ack 30 phút (mức warning) hoặc 10 phút (mức danger) tính từ `loggedAt`. Sau khi ack được xác nhận, dApp đọc `canRecordAck` (`web3/src/pages/IncidentPage.tsx`): nếu còn `true` thì mở thêm một lần ký MetaMask cho `recordTimelyAck`, phải ký trong hạn ack. Keeper (`KEEPER_ENABLED=true`) cũng ghi nhận sau khi indexer thấy ack (khoảng 1 phút); bên nào vào trước thì bên kia gặp `AlreadySettled` hoặc báo "đã stale", đó là kết quả bình thường. Nhãn `+5` hiện khi một trong hai xong |
 | 5 | Bấm **Đã xử lý** trong 24 giờ | Giống bước 4 với `recordTimelyResolve` (có thể có thêm một lần ký MetaMask, hoặc keeper ghi nhận thay). Nhãn thưởng resolve `+5`, số dư ở `/wallet` tăng 10 so với trước |
 | 6 | Mở `/keeper` | Bảng công khai hiện các mục "Quá hạn acknowledge" và "Relay trễ" (có thể rỗng nếu không có incident quá hạn) |
@@ -701,7 +798,13 @@ Mở các đoạn đã quay ở A9.
 | Domain public | `https://minhnhat05.xyz` (API `/api`, MQTT `/mqtt`, dApp `/dapp/`) |
 | ESP-IDF | `/home/nhat/workspace/esp-idf` (v5.4.2) |
 
-Số dư ETH tại 2026-10-03 (`(đã chạy)`): admin 0.092, relayer 0.099, manager 0.0999, owner 0.05. Relayer dưới 0.05 ETH sẽ bị cảnh báo `relayer_low_balance`. Quỹ thưởng 50000 ASAFE, operator bond 1000 ASAFE, SafetyIncentives đang giữ 51000 ASAFE.
+Số dư tại 2026-10-03, block 11835094 (`(đã chạy)`): admin 0.092 ETH và 949000 ASAFE, relayer 0.0989 ETH, manager 0.0999 ETH, owner 0.05 ETH và 0 ASAFE. `maxRelayDelay` 900. Relayer dưới 0.05 ETH sẽ bị cảnh báo `relayer_low_balance`. Quỹ thưởng 50000 ASAFE, operator bond 1000 ASAFE, SafetyIncentives đang giữ 51000 ASAFE.
+
+| RPC | Dùng ở đâu | Ghi chú |
+|---|---|---|
+| Infura key của server | `server/.env` `CHAIN_RPC_URL`, `blockchain/.env` `SEPOLIA_RPC_URL` | Không bao giờ đưa vào dApp |
+| Infura key riêng của dApp | `VITE_RPC_URL` lúc build (A5) | Bắt buộc allowlist Origin `https://minhnhat05.xyz` |
+| `ethereum-sepolia-rpc.publicnode.com` | Lệnh kiểm tra trong runbook (số dư, `eth_call`, receipt mới), dự phòng cho dApp | Xóa receipt cũ khoảng 1 ngày, log cũ khoảng 1,5 đến 2,5 ngày, trả rỗng không báo lỗi |
 
 Luồng hệ thống:
 ```text
@@ -718,7 +821,7 @@ cd server
 docker compose --profile chain stop chain-worker
 cd .. && make server-down
 ```
-**Đúng khi:** `docker ps` không còn container `sa-*`.
+**Đúng khi:** `docker ps` không còn container `sa-*` (kể cả `sa-cloudflared`, để máy khác dùng lại tunnel).
 
 Các việc còn lại:
 - Báo người giữ `.env` rằng worker của bạn **đã dừng**, để họ chạy lại worker của họ.
@@ -745,8 +848,16 @@ Các việc còn lại:
 | Hai worker chạy cùng lúc | Người giữ `.env` chưa dừng worker | Báo họ dừng, chờ xác nhận |
 | `server/api` test fail ở `firmware-wire-contract` | Thiếu `IDF_PATH` | `IDF_PATH=/home/nhat/workspace/esp-idf npm test` |
 | Board không kết nối MQTT ở nơi demo | Wi-Fi hội trường chặn hoặc khác SSID đã lưu | Dùng hotspot đã provision (A7) |
+| `sa-emqx` kẹt `Starting`, log `can't bind on the specified endpoint` | `MQTT_LAN_BIND_IP` không phải IP hiện tại của laptop | A4 lệnh 7 |
+| dApp banner đỏ `Public RPC: ...` | Bundle cũ thiếu commit sửa, hoặc RPC dApp lỗi/429 | B10 mục Sai thì |
+| Tab Lịch sử trống với incident cũ | dApp build với publicnode (log cũ bị xóa) | Build lại A5 với key Infura dApp |
+| `/keeper` hiện "Đang dùng fallback logs on-chain", sau đó 429 | API `/api/incentives/overdue` lỗi (thường do `INCENTIVES_ENABLED` chưa là `true`) | A4 lệnh 3, `make server-up-build` |
+| Container chạy code cũ sau khi pull | Dùng `make server-up` thay vì `server-up-build` | A10 lệnh 1 |
+| `web3` unit test fail ở `useIncentiveTransaction.test.tsx` (2 test, `expected 'idle' to be 'success'`) | `web3/.env.local` đặt `VITE_NETWORK=sepolia` (test giả định `localhost`) | Đặt lại `VITE_NETWORK=localhost` trong `.env.local`; build Sepolia bằng biến dòng lệnh (A5) |
 
-## D4. Kết quả đã chạy thật trên máy này (2026-10-03, commit `2d1f760` cộng các sửa chưa commit ở D5)
+## D4. Kết quả đã chạy thật (2026-10-03)
+
+Máy Nhật (Linux), commit `2d1f760` cộng các sửa sau đó đã commit thành `e252c682`:
 
 | Hạng mục | Lệnh | Kết quả |
 |---|---|---|
@@ -754,7 +865,7 @@ Các việc còn lại:
 | Firmware build, profile replay | `idf.py -B build-replay ... build` | Thành công, `smart-air.bin` 0x16a670, 29% còn trống |
 | Sinh domain EIP-712 | `node spec/incident/gen/gen-all.mjs --check` | `up to date` |
 | Contract | `cd blockchain && npm test` | 84 passing (82 cũ và 2 test mô tả giới hạn đã biết) |
-| Backend | `IDF_PATH=... npm test` trong `server/api` | 235 pass, 0 fail, 4 skipped |
+| Backend | `IDF_PATH=... npm test` trong `server/api` | 239 tests: 235 pass, 0 fail, 4 skipped |
 | dApp unit và tích hợp | `cd web3 && npm run test` | 121 pass, 0 fail, 2 skipped. `npx tsc -b` sạch |
 | Task 8 E2E trình duyệt | `cd web3 && npm run test:incentives-e2e` | 1 passed, khoảng 30 giây |
 | dApp build cho Sepolia | `vite build` với `VITE_NETWORK=sepolia`, ra thư mục tạm | Thành công, bundle chứa `https://minhnhat05.xyz/api` |
@@ -763,13 +874,26 @@ Các việc còn lại:
 | Token | `balanceOf` | Treasury 949000, SafetyIncentives 51000, ví owner 0 |
 | Mẫu lệnh kiểm tra receipt | `eth_getTransactionReceipt` với tx deploy token | `"status":"0x1"` |
 
-Chưa chạy trên máy này: flash và monitor trên board, `expo run:android` trên điện thoại, deep-link MetaMask Mobile, kịch bản A trên Sepolia, `npm run test:e2e` (kịch bản A local), `make e2e-chain-local`, `npm run test:deployment`, cấp ASAFE cho ví owner, toàn bộ stack Docker với `.env` Sepolia.
+Máy Hưng (Windows), commit `e252c682` cộng sửa `deploymentValidation.ts`:
 
-## D5. Việc cần sửa trong repo (không nằm trên đường demo)
-
-| Việc | Chi tiết |
+| Hạng mục | Kết quả |
 |---|---|
-| Đã sửa trong lần review 2026-10-03 (chưa commit) | `web3/src/lib/incentives.test.ts` (test cũ), nút bỏ giao dịch pending (`useIncentiveTransaction.ts`, `IncentivesShared.tsx`), `keeper.js` kiểm tra `staker == owner`, comment `relayer.js`, 2 test mới trong `blockchain/test/incentives.test.js`, mục "Giới hạn đã biết" trong `docs/tasks/Token_incentive_task.md` |
-| Đã sửa tiếp (chưa commit) | `Makefile` (5 target `app-*` sang Expo, `IDF_EXPORT` tự tìm đường dẫn), `app/package.json` và `app/package-lock.json` (`name` thành `app`), mục 3.6 của `docs/ops/E2E_GUIDE_SERVER_ENV_HOLDER.md`. Đã chuyển hai file lẻ ở thư mục gốc vào đúng chỗ trong `docs/`: bản cũ của `E2E_GUIDE_SERVER_ENV_HOLDER.md` và file trỏ `Task5_8_plan.md` đã bị xóa, bản chính nằm ở `docs/ops/` và `docs/tasks/` |
-| Còn tồn | `README.md` (huy hiệu Flutter, mô tả "App (Flutter + Riverpod)"), `docs/architecture/ARCHITECTURE*.md` (vẫn mô tả app Flutter) |
-| `docs/_RUN_BOOK.md` và `docs/ops/_RUN_BOOK.md` | Trùng tên, khác mục đích (kịch bản demo và vận hành server) |
+| Contract `npx hardhat test` | 84 passing |
+| Backend `npm test` | 239 tests: 234 pass, 4 skipped, 1 fail `firmware-wire-contract` (máy không có ESP-IDF, lỗi môi trường) |
+| dApp `vitest run` (`.env.local` là `localhost`) | 124 pass, 2 skipped (thêm 3 test cho receipt bị xóa). `tsc -b` sạch. `npm run build` thành công |
+| `validateDeployment` với publicnode trên Sepolia thật | `correct` (trước khi sửa: `wrong_rpc` vì receipt deploy trả `null`) |
+| Quét lịch sử kit (26 `eth_getLogs` từ block 11810036) | Infura key dApp: 8 log, 0 lỗi, 16 giây. publicnode: 0 log, 0 lỗi (log đã bị xóa) |
+| dApp dev trên Sepolia với key Infura dApp | `/` không banner đỏ, `/params` đúng quỹ 50000 và bond 1000, 0 lần 429. `/keeper` không có API thì quét fallback và gặp 429 |
+
+Chưa chạy ở máy nào: flash và monitor trên board, `expo run:android` trên điện thoại, deep-link MetaMask Mobile, kịch bản A trên Sepolia, `npm run test:e2e` (kịch bản A local), `make e2e-chain-local`, cấp ASAFE cho ví owner, toàn bộ stack Docker với `.env` Sepolia. Tất cả nằm trong A11.
+
+## D5. Việc trong repo
+
+| Việc | Trạng thái |
+|---|---|
+| Hardening keeper (`staker == owner`), nút bỏ giao dịch pending, test mới, Makefile `app-*` sang Expo, `IDF_EXPORT` tự tìm, dọn file lẻ ở thư mục gốc | Đã commit (`e252c682`) |
+| `web3/src/lib/deploymentValidation.ts`: receipt deploy bị RPC công khai xóa thì xác minh bằng giao dịch deploy (tạo contract, đúng block, địa chỉ CREATE từ `from` + `nonce` khớp) | Đã sửa và test, **cần commit và push trước A5** |
+| `/params` hiện tham số dạng wei thô (`ownerBond: 100000000000000000000`) | Còn tồn, chỉ là hiển thị. Khi trình bày, đọc theo bảng B12 bước 1 |
+| Lịch sử on-chain (`historyLogs.ts`) và `/keeper` dự phòng quét từ block deploy mỗi lần, `/keeper` quét lại mỗi 10 giây | Còn tồn. Không ảnh hưởng demo khi API chạy và dApp dùng key Infura |
+| `test-dapp-deployment.mjs` và Playwright (`localhost` thành `::1`) lỗi trên Windows; `.sol` checkout CRLF trên Windows làm harness `test:incentives-e2e` báo `runtime hash changed` | Còn tồn, chỉ ảnh hưởng máy Windows. Sửa CRLF bằng `.gitattributes` (`*.sol text eol=lf`) |
+| `README.md` và `docs/architecture/ARCHITECTURE*.md` còn nhắc Flutter | Còn tồn |

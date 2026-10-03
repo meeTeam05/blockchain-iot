@@ -1,6 +1,7 @@
 import {
   decodeFunctionResult,
   encodeFunctionData,
+  getContractAddress,
   keccak256,
   type Address,
   type Hex,
@@ -44,6 +45,10 @@ const DOMAIN_SEPARATOR_CALL = encodeFunctionData({
 
 function sameHex(left: string, right: string) {
   return left.toLowerCase() === right.toLowerCase()
+}
+
+function isBlock(value: unknown, expected: number) {
+  return typeof value === 'string' && Number.parseInt(value, 16) === expected
 }
 
 export async function validateDeployment(
@@ -100,12 +105,31 @@ export async function validateDeployment(
       method: 'eth_getTransactionReceipt',
       params: [target.deployTxHash],
     }) as { contractAddress?: string; blockNumber?: string } | null
+    if (deploymentReceipt) {
+      return deploymentReceipt.contractAddress &&
+        sameHex(deploymentReceipt.contractAddress, target.address) &&
+        isBlock(deploymentReceipt.blockNumber, target.blockNumber)
+        ? 'correct'
+        : 'wrong_rpc'
+    }
+
+    // Public RPCs (e.g. publicnode) prune old receipts but keep the transaction.
+    // A contract-creation tx in the canonical block whose CREATE address
+    // (sender + nonce) is the target proves the same deployment.
+    const deploymentTx = await request({
+      method: 'eth_getTransactionByHash',
+      params: [target.deployTxHash],
+    }) as { from?: string; nonce?: string; to?: string | null; blockNumber?: string } | null
     if (
-      !deploymentReceipt ||
-      !deploymentReceipt.contractAddress ||
-      !sameHex(deploymentReceipt.contractAddress, target.address) ||
-      typeof deploymentReceipt.blockNumber !== 'string' ||
-      Number.parseInt(deploymentReceipt.blockNumber, 16) !== target.blockNumber
+      !deploymentTx ||
+      deploymentTx.to != null ||
+      typeof deploymentTx.from !== 'string' ||
+      typeof deploymentTx.nonce !== 'string' ||
+      !isBlock(deploymentTx.blockNumber, target.blockNumber) ||
+      !sameHex(
+        getContractAddress({ from: deploymentTx.from as Address, nonce: BigInt(deploymentTx.nonce) }),
+        target.address,
+      )
     ) {
       return 'wrong_rpc'
     }
