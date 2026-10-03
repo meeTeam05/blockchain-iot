@@ -154,42 +154,88 @@ export function OwnerActions({
     : null
 
   return (
-    <div className="flex flex-col gap-2">
-      {canAcknowledge ? (
-        <PrimaryButton
-          label="Xác nhận"
-          loading={busy && snapshot.action === 'acknowledgeIncident'}
-          disabled={busy}
-          onClick={() => {
-            setSnapshot(IDLE)
-            setDialogAction('acknowledgeIncident')
-          }}
-        />
-      ) : null}
-      {canResolve ? (
-        <PrimaryButton
-          label="Đã xử lý"
-          loading={busy && snapshot.action === 'resolveIncident'}
-          disabled={busy}
-          onClick={() => {
-            setSnapshot(IDLE)
-            setDialogAction('resolveIncident')
-          }}
-        />
+    <div className="flex flex-col gap-3 rounded-2xl border border-line bg-paper p-5 shadow-xs">
+      <div className="flex items-center justify-between border-b border-line-2 pb-3">
+        <span className="text-[14px] font-bold text-ink">Thao tác on-chain</span>
+        <span className="font-mono text-[11px] text-ink-3">{chainStatus}</span>
+      </div>
+
+      <div className="flex flex-col gap-2.5">
+        {canAcknowledge ? (
+          <PrimaryButton
+            label="Xác nhận"
+            loading={busy && snapshot.action === 'acknowledgeIncident'}
+            disabled={busy}
+            onClick={() => {
+              setSnapshot(IDLE)
+              setDialogAction('acknowledgeIncident')
+            }}
+          />
+        ) : null}
+        {canResolve ? (
+          <PrimaryButton
+            label="Đã xử lý"
+            loading={busy && snapshot.action === 'resolveIncident'}
+            disabled={busy}
+            onClick={() => {
+              setSnapshot(IDLE)
+              setDialogAction('resolveIncident')
+            }}
+          />
+        ) : null}
+        {canAcknowledge && !canResolve ? (
+          <p className="text-center text-[11.5px] text-ink-3">Đánh dấu đã xử lý mở sau khi xác nhận</p>
+        ) : null}
+      </div>
+
+      {snapshot.stage === 'simulating' ? (
+        <div className="flex items-center gap-2 rounded-xl bg-canvas p-3 text-[13px] text-ink-2">
+          <span className="size-3 animate-spin rounded-full border-2 border-brand border-r-transparent" />
+          <p>Đang mô phỏng giao dịch…</p>
+        </div>
       ) : null}
 
-      {snapshot.stage === 'simulating' ? <p className="text-[13px] text-ink-2">Đang mô phỏng giao dịch…</p> : null}
-      {snapshot.stage === 'awaiting_wallet' ? <p className="text-[13px] text-ink-2">Đang chờ xác nhận trong ví…</p> : null}
-      {snapshot.stage === 'confirming' ? <p className="text-[13px] text-ink-2">Đã gửi, đang chờ receipt on-chain…</p> : null}
-      {snapshot.stage === 'indexing' ? <p className="text-[13px] text-ink-2">Chain đã xác nhận, đang chờ API đồng bộ…</p> : null}
-      {snapshot.stage === 'error' && errorMessage ? <p className="text-[13px] text-danger">{errorMessage}</p> : null}
-      {snapshot.stage === 'success' && snapshot.apiSyncDelayed ? (
-        <p className="text-[13px] text-warn">API đang chậm, giao dịch đã được ghi nhận trên chain.</p>
+      {snapshot.stage === 'awaiting_wallet' ? (
+        <div className="flex items-center gap-2 rounded-xl border border-accent-bright/30 bg-accent-tint p-3 text-[13px] font-medium text-accent">
+          <span className="size-3 animate-pulse rounded-full bg-accent-bright" />
+          <p>Đang chờ xác nhận trong ví…</p>
+        </div>
       ) : null}
+
+      {snapshot.stage === 'confirming' ? (
+        <div className="flex items-center gap-2 rounded-xl border border-accent-bright/30 bg-accent-tint/60 p-3 text-[13px] text-accent">
+          <span className="size-3 animate-spin rounded-full border-2 border-accent border-r-transparent" />
+          <p>Đã gửi, đang chờ receipt on-chain…</p>
+        </div>
+      ) : null}
+
+      {snapshot.stage === 'indexing' ? (
+        <div className="flex items-center gap-2 rounded-xl bg-brand-tint/60 p-3 text-[13px] font-medium text-brand">
+          <span className="size-2 rounded-full bg-brand-bright animate-ping" />
+          <p>Chain đã xác nhận, đang chờ API đồng bộ…</p>
+        </div>
+      ) : null}
+
+      {snapshot.stage === 'error' && errorMessage ? (
+        <div className="rounded-xl border border-danger-bright/30 bg-danger-tint p-3 text-[13px] text-danger">
+          <p className="font-semibold">Giao dịch thất bại</p>
+          <p className="mt-0.5">{errorMessage}</p>
+        </div>
+      ) : null}
+
+      {snapshot.stage === 'success' && snapshot.apiSyncDelayed ? (
+        <div className="rounded-xl border border-warn/30 bg-warn-tint p-3 text-[13px] text-warn">
+          <p>API đang chậm, giao dịch đã được ghi nhận trên chain.</p>
+        </div>
+      ) : null}
+
       {snapshot.txHash ? (
-        <p className="text-[13px] text-ink-2">
-          Tx: <ExplorerLink kind="tx" value={snapshot.txHash} label={`${snapshot.txHash.slice(0, 10)}…`} />
-        </p>
+        <div className="flex items-center justify-between rounded-xl bg-canvas px-3 py-2 text-[12px] text-ink-2">
+          <span>Giao dịch</span>
+          <p className="text-[13px] text-ink-2 font-mono">
+            Tx: <ExplorerLink kind="tx" value={snapshot.txHash} label={`${snapshot.txHash.slice(0, 10)}…`} />
+          </p>
+        </div>
       ) : null}
 
       <ConfirmDialog

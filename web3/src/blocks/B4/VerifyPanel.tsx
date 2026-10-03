@@ -27,22 +27,30 @@ interface VerifyRowProps {
 
 function VerifyRow({ label, ok, localValue, canonicalValue }: VerifyRowProps) {
   return (
-    <div className="flex items-start gap-3 border-b border-line-2 py-3.5 last:border-b-0">
+    <div className="flex items-start gap-3.5 border-b border-line-2 py-3.5 last:border-b-0">
       {ok === undefined ? (
         <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-line-2" />
       ) : ok ? (
-        <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-brand-bright text-ink">
+        <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-brand-bright text-ink shadow-[0_0_0_3px_rgba(31,224,122,0.2)]">
           <Check className="size-3.5" strokeWidth={3} aria-hidden />
         </span>
       ) : (
-        <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-danger-bright text-paper">
+        <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-danger-bright text-paper shadow-[0_0_0_3px_rgba(255,59,74,0.2)]">
           <X className="size-3.5" strokeWidth={3} aria-hidden />
         </span>
       )}
-      <div className="min-w-0">
-        <p className="text-[14px] font-medium text-ink">{label}</p>
-        {localValue ? <p className="mt-0.5 break-all font-mono text-[11px] text-ink-2">local: {localValue}</p> : null}
-        {canonicalValue ? <p className="mt-0.5 break-all font-mono text-[11px] text-ink-3">canonical: {canonicalValue}</p> : null}
+      <div className="min-w-0 flex-1">
+        <p className="text-[14px] font-semibold text-ink">{label}</p>
+        {localValue ? (
+          <p className="mt-1 break-all rounded-md bg-canvas/80 px-2 py-0.5 font-mono text-[11px] text-ink-2">
+            <span className="text-ink-4">local:</span> {localValue}
+          </p>
+        ) : null}
+        {canonicalValue ? (
+          <p className="mt-0.5 break-all rounded-md bg-canvas/80 px-2 py-0.5 font-mono text-[11px] text-ink-3">
+            <span className="text-ink-4">canonical:</span> {canonicalValue}
+          </p>
+        ) : null}
       </div>
     </div>
   )
@@ -56,13 +64,21 @@ interface EvidenceSourceProps {
 }
 
 function EvidenceSource({ index, label, ok, hash }: EvidenceSourceProps) {
-  const tone = ok === undefined ? 'bg-line-2 text-ink-2' : ok ? 'bg-brand-tint text-brand' : 'bg-danger-tint text-danger'
+  const tone =
+    ok === undefined
+      ? 'border-line-2 bg-canvas text-ink-2'
+      : ok
+        ? 'border-brand-bright/30 bg-brand-tint/60 text-brand'
+        : 'border-danger-bright/30 bg-danger-tint/60 text-danger'
+
   return (
-    <div className={`rounded-lg px-3 py-2 ${tone}`}>
-      <p className="text-[11px] font-semibold">
-        {index}. {label}
-      </p>
-      <p className="mt-0.5 break-all font-mono text-[11px] text-ink-2">{hash ?? '…'}</p>
+    <div className={`flex flex-col justify-between rounded-xl border p-3 shadow-xs ${tone}`}>
+      <div>
+        <p className="text-[11.5px] font-semibold">
+          {index}. {label}
+        </p>
+        <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-ink-2">{hash ?? '…'}</p>
+      </div>
     </div>
   )
 }
@@ -90,35 +106,58 @@ function VerifyHero({ state, passedCount, blockNumber }: VerifyHeroProps) {
   const failed = FAILED.includes(state)
   const tone =
     state === 'ok'
-      ? { bg: 'bg-brand-tint', circle: 'bg-brand-bright text-ink', text: 'text-brand', bar: 'bg-brand-bright' }
+      ? {
+          bg: 'bg-gradient-to-b from-brand-tint via-brand-tint/60 to-paper border border-brand-bright/30',
+          circle: 'bg-brand-bright text-ink shadow-[0_0_0_6px_rgba(31,224,122,0.22)]',
+          text: 'text-brand',
+          bar: 'bg-brand-bright',
+        }
       : failed
-        ? { bg: 'bg-danger-tint', circle: 'bg-danger-bright text-paper', text: 'text-danger', bar: 'bg-danger-bright' }
-        : { bg: 'bg-line-2', circle: 'bg-line text-ink-3', text: 'text-ink-2', bar: 'bg-ink-4' }
+        ? {
+            bg: 'bg-danger-tint/80 border border-danger-bright/30',
+            circle: 'bg-danger-bright text-paper shadow-[0_0_0_6px_rgba(255,59,74,0.2)]',
+            text: 'text-danger',
+            bar: 'bg-danger-bright',
+          }
+        : {
+            bg: 'bg-canvas border border-line',
+            circle: 'bg-line text-ink-3',
+            text: 'text-ink-2',
+            bar: 'bg-ink-4',
+          }
   const text = HERO_TEXT[state]
 
   return (
-    <div className={`flex w-full shrink-0 flex-col gap-3 rounded-xl p-5 sm:w-[240px] ${tone.bg}`} data-testid="verify-state" data-state={state}>
-      <span className={`flex size-14 items-center justify-center rounded-full ${tone.circle}`}>
-        {state === 'ok' ? (
-          <Check className="size-7" strokeWidth={3} aria-hidden />
-        ) : failed ? (
-          <X className="size-7" strokeWidth={3} aria-hidden />
-        ) : (
-          <span className="size-3 animate-pulse rounded-full bg-current" />
-        )}
-      </span>
-      <div role={state === 'rpc_error' || state === 'deployment_unavailable' ? 'alert' : undefined}>
-        <p className={`text-[16px] font-bold ${tone.text}`}>{text.title}</p>
-        <p className="mt-1 text-[12px] text-ink-2">{text.body}</p>
+    <div
+      className={`flex w-full shrink-0 flex-col justify-between gap-4 rounded-2xl p-5 shadow-xs sm:w-[260px] ${tone.bg}`}
+      data-testid="verify-state"
+      data-state={state}
+    >
+      <div>
+        <span className={`flex size-13 items-center justify-center rounded-full font-bold ${tone.circle}`}>
+          {state === 'ok' ? (
+            <Check className="size-6.5" strokeWidth={3} aria-hidden />
+          ) : failed ? (
+            <X className="size-6.5" strokeWidth={3} aria-hidden />
+          ) : (
+            <span className="size-3 animate-pulse rounded-full bg-current" />
+          )}
+        </span>
+        <div className="mt-4" role={state === 'rpc_error' || state === 'deployment_unavailable' ? 'alert' : undefined}>
+          <p className={`text-[17px] font-bold tracking-tight ${tone.text}`}>{text.title}</p>
+          <p className="mt-1.5 text-[12px] leading-relaxed text-ink-2">{text.body}</p>
+        </div>
       </div>
-      <div className="flex gap-1">
-        {[0, 1, 2, 3].map((i) => (
-          <span key={i} className={`h-1.5 flex-1 rounded-full ${i < passedCount ? tone.bar : 'bg-line'}`} />
-        ))}
+      <div className="flex flex-col gap-2 pt-2">
+        <div className="flex gap-1.5">
+          {[0, 1, 2, 3].map((i) => (
+            <span key={i} className={`h-2 flex-1 rounded-full ${i < passedCount ? tone.bar : 'bg-line'}`} />
+          ))}
+        </div>
+        <p className="font-mono text-[11px] font-medium text-ink-3">
+          {passedCount}/4 checks{blockNumber !== undefined ? ` · block ${blockNumber.toString()}` : ''}
+        </p>
       </div>
-      <p className="font-mono text-[11px] text-ink-3">
-        {passedCount}/4 checks{blockNumber !== undefined ? ` · block ${blockNumber.toString()}` : ''}
-      </p>
     </div>
   )
 }
@@ -136,12 +175,15 @@ export function CopyVerifyLink({ deviceId, incidentId }: { deviceId: string; inc
     }
   }
   return (
-    <div className="mt-3 flex flex-col gap-1">
-      <button type="button" onClick={() => void copy()}
-        className="inline-flex w-fit items-center gap-2 rounded-pill border border-line px-3 py-1.5 text-[13px] font-medium text-ink">
-        <Copy className="size-3.5" aria-hidden /> Sao chép link xác minh
+    <div className="mt-4 flex flex-col gap-1.5 border-t border-line-2 pt-3">
+      <button
+        type="button"
+        onClick={() => void copy()}
+        className="inline-flex w-fit items-center gap-2 rounded-pill border border-line bg-paper px-3.5 py-1.5 text-[12.5px] font-medium text-ink shadow-2xs transition-colors hover:border-brand hover:text-brand"
+      >
+        <Copy className="size-3.5 text-ink-3" aria-hidden /> Sao chép link xác minh
       </button>
-      {status === 'copied' ? <p role="status" className="text-[12px] text-brand">Đã sao chép link xác minh.</p> : null}
+      {status === 'copied' ? <p role="status" className="text-[12px] font-medium text-brand">Đã sao chép link xác minh.</p> : null}
       {status === 'failed' ? (
         <p role="alert" className="break-all text-[12px] text-danger">
           Không sao chép được vào clipboard. Hãy sao chép thủ công: <span className="font-mono">{link}</span>

@@ -29,7 +29,7 @@ export function ParamsPage() {
       return { params, rewardFund, bond, operator }
     },
   })
-  return <><AppBar variant="back" title="Tham số / quỹ" actions={<ConnectWallet />} onBack={() => navigate('/')} /><main className="mx-auto max-w-3xl p-6">
+  return <><AppBar variant="back" title="Tham số" actions={<ConnectWallet />} onBack={() => navigate('/')} /><main className="mx-auto max-w-3xl p-6">
     <IncentivesCard title="Incentives params (read-only)">
       <IncentivesGuardNotice guard={guard} />
       {token.isError ? <p role="alert">RPC token lỗi: {token.error.message}</p> : null}

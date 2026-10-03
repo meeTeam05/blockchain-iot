@@ -12,7 +12,7 @@ export function WalletPage() {
   const devices = useDevices()
   const [chosen, setChosen] = useState('')
   const deviceId = chosen || devices.data?.[0]?.id
-  return <><AppBar variant="back" title="Ví token / bond" actions={<SessionActions />} onBack={() => navigate('/')} />
+  return <><AppBar variant="back" title="Ví Token" actions={<SessionActions />} onBack={() => navigate('/')} />
     <main className="mx-auto max-w-3xl p-6"><TokenWallet />
       {devices.isPending ? <p>Đang tải thiết bị…</p> : null}
       {devices.isError ? <p role="alert">{devices.error.message}</p> : devices.data?.length === 0 ? <p>Chưa có thiết bị.</p> : null}
