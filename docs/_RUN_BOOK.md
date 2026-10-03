@@ -132,7 +132,7 @@ adb install -r app/build/outputs/apk/release/app-release.apk
 
 Cần đổi server (ví dụ quick tunnel `trycloudflare.com`): đặt `EXPO_PUBLIC_API_BASE_URL=https://<tên>.trycloudflare.com/api` và `EXPO_PUBLIC_MQTT_BROKER_URI=wss://<tên>.trycloudflare.com/mqtt` trước lệnh build. Giá trị được nhúng lúc build, đổi URL là phải build lại.
 
-## A3. Lấy `server/.env` Sepolia (điều kiện bắt buộc của tầng 2)
+## A3. Lấy `server/.env` Sepolia (điều kiện bắt buộc của tầng 2) - *Nhat Demo*
 
 Máy này (2026-10-03) đang có `server/.env` ở chế độ hardhat local: `INCIDENT_DEPLOYMENT=localhost`, `CHAIN_RPC_URL=http://host.docker.internal:8545`, và hai khóa ví là tài khoản mặc định của hardhat, không phải ví Sepolia thật. Tầng 2 cần:
 
@@ -206,19 +206,53 @@ fs.writeFileSync(f,t);console.log("keeper address:",w.address);'
 **Đúng khi `(đã chạy trên bản sao .env)`:** in một dòng `keeper address: 0x...` (42 ký tự). Chạy lần hai in `KEEPER_PRIVATE_KEY da co, khong ghi de`. Ghi lại địa chỉ này.
 **Sai thì:** không tìm thấy `ethers` thì chạy `cd blockchain && npm ci` rồi thử lại.
 
-**Lệnh 6: nạp ETH cho ví keeper và kiểm tra số dư**
+**Lệnh 5.5: nạp ETH cho ví keeper (chỉ khi lệnh 6 báo dưới 0.01 ETH)**
 
-Gửi khoảng 0.01 Sepolia ETH tới địa chỉ keeper (faucet hoặc từ ví khác của bạn; không dùng ví relayer hay manager).
+Ví keeper cần ETH Sepolia để trả gas. 0.01 ETH là mức tối thiểu, không phải số bắt buộc: nạp nhiều hơn cũng đúng. Không dùng ví relayer hay ví manager để gửi.
+
+Cách A, từ ví admin `0x7Ee5...1a3F` (còn khoảng 0.092 ETH). Chạy ở thư mục gốc trên máy có `blockchain/.env` của admin (máy Hưng), nơi `blockchain/.env` có `SEPOLIA_RPC_URL` và `DEPLOYER_PRIVATE_KEY`. Đổi `KEEPER` thành địa chỉ in ở lệnh 5, đổi `AMOUNT` nếu muốn nạp số khác:
 ```bash
-KEEPER=0x...   # địa chỉ in ở lệnh 5
+KEEPER=0xa7b9A8721232acF9050Ca92C8063E549c4AAB6ab AMOUNT=0.01 node -e '
+const {ethers}=require("./blockchain/node_modules/ethers");const fs=require("fs");
+const env=Object.fromEntries(fs.readFileSync("blockchain/.env","utf8").split("\n").filter(l=>/^[A-Z_]+=/.test(l)).map(l=>[l.slice(0,l.indexOf("=")),l.slice(l.indexOf("=")+1).trim().replace(/^["\x27]|["\x27]$/g,"")]));
+const to=process.env.KEEPER,amt=process.env.AMOUNT;
+if(!ethers.isAddress(to)){console.error("LOI: KEEPER khong phai dia chi hop le");process.exit(1)}
+(async()=>{const p=new ethers.JsonRpcProvider(env.SEPOLIA_RPC_URL),w=new ethers.Wallet(env.DEPLOYER_PRIVATE_KEY,p);
+if((await p.getNetwork()).chainId!==11155111n)throw new Error("RPC khong phai Sepolia");
+if(w.address.toLowerCase()===to.toLowerCase())throw new Error("vi gui trung vi keeper");
+console.log("from:",w.address,"balance:",ethers.formatEther(await p.getBalance(w.address)),"ETH");
+const tx=await w.sendTransaction({to,value:ethers.parseEther(amt)});console.log("tx:",tx.hash);
+await tx.wait(2);console.log("keeper balance:",ethers.formatEther(await p.getBalance(to)),"ETH");
+})().catch(e=>{console.error("LOI:",e.shortMessage||e.message);process.exit(1)});'
+```
+Lệnh nhiều dòng: chép đến hết dấu `'` ở dòng cuối. Thiếu dấu đó, bash hiện `>` và chờ; bấm `Ctrl+C` rồi chép lại.
+
+**Đúng khi `(đã chạy trên hardhat local, chưa chạy trên Sepolia)`:** in 3 dòng:
+```text
+from: 0x7Ee5...1a3F balance: <số ETH còn lại> ETH
+tx: 0x<hash giao dịch>
+keeper balance: <số dư mới> ETH
+```
+Lệnh chờ 2 block xác nhận (khoảng 30 giây trên Sepolia) trước khi in dòng cuối. Dán `tx` vào `https://sepolia.etherscan.io/tx/<hash>` để xem.
+**Sai thì:**
+- `LOI: KEEPER khong phai dia chi hop le`: sửa `KEEPER` (đủ 42 ký tự, bắt đầu `0x`).
+- `LOI: RPC khong phai Sepolia`: `SEPOLIA_RPC_URL` trong `blockchain/.env` sai.
+- `LOI: insufficient funds...`: ví admin hết ETH, dùng cách B.
+- `ENOENT ... blockchain/.env`: không đứng ở thư mục gốc, hoặc máy này không có `.env` của admin.
+
+Cách B, không có `.env` admin: dùng faucet Sepolia (dán địa chỉ keeper), hoặc MetaMask (mạng Sepolia, Send, dán địa chỉ keeper, nhập số ETH).
+
+Nạp xong chạy lệnh 6 để xác nhận.
+
+**Lệnh 6: kiểm tra số dư ví keeper**
+
+Lệnh này chỉ đọc số dư, không gửi giao dịch.
+```bash
+KEEPER=0xa7b9A8721232acF9050Ca92C8063E549c4AAB6ab
 curl -s -X POST -H 'content-type: application/json' --data "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"eth_getBalance\",\"params\":[\"$KEEPER\",\"latest\"]}" https://ethereum-sepolia-rpc.publicnode.com
 ```
-**Đúng khi (theo tài liệu):** `result` lớn hơn `0x2386f26fc10000` (0.01 ETH = 10^16 wei). Worker cảnh báo `keeper wallet is low on ETH` khi dưới 0.002 ETH và thoát nếu số dư bằng 0.
-
-Không có faucet: ví admin `0x7Ee5...1a3F` còn khoảng 0.092 ETH. Trên máy có `blockchain/.env` của admin (máy Hưng), chạy `cd blockchain && npx hardhat console --network sepolia` rồi:
-```js
-await (await (await ethers.getSigners())[0].sendTransaction({ to: "0x<keeper>", value: ethers.parseEther("0.01") })).wait(2)
-```
+**Đúng khi `(đã chạy)`:** `result` lớn hơn `0x2386f26fc10000` (0.01 ETH = 10^16 wei). Máy này ngày 2026-10-03 ra `0xb1a2bc2ec50000` = 0.05 ETH. Đổi hex ra ETH: `node -e 'console.log(Number(0xb1a2bc2ec50000n)/1e18)'`. Worker cảnh báo `keeper wallet is low on ETH` khi dưới 0.002 ETH và thoát nếu số dư bằng 0.
+**Sai thì:** dưới 0.01 ETH thì làm lệnh 5.5.
 
 **Lệnh 7: `MQTT_LAN_BIND_IP` đúng IP của laptop ở nơi demo**
 
@@ -249,7 +283,7 @@ Chọn: **Infura key riêng cho dApp** làm chính, publicnode làm dự phòng.
 
 **Lệnh 2: allowlist có hiệu lực**
 ```bash
-DAPP_RPC=https://sepolia.infura.io/v3/<KEY_DAPP>
+DAPP_RPC=https://sepolia.infura.io/v3/3cee5593bc624feeb316e388d26365cc
 for o in https://minhnhat05.xyz https://evil.example; do
   curl -s -X POST -H 'content-type: application/json' -H "Origin: $o" \
     --data '{"jsonrpc":"2.0","id":1,"method":"eth_chainId"}' "$DAPP_RPC"; echo "  <- $o"
