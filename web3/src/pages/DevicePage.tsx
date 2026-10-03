@@ -11,7 +11,7 @@ import { activeNetwork } from '../config/networks'
 import { AIR_SAFETY_LOG_ABI } from '../generated/incident-deployments'
 import { computeDeviceIdHash } from '../lib/chainIncident'
 import { useDevices } from '../lib/devicesApi'
-import { formatRelativeTime } from '../lib/deviceDisplay'
+import { formatLastSeen } from '../lib/deviceDisplay'
 import { addressesMatch } from '../lib/ownership'
 
 type Tab = 'incidents' | 'history'
@@ -84,7 +84,7 @@ export function DevicePage() {
             ) : null}
             <span className="break-all font-mono text-[12px] font-medium text-[#5d6a60]">
               {deviceId}
-              {device ? ` · ${device.online ? 'đang hoạt động' : `online ${formatRelativeTime(device.last_seen)}`}` : ''}
+              {device ? ` · ${formatLastSeen(device.online, device.last_seen)}` : ''}
             </span>
           </div>
         </div>

@@ -103,13 +103,13 @@ function EvidenceSource({ label, ok, hash, last = false }: EvidenceSourceProps) 
 }
 
 const HERO_TEXT: Record<VerificationState, { title: string; body: string }> = {
-  ok: { title: 'Dữ liệu toàn vẹn', body: 'Những gì thiết bị đã ký, những gì chain ghi lại và những gì server lưu đều khớp byte-for-byte.' },
+  ok: { title: 'Dữ liệu toàn vẹn', body: 'Dữ liệu thiết bị ký, chain ghi và server lưu khớp nhau.' },
   identity_mismatch: { title: 'Không khớp ở bước 1–2', body: 'deviceId/incidentId của evidence không khớp thiết bị hoặc sequence.' },
   invalid_evidence: { title: 'Không khớp ở bước 3', body: 'Evidence từ API không băm ra evidenceHash đã ghi trên chain.' },
   signer_mismatch: { title: 'Không khớp ở bước 4', body: 'Chữ ký không khôi phục ra signer đã ghi cùng sự cố trên chain.' },
   not_found: { title: 'Sự cố chưa có trên chain', body: 'Chưa có bản ghi on-chain để đối chiếu.' },
-  rpc_error: { title: 'RPC không khả dụng', body: 'Không đọc được chain lúc này. Đây không phải kết quả xác minh; hãy thử lại.' },
-  deployment_unavailable: { title: 'Sai mạng / deployment', body: 'RPC không trỏ tới AirSafetyLog và domain EIP-712 đã cấu hình; không thể xác minh.' },
+  rpc_error: { title: 'RPC không khả dụng', body: 'Không đọc được chain. Chưa phải kết quả xác minh, hãy thử lại.' },
+  deployment_unavailable: { title: 'Sai mạng / deployment', body: 'RPC không khớp deployment đã cấu hình, không thể xác minh.' },
   loading: { title: 'Đang kiểm tra…', body: 'Đang đối chiếu dữ liệu local với on-chain.' },
 }
 

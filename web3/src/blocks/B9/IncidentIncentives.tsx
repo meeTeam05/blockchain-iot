@@ -134,7 +134,7 @@ export function IncidentIncentives({
           ) : null}
         </div>
         <p className="m-0 text-[11px] text-[#8a958c]">
-          Server keeper tự xử lý R1/R2 và P1; có thể ghi nhận thủ công khi chưa settlement. P2 chỉ do keeper bên ngoài thực hiện.
+          Keeper tự xử lý R1, R2, P1. P2 do keeper bên ngoài thực hiện.
         </p>
         {settled.canRecordAck ? (
           <RecordButton

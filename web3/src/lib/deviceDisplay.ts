@@ -1,6 +1,6 @@
 // Display helpers shared by the device list card and the device page header.
 
-export function formatRelativeTime(dateStr: string | null): string {
+function formatRelativeTime(dateStr: string | null): string {
   if (!dateStr) return 'chưa ghi nhận'
   try {
     const diffMs = Date.now() - new Date(dateStr).getTime()
@@ -15,4 +15,10 @@ export function formatRelativeTime(dateStr: string | null): string {
   } catch {
     return dateStr
   }
+}
+
+// "Đang hoạt động" / "Lần cuối online 2 giờ trước" / "Chưa từng online".
+export function formatLastSeen(online: boolean, lastSeen: string | null): string {
+  if (online) return 'Đang hoạt động'
+  return lastSeen ? `Lần cuối online ${formatRelativeTime(lastSeen)}` : 'Chưa từng online'
 }

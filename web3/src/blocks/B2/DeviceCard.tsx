@@ -1,6 +1,6 @@
 import { Link } from 'react-router'
 import type { ApiDevice } from '../../lib/devicesApi'
-import { formatRelativeTime } from '../../lib/deviceDisplay'
+import { formatLastSeen } from '../../lib/deviceDisplay'
 
 interface ChainDevice {
   signer: string
@@ -53,7 +53,7 @@ export function DeviceCard({ device, chainDevice, connectedAddress }: DeviceCard
           </Link>
           <span className="font-mono text-[12px] text-[#7a867c] truncate">
             ID · SA-{formatShortId(device.id)} ·{' '}
-            {device.online ? 'Đang hoạt động' : `Lần cuối online ${formatRelativeTime(device.last_seen)}`}
+            {formatLastSeen(device.online, device.last_seen)}
           </span>
         </div>
 
@@ -126,7 +126,7 @@ export function DeviceCard({ device, chainDevice, connectedAddress }: DeviceCard
               {openIncidents} sự cố đang mở
             </span>
             <span className="text-[13px] text-[#8f1028]">
-              Cần xác minh hoặc giải quyết sự cố trên thiết bị
+              Cần xác nhận hoặc xử lý
             </span>
             <Link
               to={`/d/${device.id}`}

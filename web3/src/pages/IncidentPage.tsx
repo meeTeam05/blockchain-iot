@@ -119,7 +119,7 @@ export function IncidentPage() {
             <div className="flex min-w-0 flex-[999_1_640px] flex-col gap-5">
               {isChainIncidentError ? (
                 <p className="m-0 rounded-[10px] bg-[#fdf4dc] px-3 py-2.5 text-[13px] text-[#7a4f00]">
-                  RPC/chain hiện không khả dụng; trạng thái API bên dưới vẫn được giữ riêng và không bị coi là “None”.
+                  Chain không khả dụng. Trạng thái bên dưới lấy từ API.
                 </p>
               ) : null}
               <IncidentSummary deviceId={deviceId} incident={incident} loggedAt={chainIncident?.loggedAt} />
