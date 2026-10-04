@@ -3,7 +3,9 @@ import { apiBaseUrl } from '../config/networks'
 import {
   AuthRequester,
   loginWithPassword,
+  registerUser,
   type AuthSession,
+  type RegisteredUser,
 } from './authClient'
 
 const STORAGE_KEY = 'smartair-web3-auth'
@@ -12,6 +14,7 @@ interface AuthState {
   accessToken?: string
   user?: AuthSession['user']
   login(email: string, password: string): Promise<void>
+  register(email: string, password: string, fullName?: string): Promise<RegisteredUser>
   logout(): Promise<void>
   request(path: string, init?: RequestInit): Promise<Response>
   requestPublic(path: string, init?: RequestInit): Promise<Response>
@@ -66,6 +69,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     requester.replaceSession(await loginWithPassword(apiBaseUrl, email, password))
   }
 
+  async function register(email: string, password: string, fullName?: string) {
+    return await registerUser(apiBaseUrl, email, password, fullName)
+  }
+
   async function logout() {
     try {
       if (requester.hasSession()) {
@@ -84,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         accessToken: session?.accessToken,
         user: session?.user,
         login,
+        register,
         logout,
         request: (path, init) => requester.request(path, init),
         requestPublic: (path, init) => requester.requestPublic(path, init),

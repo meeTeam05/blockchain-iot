@@ -13,9 +13,10 @@ const incident = {
 
 describe('IncidentSummary detail fields', () => {
   it('renders sensor values, canonical loggedAt and fail_reason', () => {
-    render(<IncidentSummary deviceId="dev-1" incident={incident} merged={{ label: 'Lỗi đưa lên chain', tone: 'danger' }} loggedAt={1_700_000_100n} />)
-    expect(screen.getByText('30.5 °C')).toBeInTheDocument()
+    render(<IncidentSummary deviceId="dev-1" incident={incident} loggedAt={1_700_000_100n} />)
+    expect(screen.getByText('30.5', { exact: false })).toBeInTheDocument()
+    expect(screen.getByText('°C')).toBeInTheDocument()
     expect(screen.getByText('stale_signer')).toBeInTheDocument()
-    expect(screen.getByText('Logged on-chain')).toBeInTheDocument()
+    expect(screen.getByText('Ghi on-chain')).toBeInTheDocument()
   })
 })

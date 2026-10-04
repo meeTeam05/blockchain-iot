@@ -51,7 +51,7 @@ export function useIncentiveTransaction(target: Hash | 'wallet') {
           const settlement = await client.readContract({ address: g.deployment.incentives.address, abi: SAFETY_INCENTIVES_ABI,
             functionName: 'pendingSettlement', args: [target as Hash] })
           const eligible = settlementEligibility[action as keyof typeof settlementEligibility]
-          if (!settlement.exists || !settlement.covered || !settlement[eligible]) throw new Error('Hành động đã stale hoặc đã settlement; đang làm mới chain')
+          if (!settlement.exists || !settlement.covered || !settlement[eligible]) throw new Error('Hành động không còn hợp lệ, đang làm mới dữ liệu chain')
         }
         const request = { account: g.account.address,
           address: action === 'approve' ? g.deployment.token.address : g.deployment.incentives.address,
@@ -61,7 +61,7 @@ export function useIncentiveTransaction(target: Hash | 'wallet') {
       submit: async (request) => {
         const current = latest.current
         const signing = current.wallet.data
-        if (!current.guard.canWrite || !signing || signing.account.address.toLowerCase() !== guard.account.address?.toLowerCase()) throw new Error('Ví đã thay đổi; hãy kiểm tra lại giao dịch')
+        if (!current.guard.canWrite || !signing || signing.account.address.toLowerCase() !== guard.account.address?.toLowerCase()) throw new Error('Ví đã thay đổi, hãy kiểm tra lại giao dịch')
         await validateIncentives(signing.request as RpcRequest, guard.deployment!)
         return signing.writeContract(request as Parameters<typeof signing.writeContract>[0])
       },

@@ -2,12 +2,11 @@
 // standalone /verify/:deviceId/:incidentId route. Four checks, each computed in
 // the browser and/or read from chain -- never taken on the API's word alone
 // (Web3_task.md Nguyên tắc 2). The outcome comes from lib/verification.ts.
-import { Check, Copy, X } from 'lucide-react'
-import { useState } from 'react'
+import { Fragment, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { Hex } from 'viem'
 import { useBlockNumber, useReadContract } from 'wagmi'
-import { Card } from '../../components/ui/Card'
+import { Panel } from '../../components/ui/Panel'
 import { activeNetwork } from '../../config/networks'
 import { buildVerifyLink } from '../../config/routes'
 import { AIR_SAFETY_LOG_ABI } from '../../generated/incident-deployments'
@@ -18,107 +17,139 @@ import type { ApiIncidentDetail } from '../../lib/incidentsApi'
 import { evaluateVerification, type ReadResult, type VerificationState } from '../../lib/verification'
 import { useDomainStatus } from '../B0/domainStatus'
 
-interface VerifyRowProps {
-  label: string
-  ok: boolean | undefined
-  localValue?: string
-  canonicalValue?: string
+const ZERO_HASH = /^0x0+$/
+
+function shortHash(hash: string) {
+  return hash.length > 24 ? `${hash.slice(0, 10)}…${hash.slice(-8)}` : hash
 }
 
-function VerifyRow({ label, ok, localValue, canonicalValue }: VerifyRowProps) {
+type StepTone = 'ok' | 'fail' | 'partial' | 'pending'
+
+const STEP_ICON: Record<StepTone, { glyph: string; className: string }> = {
+  ok: { glyph: '✓', className: 'bg-[#dcf5e3] text-[#15803d]' },
+  fail: { glyph: '✕', className: 'bg-[#fff1f3] text-[#c81e3a]' },
+  partial: { glyph: '!', className: 'bg-[#fdf4dc] text-[#8a5a00]' },
+  pending: { glyph: '–', className: 'bg-[#eef1ec] text-[#8a958c]' },
+}
+
+function stepTone(ok: boolean | undefined): StepTone {
+  return ok === undefined ? 'pending' : ok ? 'ok' : 'fail'
+}
+
+function VerifyStep({ tone, title, children }: { tone: StepTone; title: string; children: ReactNode }) {
+  const icon = STEP_ICON[tone]
   return (
-    <div className="flex items-start gap-3 border-b border-line-2 py-3.5 last:border-b-0">
-      {ok === undefined ? (
-        <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-line-2" />
-      ) : ok ? (
-        <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-brand-bright text-ink">
-          <Check className="size-3.5" strokeWidth={3} aria-hidden />
-        </span>
-      ) : (
-        <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-danger-bright text-paper">
-          <X className="size-3.5" strokeWidth={3} aria-hidden />
-        </span>
-      )}
-      <div className="min-w-0">
-        <p className="text-[14px] font-medium text-ink">{label}</p>
-        {localValue ? <p className="mt-0.5 break-all font-mono text-[11px] text-ink-2">local: {localValue}</p> : null}
-        {canonicalValue ? <p className="mt-0.5 break-all font-mono text-[11px] text-ink-3">canonical: {canonicalValue}</p> : null}
+    <div className="flex gap-3.5 border-b border-[#f1f3ef] px-6 py-4">
+      <span
+        className={`grid size-[22px] shrink-0 place-items-center rounded-full text-[12px] font-bold ${icon.className}`}
+        aria-hidden
+      >
+        {icon.glyph}
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <div className="text-[14px] font-semibold text-[#17201a]">{title}</div>
+        {children}
       </div>
     </div>
   )
 }
 
+function ValueGrid({ rows }: { rows: { label: string; value: ReactNode; muted?: boolean }[] }) {
+  return (
+    <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 font-mono text-[12px] font-medium leading-[1.6]">
+      {rows.map((row) => (
+        <Fragment key={row.label}>
+          <span className="text-[#8a958c]">{row.label}</span>
+          <div className={`break-all ${row.muted ? 'text-[#8a958c]' : 'text-[#17201a]'}`}>{row.value}</div>
+        </Fragment>
+      ))}
+    </div>
+  )
+}
+
+function chainValue(value: string | undefined): { value: ReactNode; muted: boolean } {
+  if (value === undefined) return { value: '—', muted: true }
+  if (ZERO_HASH.test(value)) return { value: '0x0000…0000 (chưa có bản ghi)', muted: true }
+  return { value, muted: false }
+}
+
 interface EvidenceSourceProps {
-  index: number
   label: string
   ok: boolean | undefined
   hash: string | undefined
+  last?: boolean
 }
 
-function EvidenceSource({ index, label, ok, hash }: EvidenceSourceProps) {
-  const tone = ok === undefined ? 'bg-line-2 text-ink-2' : ok ? 'bg-brand-tint text-brand' : 'bg-danger-tint text-danger'
+function EvidenceSource({ label, ok, hash, last = false }: EvidenceSourceProps) {
+  const status =
+    ok === true
+      ? { text: 'Khớp', className: 'text-[#15803d]' }
+      : ok === false
+        ? { text: 'Không khớp', className: 'text-[#c81e3a]' }
+        : { text: hash ? 'Chưa so' : 'Chưa có', className: 'text-[#8a958c]' }
   return (
-    <div className={`rounded-lg px-3 py-2 ${tone}`}>
-      <p className="text-[11px] font-semibold">
-        {index}. {label}
-      </p>
-      <p className="mt-0.5 break-all font-mono text-[11px] text-ink-2">{hash ?? '…'}</p>
+    <div
+      className={`flex flex-wrap items-baseline gap-3 px-3.5 py-2.5 ${last ? 'bg-[#fafbf9]' : 'border-b border-[#eef1ec]'}`}
+    >
+      <span className="w-[170px] shrink-0 text-[13px] text-[#17201a]">{label}</span>
+      <div
+        className={`min-w-0 flex-[1_1_200px] break-all font-mono text-[12px] font-medium ${hash ? 'text-[#17201a]' : 'text-[#8a958c]'}`}
+      >
+        {hash ? shortHash(hash) : '—'}
+      </div>
+      <span className={`text-[12px] font-semibold ${status.className}`}>{status.text}</span>
     </div>
   )
 }
 
 const HERO_TEXT: Record<VerificationState, { title: string; body: string }> = {
-  ok: { title: 'Dữ liệu toàn vẹn', body: 'Những gì thiết bị đã ký, những gì chain ghi lại và những gì server lưu đều khớp byte-for-byte.' },
+  ok: { title: 'Dữ liệu toàn vẹn', body: 'Dữ liệu thiết bị ký, chain ghi và server lưu khớp nhau.' },
   identity_mismatch: { title: 'Không khớp ở bước 1–2', body: 'deviceId/incidentId của evidence không khớp thiết bị hoặc sequence.' },
   invalid_evidence: { title: 'Không khớp ở bước 3', body: 'Evidence từ API không băm ra evidenceHash đã ghi trên chain.' },
   signer_mismatch: { title: 'Không khớp ở bước 4', body: 'Chữ ký không khôi phục ra signer đã ghi cùng sự cố trên chain.' },
-  not_found: { title: 'Sự cố chưa có trên chain', body: 'getIncident() chưa có bản ghi này; chưa thể đối chiếu evidenceHash và signer.' },
-  rpc_error: { title: 'RPC không khả dụng', body: 'Không đọc được chain lúc này. Đây không phải kết quả xác minh; hãy thử lại.' },
-  deployment_unavailable: { title: 'Sai mạng / deployment', body: 'RPC không trỏ tới AirSafetyLog và domain EIP-712 đã cấu hình; không thể xác minh.' },
+  not_found: { title: 'Sự cố chưa có trên chain', body: 'Chưa có bản ghi on-chain để đối chiếu.' },
+  rpc_error: { title: 'RPC không khả dụng', body: 'Không đọc được chain. Chưa phải kết quả xác minh, hãy thử lại.' },
+  deployment_unavailable: { title: 'Sai mạng / deployment', body: 'RPC không khớp deployment đã cấu hình, không thể xác minh.' },
   loading: { title: 'Đang kiểm tra…', body: 'Đang đối chiếu dữ liệu local với on-chain.' },
 }
 
 const FAILED: VerificationState[] = ['identity_mismatch', 'invalid_evidence', 'signer_mismatch']
 
-interface VerifyHeroProps {
+interface VerifyHeaderProps {
   state: VerificationState
   passedCount: number
-  blockNumber: bigint | undefined
 }
 
-function VerifyHero({ state, passedCount, blockNumber }: VerifyHeroProps) {
+function VerifyHeader({ state, passedCount }: VerifyHeaderProps) {
   const failed = FAILED.includes(state)
   const tone =
     state === 'ok'
-      ? { bg: 'bg-brand-tint', circle: 'bg-brand-bright text-ink', text: 'text-brand', bar: 'bg-brand-bright' }
+      ? { count: 'text-[#15803d]', bar: 'bg-[#16a34a]' }
       : failed
-        ? { bg: 'bg-danger-tint', circle: 'bg-danger-bright text-paper', text: 'text-danger', bar: 'bg-danger-bright' }
-        : { bg: 'bg-line-2', circle: 'bg-line text-ink-3', text: 'text-ink-2', bar: 'bg-ink-4' }
+        ? { count: 'text-[#c81e3a]', bar: 'bg-[#c81e3a]' }
+        : { count: 'text-[#8a5a00]', bar: 'bg-[#16a34a]' }
   const text = HERO_TEXT[state]
 
   return (
-    <div className={`flex w-full shrink-0 flex-col gap-3 rounded-xl p-5 sm:w-[240px] ${tone.bg}`} data-testid="verify-state" data-state={state}>
-      <span className={`flex size-14 items-center justify-center rounded-full ${tone.circle}`}>
-        {state === 'ok' ? (
-          <Check className="size-7" strokeWidth={3} aria-hidden />
-        ) : failed ? (
-          <X className="size-7" strokeWidth={3} aria-hidden />
-        ) : (
-          <span className="size-3 animate-pulse rounded-full bg-current" />
-        )}
-      </span>
-      <div role={state === 'rpc_error' || state === 'deployment_unavailable' ? 'alert' : undefined}>
-        <p className={`text-[16px] font-bold ${tone.text}`}>{text.title}</p>
-        <p className="mt-1 text-[12px] text-ink-2">{text.body}</p>
+    <div
+      className="flex flex-col gap-2.5 border-b border-[#eef1ec] px-6 py-[18px]"
+      data-testid="verify-state"
+      data-state={state}
+    >
+      <div className="flex flex-wrap items-center gap-3">
+        <h2 className="m-0 flex-1 text-[16px] font-semibold leading-[1.4] text-[#17201a]">Xác minh độc lập</h2>
+        <span className={`text-[13px] font-semibold ${tone.count}`}>{passedCount}/4 kiểm tra đạt</span>
       </div>
-      <div className="flex gap-1">
+      <div className="grid grid-cols-4 gap-1">
         {[0, 1, 2, 3].map((i) => (
-          <span key={i} className={`h-1.5 flex-1 rounded-full ${i < passedCount ? tone.bar : 'bg-line'}`} />
+          <span key={i} className={`h-1.5 rounded-[3px] ${i < passedCount ? tone.bar : 'bg-[#e3e8e1]'}`} />
         ))}
       </div>
-      <p className="font-mono text-[11px] text-ink-3">
-        {passedCount}/4 checks{blockNumber !== undefined ? ` · block ${blockNumber.toString()}` : ''}
-      </p>
+      <div role={state === 'rpc_error' || state === 'deployment_unavailable' ? 'alert' : undefined}>
+        <p className="m-0 text-[13px] text-[#5d6a60]">
+          <span className="font-semibold text-[#17201a]">{text.title}</span> · {text.body}
+        </p>
+      </div>
     </div>
   )
 }
@@ -136,14 +167,17 @@ export function CopyVerifyLink({ deviceId, incidentId }: { deviceId: string; inc
     }
   }
   return (
-    <div className="mt-3 flex flex-col gap-1">
-      <button type="button" onClick={() => void copy()}
-        className="inline-flex w-fit items-center gap-2 rounded-pill border border-line px-3 py-1.5 text-[13px] font-medium text-ink">
-        <Copy className="size-3.5" aria-hidden /> Sao chép link xác minh
+    <div className="flex flex-col items-end gap-1.5">
+      <button
+        type="button"
+        onClick={() => void copy()}
+        className="h-9 cursor-pointer rounded-[10px] border border-[#dfe4dc] bg-white px-3.5 text-[13px] font-semibold text-[#17201a] transition-colors hover:bg-[#f4f6f3]"
+      >
+        Sao chép link xác minh
       </button>
-      {status === 'copied' ? <p role="status" className="text-[12px] text-brand">Đã sao chép link xác minh.</p> : null}
+      {status === 'copied' ? <p role="status" className="m-0 text-[12px] font-medium text-[#15803d]">Đã sao chép link xác minh.</p> : null}
       {status === 'failed' ? (
-        <p role="alert" className="break-all text-[12px] text-danger">
+        <p role="alert" className="m-0 break-all text-[12px] text-[#c81e3a]">
           Không sao chép được vào clipboard. Hãy sao chép thủ công: <span className="font-mono">{link}</span>
         </p>
       ) : null}
@@ -229,67 +263,70 @@ export function VerifyPanel({ deviceId, incident, incidentId }: VerifyPanelProps
   const { checks, state } = result
   const values = [checks.deviceIdHash, checks.incidentId, checks.evidenceHash, checks.signer]
   const passedCount = values.filter((v) => v === true).length
-  const allOk = state === 'ok'
-  const anyFalse = FAILED.includes(state)
-
-  const heroStyle = allOk
-    ? {
-        backgroundImage:
-          'linear-gradient(#fff,#fff), linear-gradient(135deg, var(--color-brand-bright), var(--color-accent-bright) 60%, var(--color-line))',
-        backgroundOrigin: 'padding-box, border-box',
-        backgroundClip: 'padding-box, border-box',
-        border: '1.5px solid transparent',
-      }
-    : undefined
+  const logged = chainIncident !== undefined && Number(chainIncident.status) !== 0
+  const incidentChain = chainValue(chainIncident?.incidentId)
+  const evidenceSourceOk = [checks.evidenceHash, result.contractHashOk, result.storedHashOk]
+  const evidenceTone: StepTone =
+    checks.evidenceHash === undefined && evidenceSourceOk.some((v) => v === true) ? 'partial' : stepTone(checks.evidenceHash)
 
   return (
-    <Card
-      elevated
-      className={`flex flex-col ${!allOk ? (anyFalse ? 'border-danger-bright/50' : 'border-line') : ''}`}
-      style={heroStyle}
-    >
-      <h2 className="mb-3 text-[17px] font-bold tracking-tight text-ink">Xác minh độc lập</h2>
-      <div className="flex flex-col gap-4 sm:flex-row">
-        <VerifyHero state={state} passedCount={passedCount} blockNumber={blockNumber} />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <VerifyRow
-            label="deviceIdHash khớp device_id"
-            ok={checks.deviceIdHash}
-            localValue={result.expectedDeviceIdHash}
-            canonicalValue={String(evidence.device_id_hash)}
+    <Panel>
+      <VerifyHeader state={state} passedCount={passedCount} />
+
+      <VerifyStep tone={stepTone(checks.deviceIdHash)} title="deviceIdHash khớp device_id">
+        <ValueGrid
+          rows={[
+            { label: 'local', value: result.expectedDeviceIdHash },
+            { label: 'evidence', value: String(evidence.device_id_hash) },
+          ]}
+        />
+      </VerifyStep>
+
+      <VerifyStep tone={stepTone(checks.incidentId)} title="incidentId khớp (deviceIdHash, sequence)">
+        <ValueGrid
+          rows={[
+            { label: 'local', value: result.expectedIncidentId },
+            chainIncident
+              ? { label: 'chain', value: incidentChain.value, muted: incidentChain.muted }
+              : { label: 'evidence', value: incidentIdFromEvidence },
+          ]}
+        />
+      </VerifyStep>
+
+      <VerifyStep tone={evidenceTone} title="evidenceHash — 3 nguồn độc lập">
+        <div className="overflow-hidden rounded-xl border border-[#eef1ec]">
+          <EvidenceSource label="Tính lại ở trình duyệt" ok={checks.evidenceHash} hash={localHash} />
+          <EvidenceSource label="Đọc trực tiếp từ chain" ok={result.contractHashOk} hash={contractHash.data} />
+          <EvidenceSource
+            label="Chain ghi lúc xảy ra"
+            ok={result.storedHashOk}
+            hash={logged ? chainIncident.evidenceHash : undefined}
+            last
           />
-          <VerifyRow
-            label="incidentId khớp (deviceIdHash, sequence)"
-            ok={checks.incidentId}
-            localValue={result.expectedIncidentId}
-            canonicalValue={chainIncident?.incidentId ?? incidentIdFromEvidence}
-          />
-          <div className="border-b border-line-2 py-3.5">
-            <p className="mb-2 text-[14px] font-medium text-ink">evidenceHash — 3 nguồn độc lập</p>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              <EvidenceSource index={1} label="Tính lại ở trình duyệt" ok={checks.evidenceHash} hash={localHash} />
-              <EvidenceSource index={2} label="Đọc trực tiếp từ chain" ok={result.contractHashOk} hash={contractHash.data} />
-              <EvidenceSource
-                index={3}
-                label="Chain ghi lúc xảy ra"
-                ok={result.storedHashOk}
-                hash={chainIncident && Number(chainIncident.status) !== 0 ? chainIncident.evidenceHash : undefined}
-              />
-            </div>
-          </div>
-          <VerifyRow
-            label="Chữ ký EIP-712 khớp signer lịch sử trên chain"
-            ok={checks.signer}
-            localValue={recoveredSigner.data}
-            canonicalValue={chainIncident && Number(chainIncident.status) !== 0 ? chainIncident.signer : undefined}
-          />
-          <p className="mt-2 break-all font-mono text-[10px] text-ink-4">
-            digest local: {localDigest} · digest API (tham khảo): {incident.eip712_digest} · signer API (không tin cậy):{' '}
-            {incident.signer_address}
-          </p>
+        </div>
+      </VerifyStep>
+
+      <VerifyStep tone={stepTone(checks.signer)} title="Chữ ký EIP-712 khớp signer lịch sử trên chain">
+        <ValueGrid
+          rows={[
+            { label: 'signer', value: recoveredSigner.data ?? '—', muted: recoveredSigner.data === undefined },
+            ...(logged ? [{ label: 'chain', value: chainIncident.signer }] : []),
+            { label: 'digest', value: localDigest },
+          ]}
+        />
+        <p className="m-0 break-all font-mono text-[10px] text-[#8a958c]">
+          digest API (tham khảo): {incident.eip712_digest} · signer API (không tin cậy): {incident.signer_address}
+        </p>
+      </VerifyStep>
+
+      <div className="flex flex-wrap items-center gap-3 px-6 py-3.5">
+        <span className="font-mono text-[12px] font-medium text-[#8a958c]">
+          {blockNumber !== undefined ? `block ${blockNumber.toString()}` : ''}
+        </span>
+        <div className="ml-auto">
           <CopyVerifyLink deviceId={deviceId} incidentId={incidentId ?? incidentIdFromEvidence} />
         </div>
       </div>
-    </Card>
+    </Panel>
   )
 }

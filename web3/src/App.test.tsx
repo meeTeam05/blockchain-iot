@@ -42,7 +42,7 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText('Mật khẩu'), { target: { value: 'password-123' } })
     fireEvent.click(screen.getByRole('button', { name: 'Đăng nhập' }))
 
-    expect(await screen.findByText('Sự cố')).toBeInTheDocument()
+    expect(await screen.findByText('Đang tải…')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Kết nối ví' })).toBeInTheDocument()
     expect(window.location.pathname).toBe(directPath)
   })
@@ -87,5 +87,47 @@ describe('App', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Đăng xuất' }))
     await waitFor(() => expect(sessionStorage.getItem('smartair-web3-auth')).toBeNull())
     expect(await screen.findByRole('button', { name: 'Đăng nhập' })).toBeInTheDocument()
+  })
+
+  it('supports toggling to registration form and returns to login upon successful registration', async () => {
+    let registerBody: Record<string, unknown> | null = null
+    vi.stubGlobal('fetch', vi.fn(async (input, init) => {
+      if (String(input).endsWith('/auth/register')) {
+        registerBody = JSON.parse(String(init?.body))
+        return new Response(JSON.stringify({
+          id: 'user-new',
+          email: registerBody?.email,
+          full_name: registerBody?.full_name,
+          created_at: '2026-10-04T00:00:00Z',
+        }), { status: 201, headers: { 'Content-Type': 'application/json' } })
+      }
+      return new Promise<Response>(() => {})
+    }))
+
+    render(<App />)
+    // Switch to register mode
+    fireEvent.click(screen.getByRole('button', { name: 'Đăng ký ngay' }))
+
+    expect(await screen.findByLabelText('Họ và tên')).toBeInTheDocument()
+    expect(screen.getByLabelText('Xác nhận mật khẩu')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Đăng ký tài khoản' })).toBeInTheDocument()
+
+    // Fill registration fields
+    fireEvent.change(screen.getByLabelText('Họ và tên'), { target: { value: 'Tran Van B' } })
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'tranb@example.com' } })
+    fireEvent.change(screen.getByLabelText('Mật khẩu'), { target: { value: 'password123' } })
+    fireEvent.change(screen.getByLabelText('Xác nhận mật khẩu'), { target: { value: 'password123' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Đăng ký tài khoản' }))
+
+    // Expect to switch back to login mode with success notification and prefilled email
+    expect(await screen.findByText('Đăng ký tài khoản thành công! Vui lòng nhập mật khẩu để đăng nhập.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Đăng nhập' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Email')).toHaveValue('tranb@example.com')
+    expect(registerBody).toEqual({
+      email: 'tranb@example.com',
+      password: 'password123',
+      full_name: 'Tran Van B',
+    })
   })
 })

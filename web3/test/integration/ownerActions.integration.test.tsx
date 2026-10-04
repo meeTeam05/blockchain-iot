@@ -86,7 +86,7 @@ describe.skipIf(!RPC_URL)('OwnerActions against a live hardhat node', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Kết nối ví' }))
     await screen.findByText(chain.name)
 
-    const button = await screen.findByRole('button', { name: 'Xác nhận' })
+    const button = await screen.findByRole('button', { name: 'Xác nhận đã biết' })
     fireEvent.click(button)
 
     const dialog = await screen.findByRole('dialog')

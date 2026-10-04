@@ -8,6 +8,7 @@ import type { RpcRequest } from './deploymentValidation'
 import { incentivesDeployment, readTokenWallet, validateIncentives, IncentivesValidationError } from './incentives'
 import { computeDeviceIdHash } from './chainIncident'
 import type { Hash } from 'viem'
+import { CHAIN_POLL_MS, SETTLEMENT_POLL_MS, useChainPollInterval } from './chainPolling'
 
 export function useIncentivesGuard() {
   const publicClient = usePublicClient()
@@ -17,12 +18,14 @@ export function useIncentivesGuard() {
   const deployment = incentivesDeployment
   const publicValidation = useQuery({
     queryKey: ['incentives', deployment?.incentives.address, 'guard', 'public'],
-    enabled: Boolean(deployment && publicClient) && domain.publicStatus === 'correct', retry: false,
+    enabled: Boolean(deployment && publicClient) && domain.publicStatus === 'correct', retry: false, staleTime: Infinity, meta: { static: true },
+    refetchInterval: (query) => (query.state.status === 'error' ? 15_000 : false),
     queryFn: async () => { await validateIncentives(publicClient!.request as RpcRequest, deployment!); return true },
   })
   const walletValidation = useQuery({
     queryKey: ['incentives', deployment?.incentives.address, 'guard', 'wallet', account.address, account.chainId, account.connector?.uid],
-    enabled: Boolean(deployment && connector.data) && domain.walletStatus === 'correct', retry: false,
+    enabled: Boolean(deployment && connector.data) && domain.walletStatus === 'correct', retry: false, staleTime: Infinity, meta: { static: true },
+    refetchInterval: (query) => (query.state.status === 'error' ? 15_000 : false),
     queryFn: async () => { await validateIncentives(connector.data!.request as RpcRequest, deployment!); return true },
   })
   const status = !deployment ? 'unavailable' : publicValidation.error instanceof IncentivesValidationError ? publicValidation.error.kind
@@ -39,17 +42,19 @@ export function useTokenWallet() {
   const guard = useIncentivesGuard()
   const query = useQuery({
     queryKey: ['incentives', guard.deployment?.incentives.address, 'token', guard.account.address],
-    enabled: guard.status === 'ready', retry: false, refetchInterval: 10_000,
+    // Treasury transfers emit no realtime event, so the wallet keeps a slow poll.
+    enabled: guard.status === 'ready', retry: false, refetchInterval: CHAIN_POLL_MS,
     queryFn: () => readTokenWallet(guard.publicClient!, guard.deployment!, guard.account.address),
   })
   return { ...query, guard }
 }
 export function useCanonicalDeviceIncentives(deviceId: string) {
   const guard = useIncentivesGuard()
+  const pollMs = useChainPollInterval(CHAIN_POLL_MS)
   const hash = computeDeviceIdHash(deviceId)
   const query = useQuery({
     queryKey: ['incentives', guard.deployment?.incentives.address, 'device-chain', deviceId],
-    enabled: Boolean(deviceId) && guard.status === 'ready', retry: false, refetchInterval: 10_000,
+    enabled: Boolean(deviceId) && guard.status === 'ready', retry: false, refetchInterval: pollMs,
     queryFn: async () => {
       const client = guard.publicClient!
       const address = guard.deployment!.incentives.address
@@ -65,11 +70,25 @@ export function useCanonicalDeviceIncentives(deviceId: string) {
   })
   return { ...query, guard, hash }
 }
-export function useSettlement(key?: Hash) {
+// Past the resolve deadline with nothing callable, a settlement can no longer
+// change by time alone; only a transaction (which refreshes it) can.
+export function isFinalSettlement(data?: { settlement: { covered: boolean; resolveDeadline: bigint; canRecordAck: boolean;
+  canRecordResolve: boolean; canSlashMissedAck: boolean; canSlashLateRelay: boolean }; block: { timestamp: bigint } }) {
+  if (!data) return false
+  const s = data.settlement
+  return !s.covered || (data.block.timestamp > s.resolveDeadline
+    && !s.canRecordAck && !s.canRecordResolve && !s.canSlashMissedAck && !s.canSlashLateRelay)
+}
+
+/** `realtime: false` for incidents of other owners (keeper board), which get no SSE events. */
+export function useSettlement(key?: Hash, { realtime = true }: { realtime?: boolean } = {}) {
   const guard = useIncentivesGuard()
+  const livePollMs = useChainPollInterval(SETTLEMENT_POLL_MS)
+  const pollMs = realtime ? livePollMs : SETTLEMENT_POLL_MS
   const query = useQuery({
     queryKey: ['incentives', guard.deployment?.incentives.address, 'settlement', key],
-    enabled: Boolean(key) && guard.status === 'ready', retry: false, refetchInterval: 5_000,
+    enabled: Boolean(key) && guard.status === 'ready', retry: false,
+    refetchInterval: (query) => (isFinalSettlement(query.state.data) ? false : pollMs),
     queryFn: async () => {
       const [settlement, block] = await Promise.all([
         guard.publicClient!.readContract({ address: guard.deployment!.incentives.address, abi: SAFETY_INCENTIVES_ABI, functionName: 'pendingSettlement', args: [key!] }),

@@ -147,6 +147,10 @@ export class RealtimeClient {
   }
 }
 
+// While SSE is down every active query (chain reads included) is refreshed on
+// this cadence; kept slow so a flaky stream does not exhaust the RPC rate limit.
+export const REALTIME_FALLBACK_POLL_MS = 30_000
+
 export class RealtimeRefreshCoordinator {
   private pollTimer: ReturnType<typeof setInterval> | null = null
   private eventTimer: ReturnType<typeof setTimeout> | null = null
@@ -158,7 +162,7 @@ export class RealtimeRefreshCoordinator {
 
   setStatus(status: RealtimeStatus) {
     if (status === 'disconnected' && !this.pollTimer) {
-      this.pollTimer = setInterval(this.refresh, 10_000)
+      this.pollTimer = setInterval(this.refresh, REALTIME_FALLBACK_POLL_MS)
     } else if (status !== 'disconnected' && this.pollTimer) {
       clearInterval(this.pollTimer)
       this.pollTimer = null

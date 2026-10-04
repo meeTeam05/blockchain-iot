@@ -53,12 +53,20 @@ export function DomainStatusProvider({ children }: { children: ReactNode }) {
     queryFn: () => validateDeployment(publicClient!.request as RpcRequest, target),
     enabled: Boolean(publicClient),
     retry: false,
+    staleTime: Infinity,
+    meta: { static: true },
+    // A transient RPC failure must not pin the banner until reload.
+    refetchInterval: (query) => (query.state.data === 'rpc_unavailable' ? 15_000 : false),
   })
   const walletValidation = useQuery({
     queryKey: ['deployment-guard', 'wallet', connector?.uid, address, chainId],
     queryFn: () => validateDeployment(connectorClient.data!.request as RpcRequest, target),
     enabled: isConnected && chainId === target.chainId && Boolean(connectorClient.data),
     retry: false,
+    staleTime: Infinity,
+    meta: { static: true },
+    // A transient RPC failure must not pin the banner until reload.
+    refetchInterval: (query) => (query.state.data === 'rpc_unavailable' ? 15_000 : false),
   })
 
   const publicStatus = publicClient

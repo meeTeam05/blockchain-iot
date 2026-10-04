@@ -42,7 +42,7 @@ describe('B7/B8 UI', () => {
   it('renders chain balance and allowance, never a false zero on RPC failure', () => {
     const view = mount(<TokenWallet />)
     expect(screen.getByTestId('token-balance')).toHaveTextContent('100 ASAFE')
-    expect(screen.getByText('Allowance SafetyIncentives: 0 ASAFE')).toBeInTheDocument()
+    expect(screen.getByTestId('token-allowance')).toHaveTextContent('0 ASAFE')
     mocks.token.isError = true; mocks.token.error = new Error('offline')
     view.rerender(<TokenWallet />)
     expect(screen.getByRole('alert')).toHaveTextContent('RPC token lỗi')
@@ -88,15 +88,15 @@ describe('B7/B8 UI', () => {
     mount(<BondControls deviceId="device" />)
     expect(screen.getByRole('button', { name: 'Approve → Stake' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Withdraw bond' })).toBeDisabled()
-    expect(screen.getByText(/604800 giây cooldown/)).toBeInTheDocument()
+    expect(screen.getByText(/7 ngày cooldown/)).toBeInTheDocument()
   })
 })
 describe('B9/B10 projection vs canonical state', () => {
   it('renders API projection separately and identifies stale indexing without a tx failure', () => {
     mount(<DeviceIncentives deviceId="device" />)
-    expect(screen.getByText('Bond canonical: 80 ASAFE')).toBeInTheDocument()
-    expect(screen.getByText('API indexed/projection: thưởng 5, phạt owner 20 ASAFE')).toBeInTheDocument()
-    expect(screen.getByText(/API đang chậm hoặc chưa index giao dịch/)).toBeInTheDocument()
+    expect(screen.getByTestId('device-bond')).toHaveTextContent('80 / 100 ASAFE')
+    expect(screen.getByTestId('device-indexed')).toHaveTextContent('Thưởng 5 · Phạt 20')
+    expect(screen.getByText(/API chưa đồng bộ với chain/)).toBeInTheDocument()
     expect(screen.queryByText('Giao dịch chưa hoàn tất.')).not.toBeInTheDocument()
   })
   it('shows API and RPC errors instead of unbonded/empty incentives', () => {
@@ -104,7 +104,7 @@ describe('B9/B10 projection vs canonical state', () => {
     mocks.canonical.isError = true; mocks.canonical.error = new Error('RPC offline')
     mount(<DeviceIncentives deviceId="device" />)
     expect(screen.getAllByRole('alert')).toHaveLength(2)
-    expect(screen.queryByText('Bond canonical: 80 ASAFE')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('device-bond')).not.toBeInTheDocument()
   })
   it('renders incident events, keeper, explorer data and pending API sync alongside chain countdown', () => {
     const projection = { incident_key: key, reward_status: 'ack_rewarded', covered: true,
