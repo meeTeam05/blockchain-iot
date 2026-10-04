@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ApiDevice, TelemetryPoint } from '../../lib/devicesApi'
-import { telemetryPointFromEvent } from '../../lib/devicesApi'
+import { isFreshTelemetry, TELEMETRY_STALE_MS, telemetryPointFromEvent } from '../../lib/devicesApi'
 import { DeviceCard } from './DeviceCard'
 
 const mocks = vi.hoisted(() => ({ useLatestTelemetry: vi.fn() }))
@@ -37,12 +37,36 @@ describe('DeviceCard telemetry', () => {
     expect(screen.getByTestId('metric-Nhiệt độ')).toHaveTextContent('29.5 °C')
     expect(screen.getByTestId('metric-Độ ẩm')).toHaveTextContent('72 %')
     expect(screen.queryByText('PM2.5')).not.toBeInTheDocument()
+    expect(screen.getByTestId('telemetry-caption')).toHaveTextContent(/^Cập nhật lúc \d{2}:\d{2}:\d{2}$/)
   })
 
   it('shows a dash for every metric while offline and stops polling', () => {
     renderCard({ online: false })
     expect(mocks.useLatestTelemetry).toHaveBeenCalledWith(device.id, false)
     for (const label of ['CO', 'NO₂', 'Nhiệt độ', 'Độ ẩm']) expect(screen.getByTestId(`metric-${label}`)).toHaveTextContent('—')
+    expect(screen.getByTestId('telemetry-caption')).toHaveTextContent('Thiết bị offline · không có số đo')
+  })
+
+  it('shows a dash instead of an old reading of an online device, with when it was taken', () => {
+    const old = new Date(Date.now() - TELEMETRY_STALE_MS - 60_000).toISOString()
+    mocks.useLatestTelemetry.mockReturnValue({ data: { ...reading, ts: old } })
+    renderCard()
+    for (const label of ['CO', 'NO₂', 'Nhiệt độ', 'Độ ẩm']) expect(screen.getByTestId(`metric-${label}`)).toHaveTextContent('—')
+    expect(screen.getByTestId('telemetry-caption')).toHaveTextContent(/^Không có số đo mới · lần cuối \d{2}:\d{2} \d{2}\/\d{2}$/)
+  })
+
+  it('explains an empty window, a loading card and an API error', () => {
+    mocks.useLatestTelemetry.mockReturnValue({ data: null })
+    const view = renderCard()
+    expect(screen.getByTestId('telemetry-caption')).toHaveTextContent('Chưa có số đo trong 24 giờ')
+    view.unmount()
+    mocks.useLatestTelemetry.mockReturnValue({ data: undefined, isPending: true })
+    const loading = renderCard()
+    expect(screen.getByTestId('telemetry-caption')).toHaveTextContent('Đang tải số đo…')
+    loading.unmount()
+    mocks.useLatestTelemetry.mockReturnValue({ data: undefined, isError: true })
+    renderCard()
+    expect(screen.getByTestId('telemetry-caption')).toHaveTextContent('Không tải được số đo')
   })
 
   it('shows a dash for a sensor field the reading does not have', () => {
@@ -50,6 +74,16 @@ describe('DeviceCard telemetry', () => {
     renderCard()
     expect(screen.getByTestId('metric-NO₂')).toHaveTextContent('—')
     expect(screen.getByTestId('metric-CO')).toHaveTextContent('3.3 ppm')
+  })
+})
+
+describe('isFreshTelemetry', () => {
+  it('treats a reading as current up to the stale threshold', () => {
+    const now = Date.parse('2026-10-04T10:00:00.000Z')
+    const at = (msAgo: number) => ({ ...reading, ts: new Date(now - msAgo).toISOString() })
+    expect(isFreshTelemetry(at(0), now)).toBe(true)
+    expect(isFreshTelemetry(at(TELEMETRY_STALE_MS), now)).toBe(true)
+    expect(isFreshTelemetry(at(TELEMETRY_STALE_MS + 1), now)).toBe(false)
   })
 })
 

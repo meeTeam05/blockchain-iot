@@ -1,5 +1,6 @@
 import { Link } from 'react-router'
-import { useLatestTelemetry, type ApiDevice } from '../../lib/devicesApi'
+import { isFreshTelemetry, useLatestTelemetry, type ApiDevice, type TelemetryPoint } from '../../lib/devicesApi'
+import { useNow } from '../../lib/useNow'
 import { formatLastSeen } from '../../lib/deviceDisplay'
 
 interface ChainDevice {
@@ -39,6 +40,24 @@ function Metric({ label, value, digits, unit, className = '' }: {
   )
 }
 
+const pad = (n: number) => String(n).padStart(2, '0')
+
+function formatClock(ts: string, withDate: boolean) {
+  const d = new Date(ts)
+  const time = `${pad(d.getHours())}:${pad(d.getMinutes())}${withDate ? '' : `:${pad(d.getSeconds())}`}`
+  return withDate ? `${time} ${pad(d.getDate())}/${pad(d.getMonth() + 1)}` : time
+}
+
+function telemetryCaption(online: boolean, query: { data?: TelemetryPoint | null; isPending: boolean; isError: boolean }, fresh: boolean) {
+  if (!online) return 'Thiết bị offline · không có số đo'
+  if (query.isError) return 'Không tải được số đo'
+  if (query.data === undefined && query.isPending) return 'Đang tải số đo…'
+  if (!query.data) return 'Chưa có số đo trong 24 giờ'
+  return fresh
+    ? `Cập nhật lúc ${formatClock(query.data.ts, false)}`
+    : `Không có số đo mới · lần cuối ${formatClock(query.data.ts, true)}`
+}
+
 function formatShortId(id: string): string {
   if (id.length <= 16) return id
   return `${id.slice(0, 8)}…${id.slice(-4)}`
@@ -52,7 +71,10 @@ export function DeviceCard({ device, chainDevice, connectedAddress }: DeviceCard
 
   const openIncidents = device.open_incident_count ?? 0
   const telemetry = useLatestTelemetry(device.id, device.online)
-  const reading = device.online ? telemetry.data : undefined
+  const now = useNow(15_000, device.online)
+  const fresh = Boolean(telemetry.data && isFreshTelemetry(telemetry.data, now))
+  // Only a fresh reading of an online device is shown as current.
+  const reading = device.online && fresh ? telemetry.data : undefined
 
   return (
     <article className="bg-white rounded-[18px] overflow-hidden shadow-[0_1px_2px_rgba(20,40,25,0.05)] border border-[#eef1ec] transition-shadow hover:shadow-md">
@@ -120,6 +142,9 @@ export function DeviceCard({ device, chainDevice, connectedAddress }: DeviceCard
         <Metric label="Nhiệt độ" value={reading?.temperature} digits={1} unit="°C" className="border-r border-t sm:border-t-0" />
         <Metric label="Độ ẩm" value={reading?.humidity} digits={0} unit="%" className="border-t sm:border-t-0" />
       </div>
+      <p data-testid="telemetry-caption" className="m-0 px-4 sm:px-6 py-2 border-b border-[#eef1ec] text-[12px] text-[#7a867c]">
+        {telemetryCaption(device.online, telemetry, fresh)}
+      </p>
 
       {/* Open Incident Alert Banner */}
       {openIncidents > 0 ? (

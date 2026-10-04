@@ -43,6 +43,13 @@ export interface TelemetryPoint {
 }
 
 export const TELEMETRY_POLL_MS = 30_000
+// Firmware publishes every SA_SENSOR_POLLING_INTERVAL (5 s default, 60 s max).
+// A reading older than this is shown as missing rather than as current.
+export const TELEMETRY_STALE_MS = 120_000
+
+export function isFreshTelemetry(point: TelemetryPoint, now: number) {
+  return now - Date.parse(point.ts) <= TELEMETRY_STALE_MS
+}
 
 export const telemetryQueryKey = (deviceId: string) => ['device-telemetry', deviceId] as const
 
@@ -60,6 +67,11 @@ export function telemetryPointFromEvent(payload: Record<string, unknown>): Telem
     co_ppm: numberOrNull(payload.co_ppm),
     no2_ppm: numberOrNull(payload.no2_ppm),
   }
+}
+
+/** Keeps the newer point: SSE replays after a reconnect can deliver an older one late. */
+export function newerTelemetry(current: TelemetryPoint | null | undefined, next: TelemetryPoint): TelemetryPoint {
+  return current && Date.parse(current.ts) > Date.parse(next.ts) ? current : next
 }
 
 /** Polls only while `enabled` (the device is online); SSE pushes fill it in between. */
