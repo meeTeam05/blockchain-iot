@@ -1,5 +1,5 @@
 import { Link } from 'react-router'
-import type { ApiDevice } from '../../lib/devicesApi'
+import { useLatestTelemetry, type ApiDevice } from '../../lib/devicesApi'
 import { formatLastSeen } from '../../lib/deviceDisplay'
 
 interface ChainDevice {
@@ -17,6 +17,28 @@ interface DeviceCardProps {
   connectedAddress: string | undefined
 }
 
+function Metric({ label, value, digits, unit, className = '' }: {
+  label: string
+  value: number | null | undefined
+  digits: number
+  unit: string
+  className?: string
+}) {
+  const hasValue = typeof value === 'number' && Number.isFinite(value)
+  return (
+    <div className={`p-4 sm:px-6 sm:py-4.5 flex flex-col gap-1 border-[#eef1ec] ${className}`}>
+      <span className="text-[12px] text-[#5d6a60]">{label}</span>
+      <span
+        data-testid={`metric-${label}`}
+        className={`text-[22px] font-semibold ${hasValue ? 'text-[#17201a]' : 'text-[#a3ada5]'}`}
+      >
+        {hasValue ? value.toFixed(digits) : '—'}{' '}
+        <span className="text-[12px] font-medium text-[#7a867c]">{unit}</span>
+      </span>
+    </div>
+  )
+}
+
 function formatShortId(id: string): string {
   if (id.length <= 16) return id
   return `${id.slice(0, 8)}…${id.slice(-4)}`
@@ -29,6 +51,8 @@ export function DeviceCard({ device, chainDevice, connectedAddress }: DeviceCard
     chainDevice.owner.toLowerCase() === connectedAddress.toLowerCase()
 
   const openIncidents = device.open_incident_count ?? 0
+  const telemetry = useLatestTelemetry(device.id, device.online)
+  const reading = device.online ? telemetry.data : undefined
 
   return (
     <article className="bg-white rounded-[18px] overflow-hidden shadow-[0_1px_2px_rgba(20,40,25,0.05)] border border-[#eef1ec] transition-shadow hover:shadow-md">
@@ -89,32 +113,12 @@ export function DeviceCard({ device, chainDevice, connectedAddress }: DeviceCard
         </div>
       </div>
 
-      {/* 4 Telemetry Metrics Grid */}
+      {/* 4 Telemetry Metrics Grid: latest reading while online, "—" while offline */}
       <div className="grid grid-cols-2 sm:grid-cols-4 border-b border-[#eef1ec]">
-        <div className="p-4 sm:px-6 sm:py-4.5 flex flex-col gap-1 border-r border-[#eef1ec]">
-          <span className="text-[12px] text-[#5d6a60]">PM2.5</span>
-          <span className="text-[22px] font-semibold text-[#a3ada5]">
-            — <span className="text-[12px] font-medium text-[#7a867c]">µg/m³</span>
-          </span>
-        </div>
-        <div className="p-4 sm:px-6 sm:py-4.5 flex flex-col gap-1 sm:border-r border-[#eef1ec]">
-          <span className="text-[12px] text-[#5d6a60]">CO₂</span>
-          <span className="text-[22px] font-semibold text-[#a3ada5]">
-            — <span className="text-[12px] font-medium text-[#7a867c]">ppm</span>
-          </span>
-        </div>
-        <div className="p-4 sm:px-6 sm:py-4.5 flex flex-col gap-1 border-r border-t sm:border-t-0 border-[#eef1ec]">
-          <span className="text-[12px] text-[#5d6a60]">Nhiệt độ</span>
-          <span className="text-[22px] font-semibold text-[#a3ada5]">
-            — <span className="text-[12px] font-medium text-[#7a867c]">°C</span>
-          </span>
-        </div>
-        <div className="p-4 sm:px-6 sm:py-4.5 flex flex-col gap-1 border-t sm:border-t-0 border-[#eef1ec]">
-          <span className="text-[12px] text-[#5d6a60]">Độ ẩm</span>
-          <span className="text-[22px] font-semibold text-[#a3ada5]">
-            — <span className="text-[12px] font-medium text-[#7a867c]">%</span>
-          </span>
-        </div>
+        <Metric label="CO" value={reading?.co_ppm} digits={1} unit="ppm" className="border-r" />
+        <Metric label="NO₂" value={reading?.no2_ppm} digits={2} unit="ppm" className="sm:border-r" />
+        <Metric label="Nhiệt độ" value={reading?.temperature} digits={1} unit="°C" className="border-r border-t sm:border-t-0" />
+        <Metric label="Độ ẩm" value={reading?.humidity} digits={0} unit="%" className="border-t sm:border-t-0" />
       </div>
 
       {/* Open Incident Alert Banner */}

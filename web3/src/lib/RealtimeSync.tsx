@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from './authStore'
 import { setRealtimeLive } from './chainPolling'
+import { telemetryPointFromEvent, telemetryQueryKey } from './devicesApi'
 import { isIncidentRealtimeEvent, RealtimeClient, RealtimeRefreshCoordinator } from './realtime'
 
 export function RealtimeSync() {
@@ -25,6 +26,16 @@ export function RealtimeSync() {
       setRealtimeLive(status === 'connected')
     })
     const offEvent = client.onEvent((event) => {
+      // Telemetry carries the readings: write them straight into the card's cache.
+      if (event.type === 'telemetry.point') {
+        const point = telemetryPointFromEvent(event.payload)
+        if (point) queryClient.setQueryData(telemetryQueryKey(event.deviceId), point)
+        return
+      }
+      if (event.type === 'device.status') {
+        void queryClient.invalidateQueries({ queryKey: ['devices'] })
+        return
+      }
       if (isIncidentRealtimeEvent(event)) {
         coordinator.onRelevantEvent()
       }
