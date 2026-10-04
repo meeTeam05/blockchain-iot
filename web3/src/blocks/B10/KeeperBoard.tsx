@@ -6,6 +6,7 @@ import { AIR_SAFETY_LOG_ABI } from '../../generated/incident-deployments'
 import { useIncentivesApi, type OverdueIncentives, type OverdueItem } from '../../lib/incentivesApi'
 import { useIncentivesGuard, useSettlement, useTokenWallet } from '../../lib/useIncentives'
 import { useIncentiveTransaction } from '../../lib/useIncentiveTransaction'
+import { CHAIN_POLL_MS, SETTLEMENT_POLL_MS } from '../../lib/chainPolling'
 import { isTransactionBusy } from '../../lib/incidentTransaction'
 import type { IncentivesDeployment } from '../../lib/incentives'
 import { ActionButton } from '../../components/ui/ActionButton'
@@ -55,13 +56,13 @@ function EmptyRow({ children }: { children: string }) {
 }
 
 function KeeperItem({ item, action }: { item: KeeperCandidate; action: 'slashMissedAck' | 'slashLateRelay' }) {
-  const chain = useSettlement(item.incident_key)
+  const chain = useSettlement(item.incident_key, { realtime: false })
   const token = useTokenWallet()
   const tx = useIncentiveTransaction(item.incident_key)
   const eligible = action === 'slashMissedAck' ? chain.data?.settlement.canSlashMissedAck : chain.data?.settlement.canSlashLateRelay
   const bounty = useQuery({
     queryKey: ['incentives', chain.guard.deployment?.incentives.address, 'bounty', item.incident_key, action, chain.data?.settlement.flags],
-    enabled: Boolean(eligible) && chain.guard.status === 'ready', retry: false, refetchInterval: 5_000,
+    enabled: Boolean(eligible) && chain.guard.status === 'ready', retry: false, refetchInterval: SETTLEMENT_POLL_MS,
     queryFn: async () => {
       const client = chain.guard.publicClient!
       const address = chain.guard.deployment!.incentives.address
@@ -82,7 +83,7 @@ function KeeperItem({ item, action }: { item: KeeperCandidate; action: 'slashMis
   const preflight = useQuery({
     queryKey: ['incentives', chain.guard.deployment?.incentives.address, 'keeper-simulation', item.incident_key, action,
       tx.guard.account.address, chain.data?.settlement.flags],
-    enabled: Boolean(eligible) && tx.guard.canWrite, retry: false, refetchInterval: 5_000,
+    enabled: Boolean(eligible) && tx.guard.canWrite, retry: false, refetchInterval: SETTLEMENT_POLL_MS,
     queryFn: () => chain.guard.publicClient!.simulateContract({
       address: chain.guard.deployment!.incentives.address, abi: SAFETY_INCENTIVES_ABI,
       account: tx.guard.account.address, functionName: action, args: [item.incident_key],
@@ -129,7 +130,7 @@ export function KeeperBoard() {
   const api = useIncentivesApi<OverdueIncentives>('/incentives/overdue')
   const fallback = useQuery({
     queryKey: ['incentives', guard.deployment?.incentives.address, 'overdue-chain'],
-    enabled: api.isError && guard.status === 'ready', retry: false, refetchInterval: 10_000,
+    enabled: api.isError && guard.status === 'ready', retry: false, refetchInterval: CHAIN_POLL_MS,
     queryFn: () => scanOverdue(guard.publicClient!, guard.deployment!),
   })
   const data = api.isError ? fallback.data : api.data

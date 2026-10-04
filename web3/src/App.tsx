@@ -20,7 +20,11 @@ import { AppBar } from './components/ui/AppBar'
 import { ROUTER_BASENAME } from './config/routes'
 import heroImage from './assets/smartair_hero.png'
 
-const queryClient = new QueryClient()
+// Chain reads are rate limited on the RPC side: no refetch storm on tab focus,
+// and data younger than 10 s is reused across components and navigations.
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { refetchOnWindowFocus: false, staleTime: 10_000 } },
+})
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { accessToken } = useAuth()

@@ -10,6 +10,7 @@ import { useIncentivesApi, type IncentiveParams } from '../lib/incentivesApi'
 import { IncentivesGuardNotice } from '../blocks/B7/IncentivesShared'
 import { ExplorerLink } from '../components/ExplorerLink'
 import { formatDuration } from '../lib/formatDuration'
+import { CHAIN_POLL_MS } from '../lib/chainPolling'
 
 function Notice({ role, children }: { role?: 'alert'; children: ReactNode }) {
   return (
@@ -49,7 +50,7 @@ export function ParamsPage() {
   const api = useIncentivesApi<IncentiveParams>('/incentives/params')
   const chain = useQuery({
     queryKey: ['incentives', guard.deployment?.incentives.address, 'params-chain'],
-    enabled: guard.status === 'ready', retry: false, refetchInterval: 10_000,
+    enabled: guard.status === 'ready', retry: false, refetchInterval: CHAIN_POLL_MS,
     queryFn: async () => {
       const client = guard.publicClient!
       const address = guard.deployment!.incentives.address
