@@ -61,7 +61,7 @@ test('exact Task 1 firmware wire payload verifies, authorizes, persists and retu
 
         const idfPath = process.env.IDF_PATH || path.join(os.homedir(), 'esp/esp-idf');
         const compile = spawnSync('python3', [
-            path.join(REPO, 'firmware/components/core/incident/tools/test_incident_ack_matrix.py'),
+            path.join(REPO, 'iot_code/components/core/incident/tools/test_incident_ack_matrix.py'),
         ], { env: { ...process.env, IDF_PATH: idfPath }, encoding: 'utf8' });
         assert.equal(compile.status, 0, `${compile.stdout}\n${compile.stderr}`);
         const firmwareParser = spawnSync('/tmp/incident_ack_matrix', [
@@ -77,9 +77,9 @@ test('exact Task 1 firmware wire payload verifies, authorizes, persists and retu
 test('backend EIP-712 domain configuration exactly matches Task 1 firmware', async () => {
     // Firmware and backend are both generated from spec/incident/deployments; nothing
     // may hard-code a verifying contract or chain id any more.
-    const incidentSource = await readFile(path.join(REPO, 'firmware/components/core/incident/incident.c'), 'utf8');
-    const header = await readFile(path.join(REPO, 'firmware/components/core/incident/include/incident_domain.h'), 'utf8');
-    const overlay = await readFile(path.join(REPO, 'firmware/sdkconfig.incident'), 'utf8');
+    const incidentSource = await readFile(path.join(REPO, 'iot_code/components/core/incident/incident.c'), 'utf8');
+    const header = await readFile(path.join(REPO, 'iot_code/components/core/incident/include/incident_domain.h'), 'utf8');
+    const overlay = await readFile(path.join(REPO, 'iot_code/sdkconfig.incident'), 'utf8');
     assert.match(incidentSource, /#include "incident_domain.h"/);
     assert.match(incidentSource, /keccak256\(INCIDENT_DOMAIN_NAME,strlen\(INCIDENT_DOMAIN_NAME\),name\)/);
     assert.match(incidentSource, /keccak256\(INCIDENT_DOMAIN_VERSION,strlen\(INCIDENT_DOMAIN_VERSION\),version\)/);

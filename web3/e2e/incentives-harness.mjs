@@ -23,8 +23,8 @@ const web = path.join(root, 'web3');
 const require = createRequire(path.join(root, 'server/api/package.json'));
 const Fastify = require('fastify');
 const cors = require('@fastify/cors');
-const node = spawn(process.execPath, [path.join(root, 'blockchain/node_modules/hardhat/internal/cli/cli.js'), 'node', '--hostname', '127.0.0.1', '--port', '18545'],
-  { cwd: path.join(root, 'blockchain'), stdio: 'ignore' });
+const node = spawn(process.execPath, [path.join(root, 'contracts/node_modules/hardhat/internal/cli/cli.js'), 'node', '--hostname', '127.0.0.1', '--port', '18545'],
+  { cwd: path.join(root, 'contracts'), stdio: 'ignore' });
 const provider = createProvider('http://127.0.0.1:18545');
 let app, store;
 let stopping = false;
@@ -49,7 +49,7 @@ try {
   const manager = new Wallet(KEYS.manager, provider);
   const relayer = new Wallet(KEYS.relayer, provider);
   async function deploy(name, args) {
-    const artifact = JSON.parse(await readFile(path.join(root, `blockchain/artifacts/contracts/${name}.sol/${name}.json`), 'utf8'));
+    const artifact = JSON.parse(await readFile(path.join(root, `contracts/artifacts/contracts/${name}.sol/${name}.json`), 'utf8'));
     const contract = await new ContractFactory(artifact.abi, artifact.bytecode, admin).deploy(...args);
     await contract.waitForDeployment(); return contract;
   }

@@ -7,7 +7,7 @@ SERVER_DIR := $(ROOT_DIR)/server
 API_DIR := $(SERVER_DIR)/api
 APP_DIR := $(ROOT_DIR)/app
 WEB3_DIR := $(ROOT_DIR)/web3
-FIRMWARE_DIR := $(ROOT_DIR)/firmware
+FIRMWARE_DIR := $(ROOT_DIR)/iot_code
 
 COMPOSE := docker compose -f "$(SERVER_DIR)/docker-compose.yml" --env-file "$(SERVER_DIR)/.env"
 SERVICE ?= api
@@ -163,9 +163,9 @@ incident-gen:
 incident-gen-check:
 	node "$(ROOT_DIR)/spec/incident/gen/gen-all.mjs" --check
 
-# Chain E2E against a hardhat node already running on :8545 (cd blockchain && npx hardhat node).
+# Chain E2E against a hardhat node already running on :8545 (cd contracts && npx hardhat node).
 e2e-chain-local:
-	cd "$(ROOT_DIR)/blockchain" && npx hardhat compile
+	cd "$(ROOT_DIR)/contracts" && npx hardhat compile
 	cd "$(API_DIR)" && E2E_CHAIN_RPC_URL=http://127.0.0.1:8545 node --test test/e2e/chain-e2e.test.js
 
 server-dev:

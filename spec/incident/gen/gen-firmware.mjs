@@ -1,11 +1,11 @@
-// spec/incident/deployments -> firmware/components/core/incident/include/incident_domain.h
+// spec/incident/deployments -> iot_code/components/core/incident/include/incident_domain.h
 //
 //   node spec/incident/gen/gen-firmware.mjs [--check]
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { GENERATED_BANNER, REPO_ROOT, loadAllDeployments } from './common.mjs';
 
-export const FIRMWARE_HEADER = path.join(REPO_ROOT, 'firmware/components/core/incident/include/incident_domain.h');
+export const FIRMWARE_HEADER = path.join(REPO_ROOT, 'iot_code/components/core/incident/include/incident_domain.h');
 
 const ENV_SYMBOL = Object.freeze({ localhost: 'CONFIG_SA_INCIDENT_ENV_LOCAL', sepolia: 'CONFIG_SA_INCIDENT_ENV_SEPOLIA' });
 

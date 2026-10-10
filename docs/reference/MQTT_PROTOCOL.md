@@ -302,7 +302,7 @@ Ghi chú:
 
 ### 3.7 `device/{id}/ai/state`
 
-Firmware component `components/core/ai` publish khi mức cảnh báo đổi và mỗi 60 s (chỉ khi AI đang bật bằng `ai_set` và có dữ liệu cảm biến mới). Chi tiết: `firmware/components/core/ai/README.md`.
+Firmware component `components/core/ai` publish khi mức cảnh báo đổi và mỗi 60 s (chỉ khi AI đang bật bằng `ai_set` và có dữ liệu cảm biến mới). Chi tiết: `iot_code/components/core/ai/README.md`.
 
 ```json
 {

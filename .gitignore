@@ -1,17 +1,17 @@
 # Firmware / ESP-IDF
-firmware/build/
-firmware/build-demo/
-firmware/build-normal/
-firmware/build-*/
-firmware/**/build/
-firmware/**/compile_commands.json
-firmware/sdkconfig
-firmware/sdkconfig.old
-firmware/sdkconfig.*.generated
-firmware/components/core/incident/tools/logs/*.log
-firmware/tools/**/sdkconfig
-firmware/tools/**/sdkconfig.old
-firmware/managed_components/
+iot_code/build/
+iot_code/build-demo/
+iot_code/build-normal/
+iot_code/build-*/
+iot_code/**/build/
+iot_code/**/compile_commands.json
+iot_code/sdkconfig
+iot_code/sdkconfig.old
+iot_code/sdkconfig.*.generated
+iot_code/components/core/incident/tools/logs/*.log
+iot_code/tools/**/sdkconfig
+iot_code/tools/**/sdkconfig.old
+iot_code/managed_components/
 
 # Hardware / KiCad local artifacts
 hardware/**/fp-info-cache
@@ -43,9 +43,9 @@ server/api/.env
 *.key
 *.p12
 *.pfx
-firmware/sdkconfig.demo.active
-firmware/**/nvs*.bin
-firmware/**/nvs*.csv
+iot_code/sdkconfig.demo.active
+iot_code/**/nvs*.bin
+iot_code/**/nvs*.csv
 server/ota-files/*
 !server/ota-files/.gitkeep
 server/dapp-files/*

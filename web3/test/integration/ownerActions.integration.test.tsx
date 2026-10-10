@@ -6,7 +6,7 @@
 // is mocked -- the chain side is 100% real, driven through real UI clicks.
 //
 // Skipped unless E2E_CHAIN_RPC_URL points at a local hardhat node:
-//   cd blockchain && npx hardhat node
+//   cd contracts && npx hardhat node
 //   cd web3 && E2E_CHAIN_RPC_URL=http://127.0.0.1:8545 npm run test -- ownerActions
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'

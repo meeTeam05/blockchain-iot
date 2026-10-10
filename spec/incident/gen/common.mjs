@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 export const SPEC_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const REPO_ROOT = path.resolve(SPEC_DIR, '..', '..');
 export const DEPLOYMENTS_DIR = path.join(SPEC_DIR, 'deployments');
-export const ABI_FILE = path.join(REPO_ROOT, 'blockchain', 'abi', 'AirSafetyLog.json');
+export const ABI_FILE = path.join(REPO_ROOT, 'contracts', 'abi', 'AirSafetyLog.json');
 
 // ethers is already a dependency of server/api; reuse it instead of adding a package here.
 const require = createRequire(path.join(REPO_ROOT, 'server', 'api', 'package.json'));

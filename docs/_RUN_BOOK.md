@@ -40,7 +40,7 @@ Tầng 2 chỉ được đưa vào demo nếu **A11 (tổng duyệt E2E, trướ
 | A10 | chuẩn bị | Dựng stack (một máy, image mới) | `make server-up-build` + chain-worker | 7 container `Up`, health `ok`, log `incentives enabled` |
 | B1 | 1 | Cấu hình firmware | `idf.py ... menuconfig` | Thấy mục `Blockchain incidents` = Sepolia |
 | B2 | 1 | Build firmware | `idf.py ... build` | `Project build complete` |
-| B3 | 1 | Test contract | `cd blockchain && npm test` | `84 passing` |
+| B3 | 1 | Test contract | `cd contracts && npm test` | `84 passing` |
 | B4 | 1 | Domain EIP-712 khớp | `node spec/incident/gen/gen-all.mjs --check` | `generated incident domain files are up to date` |
 | B5 | 1 | Test backend | `IDF_PATH=... npm test` | `ℹ fail 0` |
 | B6 | 1 | Task 8 qua trình duyệt | `npm run test:incentives-e2e` | `1 passed` |
@@ -160,7 +160,7 @@ grep -E '^(INCIDENT_DEPLOYMENT|CHAIN_RPC_URL|RELAYER_PRIVATE_KEY|DEVICE_MANAGER_
 **Lệnh 2: hai khóa ví ứng với địa chỉ nào (chỉ in địa chỉ)**
 ```bash
 node -e '
-const {ethers}=require("./blockchain/node_modules/ethers");const fs=require("fs");
+const {ethers}=require("./contracts/node_modules/ethers");const fs=require("fs");
 const env=Object.fromEntries(fs.readFileSync("server/.env","utf8").split("\n").filter(l=>/^[A-Z_]+=/.test(l)).map(l=>[l.slice(0,l.indexOf("=")),l.slice(l.indexOf("=")+1).trim()]));
 for(const k of ["RELAYER_PRIVATE_KEY","DEVICE_MANAGER_PRIVATE_KEY"])console.log(k,"->",new ethers.Wallet(env[k]).address);'
 ```
@@ -196,7 +196,7 @@ grep -c 'host.docker.internal' server/.env
 Keeper phải là ví riêng, khác relayer, device manager và operator. Nếu trùng, chain-worker thoát với exit code 2 (`assertKeeperWallet` trong `server/api/src/chain/incentives.js`). Lệnh dưới sinh khóa, ghi vào `server/.env` và chỉ in địa chỉ. Không ghi đè khóa đã có.
 ```bash
 node -e '
-const {ethers}=require("./blockchain/node_modules/ethers");const fs=require("fs");
+const {ethers}=require("./contracts/node_modules/ethers");const fs=require("fs");
 const f="server/.env";let t=fs.readFileSync(f,"utf8");
 if(/^KEEPER_PRIVATE_KEY=.+/m.test(t)){console.log("KEEPER_PRIVATE_KEY da co, khong ghi de");process.exit(0)}
 const w=ethers.Wallet.createRandom();
@@ -204,17 +204,17 @@ t=/^KEEPER_PRIVATE_KEY=.*$/m.test(t)?t.replace(/^KEEPER_PRIVATE_KEY=.*$/m,"KEEPE
 fs.writeFileSync(f,t);console.log("keeper address:",w.address);'
 ```
 **Đúng khi `(đã chạy trên bản sao .env)`:** in một dòng `keeper address: 0x...` (42 ký tự). Chạy lần hai in `KEEPER_PRIVATE_KEY da co, khong ghi de`. Ghi lại địa chỉ này.
-**Sai thì:** không tìm thấy `ethers` thì chạy `cd blockchain && npm ci` rồi thử lại.
+**Sai thì:** không tìm thấy `ethers` thì chạy `cd contracts && npm ci` rồi thử lại.
 
 **Lệnh 5.5: nạp ETH cho ví keeper (chỉ khi lệnh 6 báo dưới 0.01 ETH)**
 
 Ví keeper cần ETH Sepolia để trả gas. 0.01 ETH là mức tối thiểu, không phải số bắt buộc: nạp nhiều hơn cũng đúng. Không dùng ví relayer hay ví manager để gửi.
 
-Cách A, từ ví admin `0x7Ee5...1a3F` (còn khoảng 0.092 ETH). Chạy ở thư mục gốc trên máy có `blockchain/.env` của admin (máy Hưng), nơi `blockchain/.env` có `SEPOLIA_RPC_URL` và `DEPLOYER_PRIVATE_KEY`. Đổi `KEEPER` thành địa chỉ in ở lệnh 5, đổi `AMOUNT` nếu muốn nạp số khác:
+Cách A, từ ví admin `0x7Ee5...1a3F` (còn khoảng 0.092 ETH). Chạy ở thư mục gốc trên máy có `contracts/.env` của admin (máy Hưng), nơi `contracts/.env` có `SEPOLIA_RPC_URL` và `DEPLOYER_PRIVATE_KEY`. Đổi `KEEPER` thành địa chỉ in ở lệnh 5, đổi `AMOUNT` nếu muốn nạp số khác:
 ```bash
 KEEPER=0xa7b9A8721232acF9050Ca92C8063E549c4AAB6ab AMOUNT=0.01 node -e '
-const {ethers}=require("./blockchain/node_modules/ethers");const fs=require("fs");
-const env=Object.fromEntries(fs.readFileSync("blockchain/.env","utf8").split("\n").filter(l=>/^[A-Z_]+=/.test(l)).map(l=>[l.slice(0,l.indexOf("=")),l.slice(l.indexOf("=")+1).trim().replace(/^["\x27]|["\x27]$/g,"")]));
+const {ethers}=require("./contracts/node_modules/ethers");const fs=require("fs");
+const env=Object.fromEntries(fs.readFileSync("contracts/.env","utf8").split("\n").filter(l=>/^[A-Z_]+=/.test(l)).map(l=>[l.slice(0,l.indexOf("=")),l.slice(l.indexOf("=")+1).trim().replace(/^["\x27]|["\x27]$/g,"")]));
 const to=process.env.KEEPER,amt=process.env.AMOUNT;
 if(!ethers.isAddress(to)){console.error("LOI: KEEPER khong phai dia chi hop le");process.exit(1)}
 (async()=>{const p=new ethers.JsonRpcProvider(env.SEPOLIA_RPC_URL),w=new ethers.Wallet(env.DEPLOYER_PRIVATE_KEY,p);
@@ -236,9 +236,9 @@ keeper balance: <số dư mới> ETH
 Lệnh chờ 2 block xác nhận (khoảng 30 giây trên Sepolia) trước khi in dòng cuối. Dán `tx` vào `https://sepolia.etherscan.io/tx/<hash>` để xem.
 **Sai thì:**
 - `LOI: KEEPER khong phai dia chi hop le`: sửa `KEEPER` (đủ 42 ký tự, bắt đầu `0x`).
-- `LOI: RPC khong phai Sepolia`: `SEPOLIA_RPC_URL` trong `blockchain/.env` sai.
+- `LOI: RPC khong phai Sepolia`: `SEPOLIA_RPC_URL` trong `contracts/.env` sai.
 - `LOI: insufficient funds...`: ví admin hết ETH, dùng cách B.
-- `ENOENT ... blockchain/.env`: không đứng ở thư mục gốc, hoặc máy này không có `.env` của admin.
+- `ENOENT ... contracts/.env`: không đứng ở thư mục gốc, hoặc máy này không có `.env` của admin.
 
 Cách B, không có `.env` admin: dùng faucet Sepolia (dán địa chỉ keeper), hoặc MetaMask (mạng Sepolia, Send, dán địa chỉ keeper, nhập số ETH).
 
@@ -317,7 +317,7 @@ nginx mount `web3/dist` chỉ đọc tại `/dapp/`, file mới có hiệu lực
 
 **Lệnh**
 ```bash
-cd firmware
+cd iot_code
 . /home/nhat/workspace/esp-idf/export.sh
 idf.py -B build-incident -D SDKCONFIG=sdkconfig.incident.generated \
   -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.incident" build
@@ -343,11 +343,11 @@ Không bao giờ chạy `idf.py erase-flash`: lệnh này xóa signer, sequence 
 
 ## A8. Cấp ASAFE cho ví owner (cần cho B12)
 
-Ví owner `0x4aC8fe56c966496a12fCDEc5a1B01c21a97CF30B` có **0 ASAFE** và 0.05 ETH (`(đã chạy)`, 2026-10-03). Treasury (admin `0x7Ee5...1a3F`) đang giữ 949000 ASAFE. Cần file `blockchain/.env` với `DEPLOYER_PRIVATE_KEY` của admin. Máy demo chưa có file đó; **máy Hưng (Windows) có**, nên A8 và A8b chạy trên máy Hưng (lệnh `npx hardhat console` giống nhau trên PowerShell).
+Ví owner `0x4aC8fe56c966496a12fCDEc5a1B01c21a97CF30B` có **0 ASAFE** và 0.05 ETH (`(đã chạy)`, 2026-10-03). Treasury (admin `0x7Ee5...1a3F`) đang giữ 949000 ASAFE. Cần file `contracts/.env` với `DEPLOYER_PRIVATE_KEY` của admin. Máy demo chưa có file đó; **máy Hưng (Windows) có**, nên A8 và A8b chạy trên máy Hưng (lệnh `npx hardhat console` giống nhau trên PowerShell).
 
 **Lệnh (chưa chạy thử)**
 ```bash
-cd blockchain
+cd contracts
 npx hardhat console --network sepolia
 ```
 Trong console:
@@ -370,7 +370,7 @@ Luật P2 phạt operator khi `loggedAt - observedAt` vượt `maxRelayDelay`, n
 
 **Lệnh 1: đọc giá trị hiện tại (không cần khóa)**
 ```bash
-cd blockchain && node -e '
+cd contracts && node -e '
 const {ethers}=require("ethers");
 (async()=>{const p=new ethers.JsonRpcProvider("https://ethereum-sepolia-rpc.publicnode.com",11155111,{staticNetwork:true});
 const abi=require("./abi/SafetyIncentives.json");
@@ -379,9 +379,9 @@ console.log("maxRelayDelay =",(await c.params()).maxRelayDelay.toString());})()'
 ```
 **Đúng khi `(đã chạy)`:** in `maxRelayDelay = 900` (15 phút, trạng thái 2026-10-03).
 
-**Lệnh 2: đặt 3600 giây (1 giờ), cần `blockchain/.env` với `DEPLOYER_PRIVATE_KEY` của admin**
+**Lệnh 2: đặt 3600 giây (1 giờ), cần `contracts/.env` với `DEPLOYER_PRIVATE_KEY` của admin**
 ```bash
-cd blockchain
+cd contracts
 npx hardhat console --network sepolia
 ```
 Trong console:
@@ -499,7 +499,7 @@ Sau tổng duyệt:
 - Đổi nhãn các bước đã đạt thành `(đã chạy)` kèm ngày, cập nhật D4.
 - Bước nào không đạt: ghi lỗi vào D5, quyết định trước ngày demo là sửa hay trình bày bằng Phần C.
 - Kiểm tra số dư ETH relayer, manager, keeper (D1); dưới 0.05 ETH thì nạp thêm.
-- Incident và stake tạo trong tổng duyệt nằm lại trên chain: dùng được làm bằng chứng ở C3. Không unstake (cooldown 7 ngày). `stakeDevice` cho phép stake thêm (`blockchain/contracts/SafetyIncentives.sol`), nên 200 ASAFE ở A8 đủ cho 100 ASAFE stake lúc tổng duyệt và 100 ASAFE stake thêm lúc demo (bond thành 200). Ở B12 bước 3, stake hiện tăng từ 100 lên 200.
+- Incident và stake tạo trong tổng duyệt nằm lại trên chain: dùng được làm bằng chứng ở C3. Không unstake (cooldown 7 ngày). `stakeDevice` cho phép stake thêm (`contracts/contracts/SafetyIncentives.sol`), nên 200 ASAFE ở A8 đủ cho 100 ASAFE stake lúc tổng duyệt và 100 ASAFE stake thêm lúc demo (bond thành 200). Ở B12 bước 3, stake hiện tăng từ 100 lên 200.
 
 ---
 
@@ -511,7 +511,7 @@ Sau tổng duyệt:
 
 **Lệnh**
 ```bash
-cd firmware
+cd iot_code
 . /home/nhat/workspace/esp-idf/export.sh
 idf.py -B build-incident -D SDKCONFIG=sdkconfig.incident.generated \
   -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.incident" menuconfig
@@ -537,7 +537,7 @@ idf.py -B build-incident -D SDKCONFIG=sdkconfig.incident.generated \
 
 **Lệnh**
 ```bash
-cd firmware
+cd iot_code
 . /home/nhat/workspace/esp-idf/export.sh
 idf.py -B build-incident -D SDKCONFIG=sdkconfig.incident.generated \
   -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.incident" build
@@ -559,11 +559,11 @@ grep -E "^CONFIG_(IDF_TARGET|SA_INCIDENT_ENV_SEPOLIA|NVS_ENCRYPTION)=" sdkconfig
 
 **Lệnh**
 ```bash
-cd blockchain && npm test
+cd contracts && npm test
 ```
 **Đúng khi `(đã chạy)`:** có dòng `84 passing` và không có dòng `failing`. Gồm test vector, tamper, signer, replay, role, incentives và kịch bản một ngày.
 
-Node 24 có thể in `Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)` lúc thoát: bỏ qua (xem `blockchain/README.md`).
+Node 24 có thể in `Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)` lúc thoát: bỏ qua (xem `contracts/README.md`).
 
 ### B4. Domain EIP-712 khớp giữa firmware, backend và dApp
 
@@ -597,7 +597,7 @@ npm run test:incentives-e2e
 - Có dòng `✓  1 e2e/incentives.spec.ts:36:1 › one day through the real UI: approve/stake, R1/R2, P1, manual P2, daily cap and cooldown`.
 - Cuối output có `1 passed` (khoảng 30 giây).
 
-Kịch bản đi qua UI các bước: approve và stake, verify evidence, ack/resolve (thưởng R1 và R2), phạt P1 (owner bỏ qua ack), phạt P2 bấm tay (operator relay trễ), trần thưởng theo ngày, quỹ thưởng không đủ, cooldown và withdraw. Các luật và tham số: [`blockchain/README.md`](../blockchain/README.md).
+Kịch bản đi qua UI các bước: approve và stake, verify evidence, ack/resolve (thưởng R1 và R2), phạt P1 (owner bỏ qua ack), phạt P2 bấm tay (operator relay trễ), trần thưởng theo ngày, quỹ thưởng không đủ, cooldown và withdraw. Các luật và tham số: [`contracts/README.md`](../contracts/README.md).
 
 Muốn hội đồng nhìn thấy trình duyệt: `npm run test:incentives-e2e -- --headed` (chưa chạy thử với `--headed`).
 
@@ -613,7 +613,7 @@ Board đã có signer (không cần bước eFuse hay signer-provision). Chỉ f
 
 **Lệnh**
 ```bash
-cd firmware
+cd iot_code
 . /home/nhat/workspace/esp-idf/export.sh
 ls /dev/ttyACM* /dev/ttyUSB*
 idf.py -B build-replay -p /dev/ttyACM0 app-flash monitor
@@ -738,7 +738,7 @@ Lưu ý: tiêu chí hoàn thành M3 của Task 5 là chạy trọn kịch bản 
 
 | Bước | Làm gì | Đúng khi (theo tài liệu) |
 |---|---|---|
-| 1 | Mở `/params` (không cần đăng nhập) | Bảng tham số: `ownerBond` 100 ASAFE, `ackReward` 5, `resolveReward` 5, `dailyRewardCap` 3, `unstakeCooldown` 7 ngày. Các giá trị này khớp `blockchain/deployments/sepolia.incentives.json` |
+| 1 | Mở `/params` (không cần đăng nhập) | Bảng tham số: `ownerBond` 100 ASAFE, `ackReward` 5, `resolveReward` 5, `dailyRewardCap` 3, `unstakeCooldown` 7 ngày. Các giá trị này khớp `contracts/deployments/sepolia.incentives.json` |
 | 2 | Mở `/wallet` | Số dư ASAFE của ví owner đọc từ chain. Sau A11: khoảng `110` (200 - 100 stake + 10 thưởng); ghi số thật từ A11 vào đây |
 | 3 | Stake 100 ASAFE cho thiết bị | dApp làm 2 giao dịch (approve đúng số lượng, rồi stake), ký 2 lần trong MetaMask. Số dư giảm 100, stake tăng từ 100 lên 200 (lần đầu stake thì từ 0 lên 100) |
 | 4 | Tạo incident mới (lặp B7), rồi **ack trong hạn** | Hạn ack 30 phút (mức warning) hoặc 10 phút (mức danger) tính từ `loggedAt`. Sau khi ack được xác nhận, dApp đọc `canRecordAck` (`web3/src/pages/IncidentPage.tsx`): nếu còn `true` thì mở thêm một lần ký MetaMask cho `recordTimelyAck`, phải ký trong hạn ack. Keeper (`KEEPER_ENABLED=true`) cũng ghi nhận sau khi indexer thấy ack (khoảng 1 phút); bên nào vào trước thì bên kia gặp `AlreadySettled` hoặc báo "đã stale", đó là kết quả bình thường. Nhãn `+5` hiện khi một trong hai xong |
@@ -759,7 +759,7 @@ Dùng khi tầng 2 hỏng hoặc không có `.env` Sepolia. Cần khôi phục `
 
 **Lệnh, terminal 1 (để yên, không tắt)**
 ```bash
-cd blockchain
+cd contracts
 npx hardhat compile
 npm run node
 ```
@@ -794,7 +794,7 @@ Giống B6: `cd web3 && npm run test:incentives-e2e`, đúng khi `1 passed`. Đ�
 
 Kiểm tra nhanh trạng thái thật của kit trên chain, không cần server:
 ```bash
-cd blockchain && node -e '
+cd contracts && node -e '
 const {ethers}=require("ethers");
 (async()=>{const p=new ethers.JsonRpcProvider("https://ethereum-sepolia-rpc.publicnode.com",11155111,{staticNetwork:true});
 const abi=require("./abi/AirSafetyLog.json");
@@ -836,7 +836,7 @@ Số dư tại 2026-10-03, block 11835094 (`(đã chạy)`): admin 0.092 ETH và
 
 | RPC | Dùng ở đâu | Ghi chú |
 |---|---|---|
-| Infura key của server | `server/.env` `CHAIN_RPC_URL`, `blockchain/.env` `SEPOLIA_RPC_URL` | Không bao giờ đưa vào dApp |
+| Infura key của server | `server/.env` `CHAIN_RPC_URL`, `contracts/.env` `SEPOLIA_RPC_URL` | Không bao giờ đưa vào dApp |
 | Infura key riêng của dApp | `VITE_RPC_URL` lúc build (A5) | Bắt buộc allowlist Origin `https://minhnhat05.xyz` |
 | `ethereum-sepolia-rpc.publicnode.com` | Lệnh kiểm tra trong runbook (số dư, `eth_call`, receipt mới), dự phòng cho dApp | Xóa receipt cũ khoảng 1 ngày, log cũ khoảng 1,5 đến 2,5 ngày, trả rỗng không báo lỗi |
 
@@ -861,7 +861,7 @@ Các việc còn lại:
 - Báo người giữ `.env` rằng worker của bạn **đã dừng**, để họ chạy lại worker của họ.
 - Flash lại bản production cho kit (bỏ chế độ replay), giữ NVS:
   ```bash
-  cd firmware && . /home/nhat/workspace/esp-idf/export.sh
+  cd iot_code && . /home/nhat/workspace/esp-idf/export.sh
   idf.py -B build-incident -p /dev/ttyACM0 app-flash
   ```
 - Ví keeper: giữ lại nếu còn dùng, hoặc xóa dòng `KEEPER_PRIVATE_KEY` và đặt `KEEPER_ENABLED=false`. Số ETH còn lại trong ví keeper không tự về, cần gửi lại bằng khóa đó.
@@ -898,7 +898,7 @@ Máy Nhật (Linux), commit `2d1f760` cộng các sửa sau đó đã commit th�
 | Firmware build, profile Sepolia | `idf.py -B build-incident ... build` | Thành công, `smart-air.bin` 0x1684d0, 30% còn trống |
 | Firmware build, profile replay | `idf.py -B build-replay ... build` | Thành công, `smart-air.bin` 0x16a670, 29% còn trống |
 | Sinh domain EIP-712 | `node spec/incident/gen/gen-all.mjs --check` | `up to date` |
-| Contract | `cd blockchain && npm test` | 84 passing (82 cũ và 2 test mô tả giới hạn đã biết) |
+| Contract | `cd contracts && npm test` | 84 passing (82 cũ và 2 test mô tả giới hạn đã biết) |
 | Backend | `IDF_PATH=... npm test` trong `server/api` | 239 tests: 235 pass, 0 fail, 4 skipped |
 | dApp unit và tích hợp | `cd web3 && npm run test` | 121 pass, 0 fail, 2 skipped. `npx tsc -b` sạch |
 | Task 8 E2E trình duyệt | `cd web3 && npm run test:incentives-e2e` | 1 passed, khoảng 30 giây |

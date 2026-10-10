@@ -3,10 +3,10 @@
 //
 // Skipped unless E2E_CHAIN_RPC_URL points at a hardhat node (chain 11155111):
 //
-//   cd blockchain && npx hardhat compile && npx hardhat node
+//   cd contracts && npx hardhat compile && npx hardhat node
 //   cd server/api && E2E_CHAIN_RPC_URL=http://127.0.0.1:8545 node --test test/e2e/chain-e2e.test.js
 //
-// Each run deploys a fresh AirSafetyLog from blockchain/artifacts with the public hardhat
+// Each run deploys a fresh AirSafetyLog from contracts/artifacts with the public hardhat
 // accounts (#0 admin, #1 relayer, #2 device manager, #3 owner). The DB is PGlite with the
 // real migrations. MQTT is represented by handleIncident(); the firmware side of the
 // scenarios (rotate guard, sequence floor) is covered by the firmware host tests.

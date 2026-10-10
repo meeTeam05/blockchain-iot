@@ -174,7 +174,7 @@ Firmware trên ESP32-S3 chịu trách nhiệm cho:
 - factory reset
 - lưu cấu hình bền vững bằng NVS
 
-Entrypoint của firmware vẫn là `app_main()` trong `firmware/main/main.c`, và toàn bộ boot orchestration nằm trong `firmware/components/core/sysload/sysload.c`.
+Entrypoint của firmware vẫn là `app_main()` trong `iot_code/main/main.c`, và toàn bộ boot orchestration nằm trong `iot_code/components/core/sysload/sysload.c`.
 
 ### 3.2 Boot flow hiện tại
 
@@ -292,7 +292,7 @@ sequenceDiagram
 
 #### Bước 1: BLE Wi-Fi provisioning
 
-`firmware/components/general/ble_prov/ble_prov.c` triển khai BLE provisioning.
+`iot_code/components/general/ble_prov/ble_prov.c` triển khai BLE provisioning.
 
 Kiến trúc hiện tại:
 
@@ -306,7 +306,7 @@ Nó không cấp MQTT credential.
 
 #### Bước 2: local HTTP credential handoff
 
-Sau khi thiết bị đã lên Wi-Fi, `firmware/components/general/httpd/httpd.c` mở local HTTP server với hai endpoint:
+Sau khi thiết bị đã lên Wi-Fi, `iot_code/components/general/httpd/httpd.c` mở local HTTP server với hai endpoint:
 
 - `GET /api/info` -> trả `device_id`, `firmware`, `ip`
 - `POST /api/config` -> nhận `device_id`, `secret_key`, optional `broker_uri`
@@ -322,7 +322,7 @@ Về mặt kiến trúc, đây là bước app chuyển MQTT credential do serve
 
 ### 3.6 MQTT architecture trên thiết bị
 
-`firmware/components/general/sa_mqtt/mqtt.c` là MQTT client của thiết bị.
+`iot_code/components/general/sa_mqtt/mqtt.c` là MQTT client của thiết bị.
 
 Runtime shape hiện tại:
 
@@ -827,7 +827,7 @@ Các file contract liên quan trực tiếp tới kiến trúc hiện tại:
 - `docs/reference/MQTT_PROTOCOL.md`: contract topic/payload MQTT
 - `docs/reference/API_REFERENCE.md`: HTTP contract của API
 - `server/docker-compose.yml`: runtime topology của server stack
-- `firmware/components/core/sysload/sysload.c`: boot orchestration của firmware
+- `iot_code/components/core/sysload/sysload.c`: boot orchestration của firmware
 - `server/api/src/app.js`: plugin và route registration của API
 - `app/lib/core/router.dart`: routing topology của app
 

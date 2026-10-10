@@ -1,8 +1,8 @@
-// spec/incident/deployments + blockchain/abi -> web3/src/generated/incident-deployments.ts
+// spec/incident/deployments + contracts/abi -> web3/src/generated/incident-deployments.ts
 //
 //   node spec/incident/gen/gen-web3.mjs [--check]
 // Unlike gen-backend.mjs, web3/'s build has direct filesystem access to
-// blockchain/abi/ (same repo checkout, no separate Docker build context), but
+// contracts/abi/ (same repo checkout, no separate Docker build context), but
 // the ABI is still embedded here so the generated module stays self-contained
 // and `as const`-typed for viem's contract type inference.
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';

@@ -1,6 +1,6 @@
 # AI gas EWS trong firmware
 
-Tài liệu này mô tả phần AI trên nhánh `feature/ai-gas-ews`, dựa trên mã trong `firmware/components/core/ai/`. Mục tiêu của nó là **cảnh báo sớm nguy cơ CO hoặc NO2 vượt chuẩn QCVN 03:2019/BYT**; nó không phải model phân loại chất lượng không khí 3 lớp như nhánh AI cũ.
+Tài liệu này mô tả phần AI trên nhánh `feature/ai-gas-ews`, dựa trên mã trong `iot_code/components/core/ai/`. Mục tiêu của nó là **cảnh báo sớm nguy cơ CO hoặc NO2 vượt chuẩn QCVN 03:2019/BYT**; nó không phải model phân loại chất lượng không khí 3 lớp như nhánh AI cũ.
 
 ## Kết luận ngắn
 
@@ -168,8 +168,8 @@ Khi feature đã được build, `ai_set` chỉ là công tắc runtime:
 
 ## Nguồn để đọc sâu hơn
 
-- `firmware/components/core/ai/ai.c`: task suy luận, còi, MQTT và công tắc runtime.
-- `firmware/components/core/ai/gas_ews.c`: tạo feature, STEL/TWA/ngoại suy, debounce và quyết định level.
-- `firmware/components/core/ai/include/gas_ews_contract.h`: contract, ngưỡng và kích thước cửa sổ sinh từ pipeline huấn luyện.
-- `firmware/components/core/ai/REVIEW_MODEL.md`: đánh giá riêng về model, các giới hạn T/RH và việc cần đo trên board.
-- `firmware/components/core/ai/BOARD_TEST.md`: checklist flash, UART và MQTT để xác thực trên board thật.
+- `iot_code/components/core/ai/ai.c`: task suy luận, còi, MQTT và công tắc runtime.
+- `iot_code/components/core/ai/gas_ews.c`: tạo feature, STEL/TWA/ngoại suy, debounce và quyết định level.
+- `iot_code/components/core/ai/include/gas_ews_contract.h`: contract, ngưỡng và kích thước cửa sổ sinh từ pipeline huấn luyện.
+- `iot_code/components/core/ai/REVIEW_MODEL.md`: đánh giá riêng về model, các giới hạn T/RH và việc cần đo trên board.
+- `iot_code/components/core/ai/BOARD_TEST.md`: checklist flash, UART và MQTT để xác thực trên board thật.

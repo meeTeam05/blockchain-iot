@@ -173,9 +173,9 @@ Lỗi nghiêm trọng thì worker dừng hẳn, row vẫn ở `queued`:
 Làm khi khóa relayer có thể bị lộ, hoặc định kỳ.
 
 1. Tạo ví mới, nạp ETH (§3). **Không** dùng ví admin.
-2. Cấp role bằng ví admin (`blockchain/.env`: `DEPLOYER_PRIVATE_KEY`, `SEPOLIA_RPC_URL`):
+2. Cấp role bằng ví admin (`contracts/.env`: `DEPLOYER_PRIVATE_KEY`, `SEPOLIA_RPC_URL`):
    ```bash
-   cd blockchain
+   cd contracts
    npx hardhat roles --network sepolia --action grant --role RELAYER_ROLE --account <ví mới>
    ```
 3. Chờ không còn outbox `pending`: `make chain-status` → `outbox.by_status.pending = 0`.

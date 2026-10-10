@@ -156,9 +156,9 @@ không nhận domain qua MQTT.
 Deployment Sepolia cũ tại
 `0x4E6e20bC0601CddD6Cb0C3AE8440e6933839A8Aa` (source verified). Address và tx
 deploy cũ nằm trong
-[`blockchain/deployments/sepolia.json`](../blockchain/deployments/sepolia.json);
+[`contracts/deployments/sepolia.json`](../contracts/deployments/sepolia.json);
 ABI của source hiện tại nằm tại
-[`blockchain/abi/AirSafetyLog.json`](../blockchain/abi/AirSafetyLog.json).
+[`contracts/abi/AirSafetyLog.json`](../contracts/abi/AirSafetyLog.json).
 `verifyingContract` trong test vector (`0xCccc…`) chỉ dùng cho test.
 Deployment cũ dùng high-water-mark sequence và không tương thích delivery lệch
 thứ tự; source hiện tại phải được deploy thành address mới trước E2E.

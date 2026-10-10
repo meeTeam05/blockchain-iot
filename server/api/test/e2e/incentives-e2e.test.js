@@ -4,11 +4,11 @@
 //
 // Skipped unless E2E_CHAIN_RPC_URL points at a hardhat node (chain 11155111):
 //
-//   cd blockchain && npx hardhat compile && npx hardhat node
+//   cd contracts && npx hardhat compile && npx hardhat node
 //   cd server/api && E2E_CHAIN_RPC_URL=http://127.0.0.1:8545 node --test test/e2e/incentives-e2e.test.js
 //
 // Each run deploys fresh AirSafetyLog + AirSafeToken + SafetyIncentives from
-// blockchain/artifacts with public hardhat accounts #6..#11 (admin/Treasury, relayer =
+// contracts/artifacts with public hardhat accounts #6..#11 (admin/Treasury, relayer =
 // incentives operator, device manager, owner, server keeper, outside keeper K). They differ
 // from chain-e2e's #0..#3 because node --test runs files in parallel on the same node.
 // Deadlines are crossed with evm_increaseTime. Nothing calls the reward or P1 functions
@@ -36,7 +36,7 @@ const RPC_URL = process.env.E2E_CHAIN_RPC_URL;
 const skip = RPC_URL ? false : 'set E2E_CHAIN_RPC_URL to a hardhat node to run the incentives E2E';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const ARTIFACTS = path.resolve(HERE, '../../../../blockchain/artifacts/contracts');
+const ARTIFACTS = path.resolve(HERE, '../../../../contracts/artifacts/contracts');
 // Public hardhat development accounts (default mnemonic), see the header for why #6..#11.
 const HARDHAT_MNEMONIC = 'test test test test test test test test test test test junk';
 const hardhatKey = (index) => HDNodeWallet.fromPhrase(HARDHAT_MNEMONIC, undefined, `m/44'/60'/0'/0/${index}`).privateKey;

@@ -6,24 +6,24 @@ types a contract address by hand; everything is generated from this folder.
 
 ```text
 spec/incident/
-  deployments/<network>.json   written by blockchain/scripts/deploy.js (localhost, sepolia)
+  deployments/<network>.json   written by contracts/scripts/deploy.js (localhost, sepolia)
   legacy-domains.json          seed list of old domains devices may still hold records for
   gen/gen-all.mjs              regenerates every derived file (--check for CI)
-  gen/gen-firmware.mjs         -> firmware/components/core/incident/include/incident_domain.h
+  gen/gen-firmware.mjs         -> iot_code/components/core/incident/include/incident_domain.h
   gen/gen-backend.mjs          -> server/api/src/generated/incident-deployments.js (+ ABI)
-  gen/gen-incentives.mjs       blockchain/deployments/<network>.incentives.json
+  gen/gen-incentives.mjs       contracts/deployments/<network>.incentives.json
                                -> server/api/src/generated/incentives-deployments.js (+ ABI)
 ```
 
 ## Flow after a deployment
 
 ```bash
-cd blockchain
+cd contracts
 npm run deploy:sepolia               # or: npx hardhat node & npm run deploy:localhost
 cd ..
 node spec/incident/gen/gen-all.mjs   # regenerate firmware header + backend module
-git add spec/incident firmware/components/core/incident/include/incident_domain.h \
-        server/api/src/generated blockchain/deployments blockchain/abi
+git add spec/incident iot_code/components/core/incident/include/incident_domain.h \
+        server/api/src/generated contracts/deployments contracts/abi
 git commit                            # deployment + generated files in ONE commit
 ```
 

@@ -13,7 +13,7 @@ và có thể resume mà không gửi lại transaction.
 
 Deployment incentives lấy từ generator chung; chạy `npm run sync-abi`,
 hoặc `npm run sync-abi -- --check` để kiểm tra drift. Nếu chưa có
-`blockchain/deployments/sepolia.incentives.json`, UI báo unavailable,
+`contracts/deployments/sepolia.incentives.json`, UI báo unavailable,
 không dùng địa chỉ giả. Không có admin/private-key transaction trong dApp.
 
 Gate browser Task 8 độc lập:
@@ -53,7 +53,7 @@ VITE_RPC_URL=http://127.0.0.1:8545
 VITE_API_BASE_URL=http://127.0.0.1:3000/api
 ```
 
-Với local Hardhat, chạy `cd blockchain && npm run node`, deploy canonical
+Với local Hardhat, chạy `cd contracts && npm run node`, deploy canonical
 contract theo workflow của project rồi mở `/dapp/`; MetaMask phải trỏ đúng RPC
 local và import/fund account cần thao tác. Với Sepolia, đặt `VITE_NETWORK=sepolia`
 và dùng RPC Sepolia, nhưng không deploy lại từ dApp. Localhost và Sepolia cố ý
@@ -98,7 +98,7 @@ MetaMask** để chạy test này (mock connector, không phải MetaMask thật
 
 Cần dựng sẵn trước khi chạy (giống mọi test trong `server/api/test/e2e/*`):
 ```bash
-cd blockchain && npx hardhat node --hostname 0.0.0.0   # giữ chạy
+cd contracts && npx hardhat node --hostname 0.0.0.0   # giữ chạy
 cd server && docker compose up -d postgres redis emqx api
 docker compose up -d --profile chain chain-worker       # sau khi contract đã deploy ở địa chỉ trong spec/incident/deployments/localhost.json
 ```

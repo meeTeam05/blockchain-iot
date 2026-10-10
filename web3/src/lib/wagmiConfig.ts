@@ -1,5 +1,5 @@
 // B0/B1: wallet connection. Chain ID 11155111 is used for BOTH localhost
-// hardhat and Sepolia (deliberate collision in blockchain/hardhat.config.js,
+// hardhat and Sepolia (deliberate collision in contracts/hardhat.config.js,
 // kept so Schema v2 test vectors verify against either) -- always check the
 // RPC actually in use via the eip712Domain banner (DomainMismatchBanner),
 // never assume chainId alone proves the right network.

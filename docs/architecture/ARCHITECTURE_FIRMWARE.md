@@ -16,7 +16,7 @@ Firmware chạy trên ESP32-S3 và là runtime phía thiết bị cho các trác
 - factory reset vật lý
 - HTTPS OTA với rollback-aware validation
 
-Entrypoint vẫn là `app_main()` trong `firmware/main/main.c`, và phần orchestration chính nằm ở `firmware/components/core/sysload/sysload.c`.
+Entrypoint vẫn là `app_main()` trong `iot_code/main/main.c`, và phần orchestration chính nằm ở `iot_code/components/core/sysload/sysload.c`.
 
 ## 2. Ranh giới component
 
@@ -176,7 +176,7 @@ Trong tree hiện tại, đây là ràng buộc build/config và driver layout. 
 
 Firmware chia config thành hai lớp:
 
-- compile-time defaults trong `firmware/main/Kconfig.projbuild`
+- compile-time defaults trong `iot_code/main/Kconfig.projbuild`
 - runtime overrides / persisted state trong NVS
 
 ### 6.1 Compile-time config
@@ -256,7 +256,7 @@ sequenceDiagram
 
 ### 7.1 BLE Wi-Fi provisioning
 
-`firmware/components/general/ble_prov/ble_prov.c` hiện triển khai một custom GATT service:
+`iot_code/components/general/ble_prov/ble_prov.c` hiện triển khai một custom GATT service:
 
 - service UUID `0xFFFE`
 - characteristic `0xFF01`: ghi SSID

@@ -46,9 +46,9 @@ ESP32 (ký EIP-712) → MQTT/WSS → EMQX → API (xác thực, outbox) → chai
 
 ```powershell
 git clone <repo-url> blockchain-iot
-cd blockchain-iot
+cd contracts-iot
 git checkout integration/task1-task2-task3
-cd blockchain;  npm ci; cd ..
+cd contracts;  npm ci; cd ..
 cd server\api;  npm ci; cd ..\..
 node spec/incident/gen/gen-all.mjs --check
 ```
@@ -87,7 +87,7 @@ Mức này kiểm tra code relayer, contract và indexer trên máy bạn trư�
 
 ```powershell
 # Terminal 1: để yên, không tắt
-cd blockchain
+cd contracts
 npx hardhat compile
 npx hardhat node
 
@@ -235,7 +235,7 @@ Manager, mục *Ports (COM & LPT)*. Bên dưới dùng `COM5` làm ví dụ.
 ### 3.2 Build firmware (build không cần board)
 
 ```powershell
-cd firmware
+cd iot_code
 idf.py -B build-incident -D SDKCONFIG=sdkconfig.incident.generated -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.incident" build
 Select-String "INCIDENT_ENV_SEPOLIA=y|NVS_ENCRYPTION=y|IDF_TARGET=" sdkconfig.incident.generated
 ```
@@ -344,7 +344,7 @@ Trước khi có floor, board bỏ qua incident và log
 Khi không có khí CO/NO₂ thật, flash bản **replay dữ liệu giả lập** (chỉ để test). Bản này vẫn chạy mạng thật:
 
 ```powershell
-cd firmware
+cd iot_code
 idf.py -B build-replay -D SDKCONFIG=sdkconfig.replay.generated -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.incident;sdkconfig.incident.network-replay" build
 idf.py -B build-replay -p COM5 app-flash monitor
 ```

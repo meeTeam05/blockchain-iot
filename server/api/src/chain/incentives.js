@@ -1,6 +1,6 @@
 // SafetyIncentives / AirSafeToken bindings for the chain worker.
 // The incentives contracts only read AirSafetyLog; the deployment record comes from
-// blockchain/deployments/<network>.incentives.json through the generated module.
+// contracts/deployments/<network>.incentives.json through the generated module.
 import { Contract, Wallet, getAddress } from 'ethers';
 
 import { AIR_SAFE_TOKEN_ABI, INCENTIVES_DEPLOYMENTS, SAFETY_INCENTIVES_ABI } from '../generated/incentives-deployments.js';
@@ -62,7 +62,7 @@ export function resolveIncentivesDeployment(name, airSafetyLogAddress, deploymen
     const deployment = deployments[name];
     if (!deployment) {
         throw new ChainFatalError(
-            `no blockchain/deployments/${name}.incentives.json (known: ${Object.keys(deployments).join(', ') || 'none'})`
+            `no contracts/deployments/${name}.incentives.json (known: ${Object.keys(deployments).join(', ') || 'none'})`
         );
     }
     if (getAddress(deployment.airSafetyLog) !== getAddress(airSafetyLogAddress)) {

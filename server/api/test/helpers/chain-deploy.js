@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { ContractFactory, JsonRpcProvider, NonceManager, Wallet } from 'ethers';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-export const ARTIFACT = path.resolve(HERE, '../../../../blockchain/artifacts/contracts/AirSafetyLog.sol/AirSafetyLog.json');
+export const ARTIFACT = path.resolve(HERE, '../../../../contracts/artifacts/contracts/AirSafetyLog.sol/AirSafetyLog.json');
 
 // Publicly known hardhat development keys (accounts #0-#3).
 export const KEYS = Object.freeze({
@@ -25,7 +25,7 @@ export function createProvider(rpcUrl) {
     return new JsonRpcProvider(rpcUrl, undefined, { staticNetwork: true, cacheTimeout: -1 });
 }
 
-// Deploys a fresh AirSafetyLog from blockchain/artifacts and grants
+// Deploys a fresh AirSafetyLog from contracts/artifacts and grants
 // RELAYER_ROLE / DEVICE_MANAGER_ROLE to the public hardhat relayer/manager
 // keys. Returns the live ethers contract plus its deployed address.
 export async function deploy(provider) {

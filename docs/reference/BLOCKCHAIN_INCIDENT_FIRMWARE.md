@@ -29,7 +29,7 @@ Private keys are never compiled or logged. `incident_provision_signer()` refuses
 Useful commands once ESP-IDF is installed:
 
 ```sh
-cd firmware
+cd iot_code
 idf.py build
 idf.py -B build-incident-enabled \
   -D SDKCONFIG=sdkconfig.incident.generated \

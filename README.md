@@ -14,7 +14,7 @@ An ESP32-S3 indoor air quality monitor and smart home controller with a tamper-e
 ```text
                   BLE (Wi-Fi provisioning)
    Mobile app  <------------------------->  ESP32-S3 firmware
-   (Expo, app/)                              (ESP-IDF, firmware/)
+   (Expo, app/)                              (ESP-IDF, iot_code/)
         |                                      |  MQTT over TLS/WSS
         | REST + SSE                           v
         |                                   EMQX broker
@@ -38,10 +38,10 @@ Incident path: *device signs -> MQTT -> API verifies and stores -> relayer `logI
 
 | Directory | Role | Stack |
 |---|---|---|
-| [`firmware/`](firmware) | Sensors, display, relays, BLE provisioning, MQTT, OTA, on-device gas AI, signed incident queue | ESP-IDF 5.4.2, ESP32-S3, LVGL, TFLite Micro |
+| [`iot_code/`](iot_code) | Device firmware: sensors, display, relays, BLE provisioning, MQTT, OTA, on-device gas AI, signed incident queue | ESP-IDF 5.4.2, ESP32-S3, LVGL, TFLite Micro |
 | [`server/`](server) | API, MQTT broker, databases, reverse proxy, tunnel, chain worker | Fastify 4, PostgreSQL/TimescaleDB, Redis, EMQX, Nginx, ethers 6 |
 | [`app/`](app) | Mobile app: homes, BLE provisioning, dashboard, commands, OTA, calibration | Expo SDK 57, React Native, expo-router |
-| [`blockchain/`](blockchain) | `AirSafetyLog`, `AirSafeToken`, `SafetyIncentives`, tests, deploy scripts | Solidity 0.8.28, Hardhat, OpenZeppelin 5 |
+| [`contracts/`](contracts) | Smart contracts: `AirSafetyLog`, `AirSafeToken`, `SafetyIncentives`, tests, deploy scripts | Solidity 0.8.28, Hardhat, OpenZeppelin 5 |
 | [`web3/`](web3) | dApp: verify evidence, acknowledge/resolve, token wallet, staking, keeper board | Vite, React 19, wagmi 3, viem 2 |
 | [`spec/incident/`](spec/incident) | Single source of the EIP-712 domain and its generators | Node scripts |
 | [`hardware/`](hardware) | KiCad schematic, PCB, BOM | KiCad |
@@ -52,9 +52,9 @@ Incident path: *device signs -> MQTT -> API verifies and stores -> relayer `logI
 | Required item | Location |
 |---|---|
 | `README.md` | this file |
-| `/contracts` (Solidity) | [`blockchain/contracts/`](blockchain/contracts) |
-| `/iot_code` (device firmware) | [`firmware/`](firmware) |
-| `/ai_model` (model file and inference code) | [`firmware/components/core/ai/`](firmware/components/core/ai), weights in [`model/gas_ews_int8.tflite`](firmware/components/core/ai/model/gas_ews_int8.tflite) |
+| `/contracts` (Solidity) | [`contracts/`](contracts), sources in [`contracts/contracts/`](contracts/contracts) |
+| `/ai_model` (model file) | [`ai_model/`](ai_model) |
+| `/iot_code` (device firmware) | [`iot_code/`](iot_code) |
 | `Report_Nhom10.pdf` | [`Report_Nhom10.pdf`](Report_Nhom10.pdf) |
 
 ## Sepolia deployment (chain ID 11155111)
@@ -78,7 +78,7 @@ make server-env-init          # create server/.env from the example, then fill t
 make server-up                # postgres, redis, emqx, api, nginx, cloudflared
 make server-check             # read-only connectivity checks
 
-cd blockchain && npm ci && npm test
+cd contracts && npm ci && npm test
 
 make web3-install && make web3-dev        # http://127.0.0.1:5173/dapp/
 make app-install && make app-run          # Android device connected over USB
@@ -91,7 +91,7 @@ Configuration is read from `server/.env`. The backend deployment is selected by 
 
 | Area | Test command |
 |---|---|
-| Contracts | `cd blockchain && npm test` |
+| Contracts | `cd contracts && npm test` |
 | Backend | `IDF_PATH=<esp-idf path> make server-test` |
 | Mobile app | `make app-test` |
 | dApp unit and integration | `make web3-test` |
@@ -112,7 +112,7 @@ Configuration is read from `server/.env`. The backend deployment is selected by 
 | On-device gas AI | [`docs/reference/AI.md`](docs/reference/AI.md) |
 | MQTT topics and payloads | [`docs/reference/MQTT_PROTOCOL.md`](docs/reference/MQTT_PROTOCOL.md) |
 | REST and SSE API | [`docs/reference/API_REFERENCE.md`](docs/reference/API_REFERENCE.md) |
-| Contracts, incentive rules, deployment | [`blockchain/README.md`](blockchain/README.md) |
+| Contracts, incentive rules, deployment | [`contracts/README.md`](contracts/README.md) |
 | dApp | [`web3/README.md`](web3/README.md) |
 | Change history | [`CHANGELOG.md`](CHANGELOG.md) |
 

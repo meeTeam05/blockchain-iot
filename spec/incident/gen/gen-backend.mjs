@@ -1,4 +1,4 @@
-// spec/incident/deployments + blockchain/abi -> server/api/src/generated/incident-deployments.js
+// spec/incident/deployments + contracts/abi -> server/api/src/generated/incident-deployments.js
 //
 //   node spec/incident/gen/gen-backend.mjs [--check]
 // The ABI is embedded because the API Docker build context is server/api only.
