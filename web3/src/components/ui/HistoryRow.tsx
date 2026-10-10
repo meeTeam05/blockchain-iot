@@ -1,4 +1,4 @@
-// Ported from app_new/src/components/atoms/HistoryRow.tsx. Used for every
+// Ported from app/src/components/atoms/HistoryRow.tsx. Used for every
 // row in B6 ("Lịch sử on-chain").
 import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'

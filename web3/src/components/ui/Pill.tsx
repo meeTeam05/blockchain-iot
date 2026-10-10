@@ -1,4 +1,4 @@
-// Ported from app_new/src/components/atoms/Pill.tsx. The "Warden" token set
+// Ported from app/src/components/atoms/Pill.tsx. The "Warden" token set
 // (src/index.css) already defines brand/warn/accent/danger as the dark,
 // text-safe variant of each color -- no per-tone hex override needed here
 // (unlike the old Atmosphere tokens, where decision #21 had to darken each

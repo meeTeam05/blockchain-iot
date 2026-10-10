@@ -63,7 +63,7 @@ static int64_t s_last_publish_ms = 0;
 #if CONFIG_SA_AI_REPLAY
 /* Bench test: ai_replay_task feeds gas_ews from ai_replay_data.h instead of
  * the sensors, on a simulated clock (see Kconfig SA_AI_REPLAY / _SPEED).
- * Decoding must match export_replay.py. */
+ * Decoding must match the encoding described in ai_replay_data.h. */
 #include "ai_replay_data.h"
 _Static_assert(CONFIG_SA_AI_REPLAY_SCENARIO < AI_REPLAY_SCENARIO_COUNT, "unknown SA_AI_REPLAY_SCENARIO");
 static const ai_replay_scenario_t *const s_replay = &k_replay_scenarios[CONFIG_SA_AI_REPLAY_SCENARIO];

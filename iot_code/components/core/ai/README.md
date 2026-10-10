@@ -1,6 +1,6 @@
 # `components/core/ai`: Cảnh báo sớm CO/NO2 theo QCVN 03:2019/BYT (ESP32-S3)
 
-Component này chạy trên thiết bị, dùng trực tiếp số đọc ppm của GM-702B (CO) và GM-102B (NO2). Nó thay cho model AQI 24 giờ trước đây; model cũ vẫn còn trong lịch sử git. Phần huấn luyện, đánh giá và nguồn gốc của mọi hằng số nằm ở repo `ungdungdidong/gas_ews/`.
+Component này chạy trên thiết bị, dùng trực tiếp số đọc ppm của GM-702B (CO) và GM-102B (NO2). Nó thay cho model AQI 24 giờ trước đây; model cũ vẫn còn trong lịch sử git.
 
 Component chỉ **báo còi và publish `ai/state`**. Nó **không điều khiển relay**.
 
@@ -141,7 +141,7 @@ Kết quả trên tập test mô phỏng (hệ thống đầy đủ):
 - CO: báo trước 92% đợt, trung vị sớm hơn +6.5 phút, 0.21 lần báo nhầm/ngày.
 - NO2: báo trước 100% đợt, +12.7 phút, 0.19 lần báo nhầm/ngày.
 
-Chi tiết và kiểm thử trên dữ liệu thật: [REVIEW_MODEL.md](REVIEW_MODEL.md), `ungdungdidong/gas_ews/README.md`.
+Chi tiết và kiểm thử trên dữ liệu thật: [REVIEW_MODEL.md](REVIEW_MODEL.md).
 
 ## 5. MQTT `device/{id}/ai/state`
 
@@ -183,14 +183,6 @@ gcc -std=c99 -O2 -I../include sim_gas_ews_timeline.c ../gas_ews.c -o sim -lm && 
 
 **Replay dữ liệu mô phỏng trên board** (không cần khí): bật `SA_AI_REPLAY` và chọn `SA_AI_REPLAY_SCENARIO` (0 = `co_event`, 1 = `no2_event`). AI bỏ qua số đọc thật và phát lại kịch bản trong `ai_replay_data.h` trên đồng hồ mô phỏng, tua nhanh `SA_AI_REPLAY_SPEED` lần (mặc định 60: kịch bản 72 phút chạy trong ~72 s). Mỗi bước in một dòng `RS,`; so log với kết quả Python bằng `tools/replay/compare_replay_log.py` (xem [BOARD_TEST.md](BOARD_TEST.md) mục 5A). Chỉ dùng để test, không bao giờ bật khi build bản dùng thật.
 
-Sau khi train lại model, cập nhật model, `gas_ews_contract.h`, `gas_ews_selftest.h`, golden vector, rồi dữ liệu replay bằng:
-
-```bash
-cd ungdungdidong
-PYTHONPATH=. .venv_export/Scripts/python -m gas_ews.export_firmware --fw D:/project/aiot-edge
-PYTHONPATH=. .venv_export/Scripts/python -m gas_ews.export_replay --fw D:/project/aiot-edge
-```
-
 ## 7. Trước khi dùng thật
 
 - **Phải hiệu chuẩn cảm biến** (preheat ≥ 24 giờ, rồi chạy `calibrate_co` / `calibrate_no2`). Khi chưa hiệu chuẩn, GM-102B đọc khoảng 2 ppm NO2 trong không khí sạch, tức 75% ngưỡng TWA của NO2.
@@ -200,7 +192,7 @@ PYTHONPATH=. .venv_export/Scripts/python -m gas_ews.export_replay --fw D:/projec
 - Model được train trên mô phỏng và kiểm thử trên dữ liệu thật công khai. Bước kiểm chứng cuối cùng vẫn là thiết bị đặt cạnh một máy đo tham chiếu.
 - RAM tĩnh: khoảng 12 KB cho `gas_ews`, 3.8 KB buffer cửa sổ trong `ai.c`. Arena 16 KB nằm trong PSRAM.
 
-Rà soát đầy đủ: [REVIEW_HOAT_DONG.md](REVIEW_HOAT_DONG.md) (hệ thống, TWA), [REVIEW_MODEL.md](REVIEW_MODEL.md) (model). Nhật ký công việc: [WORKLOG.md](WORKLOG.md).
+Rà soát đầy đủ: [REVIEW_HOAT_DONG.md](REVIEW_HOAT_DONG.md) (hệ thống, TWA), [REVIEW_MODEL.md](REVIEW_MODEL.md) (model).
 
 ## 8. File
 

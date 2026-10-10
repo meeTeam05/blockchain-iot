@@ -1,4 +1,4 @@
-// Ported from app_new/src/components/atoms/DotLogo.tsx (SVG, same math).
+// Ported from app/src/components/atoms/DotLogo.tsx (SVG, same math).
 interface DotLogoProps {
   size?: number
   color: string

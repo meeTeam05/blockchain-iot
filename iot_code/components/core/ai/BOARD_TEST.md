@@ -1,6 +1,6 @@
 # Test AI (`gas_ews`) trên board thật
 
-Checklist cho nhánh `feature/ai-gas-ews`. Mỗi mục ghi: lệnh cần chạy, rồi điều phải thấy (log UART, MQTT, app). Ghi kết quả vào bảng ở mục 7.
+Checklist cho nhánh `feature/ai-gas-ews`. Mỗi mục ghi: lệnh cần chạy, rồi điều phải thấy (log UART, MQTT, app). Ghi kết quả vào bảng ở mục 6.
 
 Ký hiệu: `{id}` = device ID, `{host}` = domain server, `{token}` = JWT access token (hết hạn sau 15 phút, lấy lại bằng `POST /api/auth/refresh`).
 
@@ -34,7 +34,7 @@ device/{id}/response
 device/{id}/telemetry
 ```
 
-Ghi lại giờ bật board, cần cho mục 6.
+Ghi lại giờ bật board.
 
 ---
 
@@ -184,47 +184,9 @@ Script so từng bước: mức cảnh báo phải khớp tuyệt đối, `p_mod
 - Giá trị từng bước 10 s: `tools/replay/replay_<tên>_expected.csv`, gồm các cột `co_stel15_ppm`, `co_proj10_ppm`, `co_p_model`, `co_state`, … `compare_replay_log.py` so tự động với các file này.
 - Dữ liệu đầu vào: `tools/replay/replay_<tên>_in.csv`.
 
-Sinh lại dữ liệu replay sau khi train lại model:
-
-```bash
-cd ungdungdidong
-PYTHONPATH=. .venv_export/Scripts/python -m gas_ews.export_replay --fw D:/project/aiot-edge
-```
-
 ---
 
-## 6. So sánh trực tiếp board với máy tính (cùng dữ liệu)
-
-Mục đích: chứng minh board tính **đúng như Python** trên dữ liệu thật của chính lần test.
-
-1. Xuất telemetry trên server:
-   ```bash
-   scripts/export-telemetry-csv.sh      # -> data/csv_analytics/telemetry_flat.csv
-   ```
-   Lọc lấy các dòng của `{id}` trong khoảng thời gian test, lưu thành `test_board.csv` (giữ nguyên các cột `ts, co_ppm, no2_ppm, temperature, humidity`).
-2. Chạy pipeline tham chiếu (INT8, giống firmware):
-   ```bash
-   cd ungdungdidong
-   PYTHONPATH=. .venv_export/Scripts/python -m gas_ews.predict test_board.csv --tflite --out test_board_pred.csv
-   ```
-3. So từng mốc thời gian giữa `ai/state` đã ghi và `test_board_pred.csv`:
-
-| `ai/state` | `test_board_pred.csv` | Kỳ vọng |
-|---|---|---|
-| `co.stel15`, `no2.stel15` | `co_stel15_ppm`, `no2_stel15_ppm` | lệch < 1% |
-| `co.twa8h`, `no2.twa8h` | `co_twa8h_ppm`, `no2_twa8h_ppm` | lệch < 1% |
-| `co.proj10`, `no2.proj10` | `co_proj10_ppm`, `no2_proj10_ppm` | lệch < 1% |
-| `co.p_model`, `no2.p_model` | `co_p_model`, `no2_p_model` | lệch ≤ 0.01 |
-| `co.level` (0/1/2) | `co_state` (AN_TOAN / CANH_BAO_SOM / VUOT_NGUONG) | giống nhau |
-| `model_ok` | `model_ran` | giống nhau |
-
-Lệch nhỏ ở vài bước quanh lúc chuyển mức là bình thường: `ts` trong telemetry là giờ thực (DS3231/SNTP), còn board dùng đồng hồ đơn điệu, nên ranh giới bước 10 s có thể lệch 1 bước. Lệch có hệ thống (mọi bước, cùng chiều) là lỗi và cần báo lại.
-
-Kiểm tra riêng model trên chip đã tự động ở mục 1 (`self-test OK`).
-
----
-
-## 7. Bảng kết quả
+## 6. Bảng kết quả
 
 | # | Mục | Kết quả (PASS/FAIL) | Số liệu / ghi chú |
 |---|---|---|---|
@@ -242,4 +204,3 @@ Kiểm tra riêng model trên chip đã tự động ở mục 1 (`self-test OK`
 | 5 | AI OFF: không còi | | |
 | 5A | Replay `co_event`: mức 1 ≈ 40:00, mức 2 ≈ 47:20, còi đúng | | mốc thực tế = |
 | 5A | Replay `no2_event`: preheat lại sau mất dữ liệu, mức 1 ≈ 45:10, mức 2 ≈ 63:40 | | mốc thực tế = |
-| 6 | Board khớp Python (STEL/TWA/proj/p_model/level) | | lệch lớn nhất = |

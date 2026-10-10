@@ -930,4 +930,3 @@ Chưa chạy ở máy nào: flash và monitor trên board, `expo run:android` tr
 | `/params` hiện tham số dạng wei thô (`ownerBond: 100000000000000000000`) | Còn tồn, chỉ là hiển thị. Khi trình bày, đọc theo bảng B12 bước 1 |
 | Lịch sử on-chain (`historyLogs.ts`) và `/keeper` dự phòng quét từ block deploy mỗi lần, `/keeper` quét lại mỗi 10 giây | Còn tồn. Không ảnh hưởng demo khi API chạy và dApp dùng key Infura |
 | `test-dapp-deployment.mjs` và Playwright (`localhost` thành `::1`) lỗi trên Windows; `.sol` checkout CRLF trên Windows làm harness `test:incentives-e2e` báo `runtime hash changed` | Còn tồn, chỉ ảnh hưởng máy Windows. Sửa CRLF bằng `.gitattributes` (`*.sol text eol=lf`) |
-| `README.md` và `docs/architecture/ARCHITECTURE*.md` còn nhắc Flutter | Còn tồn |

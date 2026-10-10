@@ -4,8 +4,8 @@
  * @brief See gas_ews_model.h. One persistent MicroInterpreter; its tensor
  *        arena is allocated once at init (PSRAM, internal RAM fallback).
  *        Quantization params are read from the flatbuffer, never hardcoded.
- *        Inputs are clipped to int8 range exactly like the Python
- *        verification (ungdungdidong/gas_ews/train.py tflite_predictor).
+ *        Inputs are clipped to int8 range exactly like the reference
+ *        TFLite verification.
  *
  * The tflite-micro calls are the same ones the previous ai_inference.cpp
  * used on real hardware; check the boot log for "gas_ews model ready" +

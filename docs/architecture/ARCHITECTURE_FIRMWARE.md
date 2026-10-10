@@ -236,7 +236,7 @@ Provisioning hiện được tách làm hai bước với hai trust boundary kh�
 
 ```mermaid
 sequenceDiagram
-    participant App as Flutter app
+    participant App as Mobile app
     participant BLE as ble_prov
     participant Device as firmware runtime
     participant HTTP as local httpd

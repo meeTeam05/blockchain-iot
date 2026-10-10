@@ -1,7 +1,7 @@
 ---
 version: alpha
 name: Atmosphere-Web
-description: Web port of the "Atmosphere" design system already shipping in app_new (Expo/React Native) and app/ (Flutter). This file is the single reference for building web3/'s UI (Task 5 dApp) without re-deriving tokens from the mobile codebase each time. Source of truth for every value below is app_new/src/theme/*.ts and app_new/src/components/atoms/*.tsx — this file documents them, it does not define new ones.
+description: Web port of the "Atmosphere" design system already shipping in app/ (Expo/React Native). This file is the single reference for building web3/'s UI (Task 5 dApp) without re-deriving tokens from the mobile codebase each time. Source of truth for every value below is app/src/theme/*.ts and app/src/components/atoms/*.tsx — this file documents them, it does not define new ones.
 
 colors:
   brand: "#0F6B5C"
@@ -142,8 +142,7 @@ components:
 ## Overview
 
 Atmosphere-Web ports the existing "Atmosphere" design system to the browser for the
-Task 5 dApp (`web3/`). It carries exactly one voice forward from `app/` (Flutter)
-and `app_new/` (Expo/React Native): a calm teal-green brand (`{colors.brand}` —
+Task 5 dApp (`web3/`). It carries exactly one voice forward from `app/` (Expo/React Native): a calm teal-green brand (`{colors.brand}` —
 `#0F6B5C`) on a near-white canvas, with semantic warn/danger accents reserved for
 incident severity and transaction errors. There is no separate "web3 aesthetic" —
 the dApp is a continuation of the same product, opened from the same app's
@@ -176,7 +175,7 @@ notification link.
 - **Danger** (`{colors.danger}` — #D9462E) + **Danger Tint** (#FFE5E0): exceeded
   severity, reverted/error transaction states.
 - **Online** (`{colors.online}` — #1A8767): confirmed/resolved/device-online
-  states. [source: app_new/src/theme/appColors.ts — lives outside tokens.ts as a
+  states. [source: app/src/theme/appColors.ts — lives outside tokens.ts as a
   theme-independent brand color, not a palette-derived one]
 - **Amber** (#E8A33C) / **Mint** (#BFE6D8): decorative-only, not used for status.
 
@@ -187,7 +186,7 @@ notification link.
 - **Bg** (#F5F7F6): page background. **Paper** (#FFFFFF): card/surface background.
 
 ### Alpha blending
-RN's `withAlpha(hex, alpha)` helper [source: app_new/src/theme/color.ts] produces
+RN's `withAlpha(hex, alpha)` helper [source: app/src/theme/color.ts] produces
 an rgba() string. On the web, use Tailwind's native opacity-modifier syntax
 instead: `bg-[#1A8767]/15` is the direct equivalent of `withAlpha('#1A8767', 0.15)`.
 
@@ -195,7 +194,7 @@ instead: `bg-[#1A8767]/15` is the direct equivalent of `withAlpha('#1A8767', 0.1
 
 Font family: **Plus Jakarta Sans** (UI text, all weights) + **JetBrains Mono**
 (hashes, addresses, tx IDs, numeric values). Both are open Google Fonts — no
-licensing constraint, unlike proprietary brand typefaces. [source: app_new/src/theme/textStyles.ts]
+licensing constraint, unlike proprietary brand typefaces. [source: app/src/theme/textStyles.ts]
 
 | Token | Size | Weight | Letter spacing | Use |
 |---|---|---|---|---|
@@ -213,7 +212,7 @@ licensing constraint, unlike proprietary brand typefaces. [source: app_new/src/t
 Spacing scale (4px base unit): `{spacing.space2}` 2px · `{spacing.space4}` 4px ·
 `{spacing.space6}` 6px · `{spacing.space8}` 8px · `{spacing.space12}` 12px ·
 `{spacing.space16}` 16px · `{spacing.space20}` 20px · `{spacing.space24}` 24px ·
-`{spacing.space32}` 32px. [source: app_new/src/theme/tokens.ts]
+`{spacing.space32}` 32px. [source: app/src/theme/tokens.ts]
 
 Content is mobile-first and narrow by default — the dApp is most often opened
 inside MetaMask Mobile's in-app browser via a deep link from a notification, not
@@ -228,7 +227,7 @@ Task 5's three routes; no multi-column desktop layout is required for M1-M3.
 | Elevated | `shadowCard`: `0 4px 12px rgba(0,0,0,0.067)` | Cards that need to stand out (e.g. active incident card) |
 | Modal | `shadowFab`-style deeper shadow or backdrop-only | `confirm-dialog` backdrop `rgba(0,0,0,0.4)` is usually enough; no extra card shadow needed under a dark backdrop |
 
-[source: app_new/src/theme/tokens.ts — shadowCard, shadowFab]
+[source: app/src/theme/tokens.ts — shadowCard, shadowFab]
 
 ## Shapes
 
@@ -247,20 +246,20 @@ Task 5's three routes; no multi-column desktop layout is required for M1-M3.
 button / connected-address chip right. 56px content height.
 **`app-bar-back`** — used on `/d/:deviceId` and `/d/:deviceId/i/:incidentId`. Back
 arrow (lucide `ArrowLeft`) + page title left, actions right.
-[source: app_new/src/components/shell/AtmosphereAppBar.tsx]
+[source: app/src/components/shell/AtmosphereAppBar.tsx]
 
 ### Card
 **`card`** — `{colors.paper}` background, 1px `{colors.line}` border, `{rounded.card}`
 (22px), `{spacing.space16}` padding, optional elevated shadow. Used for every
 device card, incident card, and the verify checklist block.
-[source: app_new/src/components/atoms/AtmosphereCard.tsx]
+[source: app/src/components/atoms/AtmosphereCard.tsx]
 
 ### Pill (status badge)
 Six tones, each a `(background, text)` pair. Background values are exactly
-`app_new`'s [source: app_new/src/components/atoms/Pill.tsx]. **Text values are
+`app`'s [source: app/src/components/atoms/Pill.tsx]. **Text values are
 web-only overrides**, darkened to pass WCAG AA — see note below.
 
-| Tone | Background | Text (app_new, mobile) | Text (web, AA-adjusted) | Contrast | Task 5 use |
+| Tone | Background | Text (app, mobile) | Text (web, AA-adjusted) | Contrast | Task 5 use |
 |---|---|---|---|---|---|
 | `online` | `withAlpha('#1A8767', 0.15)` on paper → `rgb(221,237,232)` | `#1A8767` (3.69:1 — fails AA) | `#17765A` | 4.60:1 | device online, incident resolved |
 | `offline` | `withAlpha(ink3, 0.15)` → `rgb(233,236,236)` | `#6E827D` (3.43:1 — fails AA) | `#5C6D69` | 4.60:1 | device offline, "chờ đăng ký on-chain" |
@@ -269,8 +268,8 @@ web-only overrides**, darkened to pass WCAG AA — see note below.
 | `accent` | `accentTint` = `#E5EEFD` | `#2C6BF0` (4.02:1 — fails AA) | `#1A5FEF` | 4.60:1 | incident status = acknowledged |
 | `danger` | `dangerTint` = `#FFE5E0` | `#D9462E` (3.60:1 — fails AA) | `#BF3923` | 4.60:1 | incident severity = danger, tx reverted |
 
-**Why this diverges from app_new:** computing WCAG 2.1 contrast on the exact
-hex pairs shipping in `app_new`/`app` today shows 5 of 6 pill tones fail AA for
+**Why this diverges from app:** computing WCAG 2.1 contrast on the exact
+hex pairs shipping in `app` today shows 5 of 6 pill tones fail AA for
 normal-weight 11px text (the pill label size) — `warn` fails even the relaxed
 3:1 large-text threshold. This is a pre-existing gap in the mobile apps, not
 something Task 5 introduced; it is **not** fixed here in `tokens.ts`/`Pill.tsx`
@@ -294,32 +293,32 @@ Label always renders uppercase in `{typography.pill}`.
 decode-error retry actions.
 **`button-ghost`** — same geometry, transparent background, 1.5px brand border,
 brand text. Use for secondary actions (e.g. "Hủy" next to a primary confirm).
-[source: app_new/src/components/atoms/PrimaryButton.tsx, DangerButton.tsx, GhostButton.tsx]
+[source: app/src/components/atoms/PrimaryButton.tsx, DangerButton.tsx, GhostButton.tsx]
 
 ### Confirm dialog
 Backdrop `rgba(0,0,0,0.4)`, centered card at 85% width (cap at ~400px on desktop),
 `{rounded.card}`-adjacent 16px radius, 20px padding. Title in `{typography.h2}`,
 message in `{typography.body}`, Cancel/Confirm right-aligned with 16px gap. Maps
 directly onto the TxButton confirmation step before `simulateContract`.
-[source: app_new/src/components/atoms/ConfirmDialog.tsx]
+[source: app/src/components/atoms/ConfirmDialog.tsx]
 
 ### History row
 40×40px icon box (`{colors.line2}` background, 10px radius) + two-line text
 (label in `{typography.body}`, sub in `{typography.caption}`) + optional trailing
 Pill. Used for every row in B6 ("Lịch sử on-chain").
-[source: app_new/src/components/atoms/HistoryRow.tsx]
+[source: app/src/components/atoms/HistoryRow.tsx]
 
 ### Empty state
 120px icon circle (`{colors.line2}` background) + `{typography.h1}` title +
 `{typography.body}` body + optional primary/secondary action buttons. Used for
 "chưa có incident" and "chưa đăng ký on-chain" states.
-[source: app_new/src/components/atoms/EmptyState.tsx]
+[source: app/src/components/atoms/EmptyState.tsx]
 
 ### Field
 Label above (`{typography.body}`), 56px input (`{rounded.input}`, 1px border,
 border turns `{colors.danger}` on error), error caption below in
 `{typography.caption}` danger-colored. Used for the API login form (B1).
-[source: app_new/src/components/atoms/Field.tsx]
+[source: app/src/components/atoms/Field.tsx]
 
 ## Task 5 component map
 
@@ -337,7 +336,7 @@ border turns `{colors.danger}` on error), error caption below in
 
 ### Do
 - Reuse `{colors.*}` hex values exactly as listed — they are the same values
-  shipping in `app_new`/`app`, not approximations.
+  shipping in `app`, not approximations.
 - Render every hash/address/tx-id in `{typography.mono}`.
 - Use `{rounded.pill}` for every badge, `{rounded.card}` for every container —
   never introduce a new radius value.
@@ -346,7 +345,7 @@ border turns `{colors.danger}` on error), error caption below in
 
 ### Don't
 - Don't invent a new "web3" dark/neon palette — this is the same product as
-  `app`/`app_new`, not a separate brand.
+  `app`, not a separate brand.
 - Don't use `danger`/`warn` as large background fills outside pills and banners
   — in the source apps they are reserved for text/badge tones.
 - Don't skip the domain-mismatch banner lock from B0 — it is a safety control,
@@ -361,7 +360,7 @@ border turns `{colors.danger}` on error), error caption below in
 
 ## Known Gaps
 
-- Dark mode is intentionally **not** specified here. `app`/`app_new` both default
+- Dark mode is intentionally **not** specified here. `app` both default
   to light mode and ship a `darkPalette` in `palette.ts`, but Task 5 scopes to
   light-only for M1-M3 (decision #17, `tmp/02_decisions/2026-10-01_task5-dapp-incident-decisions.md`).
   If dark mode is added later, port `darkPalette`'s values the same way this file
@@ -370,7 +369,7 @@ border turns `{colors.danger}` on error), error caption below in
   — it only maps B0-B6.
 - `SensorTile`, `Sparkline`, `ModeCard`, `RelayCard`, `AiCard`, `FilterChip`,
   `StepDots`, `TextLinkButton`, `PromptDialog`, `AtmosphereSwitch`, `DotLogo` exist
-  in `app_new/src/components/atoms/` but have no Task 5 use and are not mapped
+  in `app/src/components/atoms/` but have no Task 5 use and are not mapped
   here.
 - Exact Tailwind config (CSS variable names, font loading via `@fontsource` or a
   Google Fonts `<link>`) is left to implementation — this file specifies values,

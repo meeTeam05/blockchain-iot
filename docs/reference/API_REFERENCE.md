@@ -218,7 +218,7 @@ curl -X POST https://minhnhat05.xyz/api/auth/register \
 
 ### `POST /api/auth/refresh`
 
-Lấy access token mới. Flutter Dio interceptor gọi tự động khi 401.
+Lấy access token mới. Interceptor của app gọi tự động khi 401.
 
 **Rate limit:** 10/phút/IP
 
@@ -1039,7 +1039,7 @@ Sắp xếp `ts DESC`.
 | `agg` không hợp lệ          | 400  | `"Invalid agg value. Allowed: 1m, 5m, 15m, 30m, 1h, 6h, 1d"` |
 | Không phải thành viên       | 403  | `"Forbidden"`                                                |
 
-**Flutter `fl_chart` guide:**
+**Gợi ý tham số cho biểu đồ:**
 
 | Chart mode  | `agg`    | `limit`  | `from`      |
 | ----------- | -------- | -------- | ----------- |
@@ -1388,7 +1388,7 @@ Authorization: user phải là thành viên của home sở hữu device tạo r
 ### `GET /api/realtime` 🔒
 
 App-facing realtime stream. This endpoint uses the same JWT session and device ownership checks as the REST API.
-It is the default realtime transport for Flutter UI state.
+It is the default realtime transport for mobile app UI state.
 
 ```text
 Authorization: Bearer <accessToken>
@@ -1448,7 +1448,7 @@ Protocol:     MQTT v3.1.1 over WebSocket
 > EMQX không publish port `8083` ra host.
 > WebSocket path này chỉ đi qua `nginx` và Cloudflare Tunnel, không phải `ws://127.0.0.1:8083`.
 
-> **Lưu ý:** Flutter app production flow dùng `/api/realtime`, không subscribe trực tiếp `/mqtt`.
+> **Lưu ý:** Mobile app production flow dùng `/api/realtime`, không subscribe trực tiếp `/mqtt`.
 > Nếu dùng WebSocket MQTT trực tiếp, EMQX đang xác thực bằng MQTT username/password theo built-in database; JWT của REST API không được dùng cho MQTT/WSS.
 > `docs/reference/MQTT_PROTOCOL.md` mới là contract chi tiết cho toàn bộ topics và payload MQTT.
 
@@ -1531,19 +1531,19 @@ Tất cả centralized tại `src/constants.js`:
 
 ```
  1. ESP32 boot → BLE advertising "SMART_AIR_13ED8C"
- 2. Flutter scan BLE → connect GATT
- 3. Flutter write SSID → characteristic 0xFF01
- 4. Flutter write Password → characteristic 0xFF02
+ 2. App scan BLE → connect GATT
+ 3. App write SSID → characteristic 0xFF01
+ 4. App write Password → characteristic 0xFF02
  5. ESP32 join Wi-Fi
- 6. ESP32 notify Flutter qua 0xFF03: {"ip":"192.168.1.26","device_id":"aa:bb:cc:dd:ee:ff","status":"ok"}
- 7. Flutter POST /api/devices { device_id, name, home_id, room_id? }
+ 6. ESP32 notify app qua 0xFF03: {"ip":"192.168.1.26","device_id":"aa:bb:cc:dd:ee:ff","status":"ok"}
+ 7. App POST /api/devices { device_id, name, home_id, room_id? }
  8. Server tạo EMQX user + ACL → trả về secret_key đúng 1 lần
 9. App chuyển `device_id` + `secret_key` xuống firmware qua local endpoint `POST http://<device-ip>/api/config`
 10. ESP32 validate `device_id` phải trùng Wi-Fi STA MAC, lưu credential vào NVS, reboot, rồi kết nối MQTT broker (`wss://minhnhat05.xyz/mqtt` mặc định)
 11. ESP32 publish `device/{device_id}/status = {"online":true,"firmware":"<current firmware version>" }`
 12. Server handleStatus() → UPDATE devices → SET announce:{device_id} TTL 300s
-13. Flutter polling GET /api/devices/announce/{device_id} → announced: true
-14. Flutter navigate → device detail screen
+13. App polling GET /api/devices/announce/{device_id} → announced: true
+14. App navigate → device detail screen
 ```
 
 > Security note: bước BLE provisioning hiện chưa yêu cầu authenticated pairing, bonding, hay encrypted link trước khi app ghi SSID/password. Thiết kế hiện tại giả định thiết bị đang ở môi trường cài đặt vật lý tin cậy; client BLE bất kỳ trong vùng radio vẫn có thể thử ghi credential trong lúc onboarding.
@@ -1557,36 +1557,36 @@ Tất cả centralized tại `src/constants.js`:
 ### Flow 2 — Realtime Dashboard
 
 ```
-1. Flutter mở device detail
+1. App mở device detail
 2. GET /api/devices/:id/shadow → hiển thị reported/desired state hiện tại
 3. GET /api/devices/:id/telemetry?from=now-30m&limit=... → initial live snapshot
 4. GET /api/realtime → subscribe SSE bằng JWT
 5. ESP32 publish telemetry/status/shadow/response/OTA qua MQTT
 6. Server persist state → insert `realtime_events` → SSE emits app event
-7. Flutter Riverpod live store append/merge event without remounting the screen
-8. Nếu reconnect vượt replay window, Flutter refetch snapshot/history qua REST
+7. App live store append/merge event without remounting the screen
+8. Nếu reconnect vượt replay window, App refetch snapshot/history qua REST
 ```
 
 ### Flow 3 — Command set_time
 
 ```
-1. Flutter POST /api/devices/:id/command { payload: { type: "set_time", ts: ... } }
+1. App POST /api/devices/:id/command { payload: { type: "set_time", ts: ... } }
 2. Server INSERT commands status='pending'
 3. Device online → MQTT publish device/{id}/command: { command_id, type, ts }
 4. Server UPDATE status='sent'
 5. ESP32 nhận → cập nhật DS3231 RTC
 6. ESP32 publish device/{id}/response: { command_id, status: "done" }
 7. Server handleResponse() → UPDATE status='done', executed_at=NOW(), emit `command.updated`
-8. Flutter SSE updates recent command state; REST command history remains available for history/backfill
+8. App SSE updates recent command state; REST command history remains available for history/backfill
 ```
 
 ### Flow 4 — OTA từ app
 
 ```
 1. Drop `0.1.2.bin` vào `server/ota-files/`
-2. Flutter `GET /api/devices/:id/ota/versions`
+2. App `GET /api/devices/:id/ota/versions`
 3. User chọn version trong app
-4. Flutter `POST /api/devices/:id/ota` với `{ "version": "0.1.2" }`
+4. App `POST /api/devices/:id/ota` với `{ "version": "0.1.2" }`
 5. Server resolve file, tính SHA-256, rồi MQTT publish `device/{id}/ota/update`
 6. ESP32 download → verify SHA256 → reboot
 7. Server handleOtaProgress() → Redis ota_progress:{id}

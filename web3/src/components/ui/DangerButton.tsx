@@ -1,4 +1,4 @@
-// Ported from app_new/src/components/atoms/DangerButton.tsx. No loading state
+// Ported from app/src/components/atoms/DangerButton.tsx. No loading state
 // in the original -- use PrimaryButton for the main tx flow, this is for
 // decode-error retry actions only.
 interface DangerButtonProps {

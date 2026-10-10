@@ -37,7 +37,7 @@ Fastify API
 EMQX
   <-> firmware/device MQTT traffic
 
-Flutter app
+Mobile app
   -> REST over /api/*
   -> SSE over /api/realtime
 ```
@@ -292,7 +292,7 @@ Luồng đăng ký thiết bị hiện tại đi qua API:
 
 ```mermaid
 sequenceDiagram
-    participant App as Flutter app
+    participant App as Mobile app
     participant API as Fastify API
     participant DB as PostgreSQL
     participant EMQX as EMQX Admin API
@@ -347,7 +347,7 @@ sequenceDiagram
     participant DB as PostgreSQL
     participant RT as realtime_events + pg_notify
     participant SSE as realtime plugin
-    participant App as Flutter app
+    participant App as Mobile app
 
     Device->>EMQX: publish status / telemetry / shadow / response / ota.progress
     EMQX->>MQTT: QoS1 packet

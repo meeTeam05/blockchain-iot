@@ -1,4 +1,4 @@
-// Ported from app_new/src/components/atoms/Field.tsx. Used for the API
+// Ported from app/src/components/atoms/Field.tsx. Used for the API
 // login form (B1).
 import type { InputHTMLAttributes, ReactNode } from 'react'
 

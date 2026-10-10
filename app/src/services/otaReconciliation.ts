@@ -28,9 +28,7 @@ async function fetchDevice(id: string): Promise<Device | null> {
 /**
  * Reconciles the firmware result from the existing GET /devices data source.
  * A reboot is successful only when that source reports the requested
- * version. Mirrors mobileApp's OTAReconciliationService — Flutter has no
- * post-reboot reconciliation, but this app_new port and mobileApp both add
- * it as an approved lifecycle behavior derived exclusively from existing data.
+ * version. This is post-reboot reconciliation derived exclusively from existing data.
  */
 export class OTAReconciliationService {
   private readonly runs = new Map<string, ReconciliationRun>();

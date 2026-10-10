@@ -2,7 +2,7 @@
  * @file test_gas_ews_host.c
  *
  * @brief Host test for gas_ews: replays golden vectors produced by the
- *        Python reference (ungdungdidong/gas_ews/export_firmware.py) and
+ *        Python reference and
  *        checks gas_ews.c reproduces every 10s step -- preprocessing, STEL,
  *        TWA, projection, all 8 model channels, QCVN rule and projection
  *        alarms. Plus unit tests for the model-alarm debounce.

@@ -156,9 +156,9 @@ không nhận domain qua MQTT.
 Deployment Sepolia cũ tại
 `0x4E6e20bC0601CddD6Cb0C3AE8440e6933839A8Aa` (source verified). Address và tx
 deploy cũ nằm trong
-[`contracts/deployments/sepolia.json`](../contracts/deployments/sepolia.json);
+[`contracts/deployments/sepolia.json`](../../contracts/deployments/sepolia.json);
 ABI của source hiện tại nằm tại
-[`contracts/abi/AirSafetyLog.json`](../contracts/abi/AirSafetyLog.json).
+[`contracts/abi/AirSafetyLog.json`](../../contracts/abi/AirSafetyLog.json).
 `verifyingContract` trong test vector (`0xCccc…`) chỉ dùng cho test.
 Deployment cũ dùng high-water-mark sequence và không tương thích delivery lệch
 thứ tự; source hiện tại phải được deploy thành address mới trước E2E.
@@ -210,9 +210,9 @@ khi severity là critical theo policy đã chốt.
 
 ## 7. Test vectors và compatibility
 
-- [`incident-v2-model-early-warning.json`](test-vectors/incident-v2-model-early-warning.json)
+- [`incident-v2-model-early-warning.json`](../test-vectors/incident-v2-model-early-warning.json)
   chứng minh cảnh báo sớm CO do model.
-- [`incident-v2-qcvn-exceeded.json`](test-vectors/incident-v2-qcvn-exceeded.json)
+- [`incident-v2-qcvn-exceeded.json`](../test-vectors/incident-v2-qcvn-exceeded.json)
   chứng minh vượt QCVN do rule trong khi model không có output.
 
 Firmware phải tính đúng device/incident/firmware/calibration hash; backend tính

@@ -48,8 +48,7 @@ interface ReconciliationOptions {
 /**
  * Holds local control presentation state only. The reported-shadow query
  * remains the sole source of displayed relay and mode values — this never
- * optimistically flips them. Ports mobileApp's usePendingCommandReconciliation,
- * restructured so the phase/error values are derived during render (from
+ * optimistically flips them. The phase/error values are derived during render (from
  * `action`/`commands`/`shadow`) instead of mirrored into state from an
  * effect — direct setState-from-effect is flagged by this project's
  * react-hooks/set-state-in-effect rule and isn't needed here since nothing

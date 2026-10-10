@@ -106,7 +106,7 @@ Configuration is read from `server/.env`. The backend deployment is selected by 
 | Demo script, commands and expected results | [`docs/_RUN_BOOK.md`](docs/_RUN_BOOK.md) |
 | Chain worker operations | [`docs/ops/CHAIN_WORKER_RUNBOOK.md`](docs/ops/CHAIN_WORKER_RUNBOOK.md) |
 | End-to-end run with a pre-filled `server/.env` | [`docs/ops/E2E_GUIDE_SERVER_ENV_HOLDER.md`](docs/ops/E2E_GUIDE_SERVER_ENV_HOLDER.md) |
-| Architecture (the app sections still describe the earlier Flutter app) | [`docs/architecture/`](docs/architecture) |
+| Architecture | [`docs/architecture/`](docs/architecture) |
 | Incident Schema v2 and test vectors | [`docs/reference/BLOCKCHAIN_INCIDENT_SCHEMA.md`](docs/reference/BLOCKCHAIN_INCIDENT_SCHEMA.md), [`docs/test-vectors/`](docs/test-vectors) |
 | Firmware side of incidents | [`docs/reference/BLOCKCHAIN_INCIDENT_FIRMWARE.md`](docs/reference/BLOCKCHAIN_INCIDENT_FIRMWARE.md) |
 | On-device gas AI | [`docs/reference/AI.md`](docs/reference/AI.md) |

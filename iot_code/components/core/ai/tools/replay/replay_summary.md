@@ -1,6 +1,6 @@
 # Kết quả mong đợi khi replay trên board
 
-AUTO-GENERATED bởi `ungdungdidong/gas_ews/export_replay.py` — không sửa tay.
+AUTO-GENERATED — không sửa tay.
 
 Thời gian tính từ **mẫu replay đầu tiên** (mẫu đầu tiên `sensor_task` đưa vào AI sau boot). Board đọc mỗi ~5–6 s nên mốc thực tế có thể trễ hơn vài %. Chi tiết từng bước 10 s: `replay_<tên>_expected.csv` (cột `*_state`: AN_TOAN = level 0, CANH_BAO_SOM = 1, VUOT_NGUONG = 2).
 

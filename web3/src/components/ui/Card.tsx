@@ -1,4 +1,4 @@
-// Ported from app_new/src/components/atoms/AtmosphereCard.tsx.
+// Ported from app/src/components/atoms/AtmosphereCard.tsx.
 import type { CSSProperties, ReactNode } from 'react'
 
 interface CardProps {

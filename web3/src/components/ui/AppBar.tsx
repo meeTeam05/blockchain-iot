@@ -1,4 +1,4 @@
-// Ported from app_new/src/components/shell/AtmosphereAppBar.tsx, restyled
+// Ported from app/src/components/shell/AtmosphereAppBar.tsx, restyled
 // to match the Warden mockup header bar layout: single unified white bar
 // with logo mark, concise navigation pills (Thiết bị, Ví Token, Keeper, Tham số),
 // and actions on the right rail. No ugly slashes or duplicated raw navbars.

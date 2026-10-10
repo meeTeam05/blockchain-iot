@@ -1,4 +1,4 @@
-// Ported from app_new/src/components/atoms/EmptyState.tsx. Used for "chưa
+// Ported from app/src/components/atoms/EmptyState.tsx. Used for "chưa
 // có incident" / "chưa đăng ký on-chain" states (B2/B3).
 import type { LucideIcon } from 'lucide-react'
 import { PrimaryButton } from './PrimaryButton'

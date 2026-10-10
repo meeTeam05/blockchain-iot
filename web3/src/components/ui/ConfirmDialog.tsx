@@ -1,4 +1,4 @@
-// Ported from app_new/src/components/atoms/ConfirmDialog.tsx, rebuilt on
+// Ported from app/src/components/atoms/ConfirmDialog.tsx, rebuilt on
 // Headless UI's Dialog for free focus-trap/ESC-to-close/click-outside
 // (decision #16) instead of a bare backdrop + div. Maps onto the
 // <TxButton> confirmation step before simulateContract.

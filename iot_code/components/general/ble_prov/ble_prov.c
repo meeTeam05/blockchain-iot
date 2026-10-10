@@ -263,7 +263,7 @@ static void prov_task(void *arg)
                 ESP_LOGW(TAG, "Notify failed: %d", rc);
             }
         }
-        /* Give Flutter 500 ms to receive the notification before BLE stops */
+        /* Give the app 500 ms to receive the notification before BLE stops */
         vTaskDelay(pdMS_TO_TICKS(500));
     }
 

@@ -51,8 +51,7 @@ export class RealtimeService {
 
   // SSE reconnect/replay can resend frames. Bounded dedup by event ID, plus
   // per-resource staleness rejection so a delayed/replayed frame can't
-  // overwrite a newer one that already arrived. Mirrors mobileApp's
-  // RealtimeEventRouter.acceptsEvent.
+  // overwrite a newer one that already arrived.
   private readonly seenEventIds = new Set<string>();
   private readonly latestEventTimes = new Map<string, number>();
 

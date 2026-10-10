@@ -4,8 +4,7 @@
  * @brief CO/NO2 early warning against QCVN 03:2019/BYT -- preprocessing,
  *        QCVN rule and alarm logic (pure C99, host-testable).
  *
- * C port of `ungdungdidong/gas_ews/features.py` + the decision logic of
- * `gas_ews/predict.py`. Every constant comes from gas_ews_contract.h, which
+ * Feature extraction and decision logic. Every constant comes from gas_ews_contract.h, which
  * is generated from the trained model's contract -- never edit numbers here.
  * `tools/test_gas_ews_host.c` replays golden vectors produced by the
  * Python pipeline and checks this file reproduces them step by step.

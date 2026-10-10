@@ -1,4 +1,4 @@
-// Ported from app_new/src/components/atoms/PrimaryButton.tsx. Maps directly
+// Ported from app/src/components/atoms/PrimaryButton.tsx. Maps directly
 // onto <TxButton>'s simulating/awaiting_wallet/pending states via `loading`.
 import { Loader2 } from 'lucide-react'
 

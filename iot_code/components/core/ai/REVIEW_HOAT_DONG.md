@@ -138,7 +138,7 @@ Công thức kiểm tra: thời gian đến lúc báo = 8 giờ × (ngưỡng TW
 #### A. 🟠 Cảnh báo chỉ tới người dùng qua còi
 
 Khi build với `SA_ENABLE_AI=y`, AI bật sẵn sau boot (`SA_AI_ENABLED_AT_BOOT=y`) và kêu còi khi mức tăng lên (3 tiếng dài: cảnh báo sớm, 4 tiếng rất dài: vượt ngưỡng). Nhưng:
-- server chưa đọc `ai/state` (INTEGRATION_REVIEW #13), app không hiển thị mức cảnh báo;
+- server chưa đọc `ai/state`, app không hiển thị mức cảnh báo;
 - người không ở cạnh thiết bị không biết gì;
 - tắt AI bằng `ai_set` thì tắt **cả** còi và `ai/state` của luật QCVN, không chỉ model. Người dùng có thể nghĩ mình chỉ tắt "AI".
 
@@ -163,7 +163,7 @@ Lịch sử TWA chỉ nằm trong RAM (mục 3.3). Reboot do OTA, crash hay watc
 
 QCVN 03:2019/BYT giả định **một ca 8 giờ**, người lao động khoẻ mạnh, và 16 giờ còn lại được nghỉ trong không khí sạch. Nếu thiết bị đặt **trong nhà ở** (người ở 24 giờ, có trẻ em, người già, người bệnh tim), các khuyến nghị sức khoẻ nghiêm hơn nhiều. Ví dụ khuyến nghị chất lượng không khí trong nhà của WHO (2010) cho CO 8 giờ là 10 mg/m³ (khoảng 8.7 ppm), bằng một nửa TWA của QCVN.
 
-Đây là **quyết định sản phẩm**, không phải lỗi code: chọn "nơi làm việc" hay "nhà ở". Đổi ngưỡng thì sửa `ungdungdidong/gas_ews/qcvn.py` rồi train lại (khoảng 2 phút) và chạy `export_firmware`.
+Đây là **quyết định sản phẩm**, không phải lỗi code: chọn "nơi làm việc" hay "nhà ở".
 
 Lưu ý về NO2: các mức khuyến nghị cho nhà ở nằm dưới 0.1 ppm, tức dưới dải đo của GM102B (0.1–10 ppm). Với nhà ở, cảm biến này chỉ bắt được NO2 ở mức sự cố.
 

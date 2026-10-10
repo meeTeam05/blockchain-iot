@@ -16,8 +16,7 @@ export type CommandResolution =
   | { state: 'queued'; commandId: string };
 
 /**
- * Mirrors mobileApp's commandReconciliation (itself matching Flutter's
- * command/shadow contract): sends a command without optimistically changing
+ * Sends a command without optimistically changing
  * displayed relay/mode state, then waits for the matching *reported* shadow.
  * Returns presentation state only — never mutates a query cache.
  */

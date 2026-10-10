@@ -1,4 +1,4 @@
-// Ported from app_new/src/components/atoms/GhostButton.tsx.
+// Ported from app/src/components/atoms/GhostButton.tsx.
 interface GhostButtonProps {
   label: string
   onClick: () => void

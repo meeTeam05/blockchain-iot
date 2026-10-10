@@ -42,8 +42,8 @@ Còn **3 điểm cần xử lý trước khi tin model**:
 | Không dùng kết quả cũ | Mỗi bước mới: model không chạy được → báo "không có kết quả", tính là "dưới ngưỡng" |
 | Luồng/khoá | Model chạy trong `ai_task` (priority 3, APP_CPU), thấp hơn `sensor_task`, được đánh thức ngay khi có bước 10 s mới. Khoá spinlock chỉ giữ trong lúc copy 3.8 KB cửa sổ, cỡ vài µs |
 | Đầu vào quá lớn | Kênh khí kẹp ở 13.2 × STEL (CO ≈ 460 ppm). Ở mức đó luật đã báo vượt ngưỡng từ lâu, nên kẹp không làm mất cảnh báo |
-| Đóng góp của model CO | Theo `ungdungdidong/gas_ews/README.md`: có model thì tỉ lệ báo trước tăng từ 71% lên 92%, lead trung vị từ +1.5 lên +6.5 phút. So từng đợt với ngoại suy: model báo được 21 đợt mà ngoại suy bỏ lỡ, ngược lại chỉ 2 đợt |
-| Độ dài cửa sổ | Đã so 30 / 20 / 15 / 10 phút (cùng seed). 20 phút bằng hoặc tốt hơn 30 phút ở mọi chỉ số, và model chạy sớm hơn 10 phút. Bảng so sánh ở `ungdungdidong/gas_ews/README.md` mục 5 |
+| Đóng góp của model CO | Có model thì tỉ lệ báo trước tăng từ 71% lên 92%, lead trung vị từ +1.5 lên +6.5 phút. So từng đợt với ngoại suy: model báo được 21 đợt mà ngoại suy bỏ lỡ, ngược lại chỉ 2 đợt |
+| Độ dài cửa sổ | Đã so 30 / 20 / 15 / 10 phút (cùng seed). 20 phút bằng hoặc tốt hơn 30 phút ở mọi chỉ số, và model chạy sớm hơn 10 phút. |
 
 ---
 
@@ -86,7 +86,7 @@ Với NO2, ngoại suy đã báo trước 100% đợt, và model **không thêm*
 - hệ thống chọn cho NO2 báo nhầm 0.19 lần/ngày, thấp hơn bản 30 phút (0.25);
 - trên dữ liệu thiết bị thật, model NO2 báo khoảng 5 phút, **nằm trọn trong** khoảng ngoại suy đã báo sẵn (0 bước model báo riêng).
 
-Cần theo dõi `no2.model_alarm` trong `ai/state` khi chạy chỉ quan sát. Nếu model NO2 bật mà `proj_alarm` không bật thì đó là báo nhầm riêng của model; khi đó mới cân nhắc nâng ngưỡng (ở `ungdungdidong`, không sửa tay header tự sinh).
+Cần theo dõi `no2.model_alarm` trong `ai/state` khi chạy chỉ quan sát. Nếu model NO2 bật mà `proj_alarm` không bật thì đó là báo nhầm riêng của model; khi đó mới cân nhắc nâng ngưỡng (không sửa tay header tự sinh).
 
 ### M3. 🟡 Chưa đo trên chip
 
@@ -182,7 +182,7 @@ ai_task:                                          được đánh thức ngay (x
 |---|---|---|
 | 1 | Flash, đọc 4 dòng log ở M3 | M3 |
 | 2 | Chạy chỉ quan sát vài ngày, ghi lại T/RH thực tế và `p_model`. Nếu T/RH thường xuyên dưới 22.5 °C / 47.9 % thì M1 là vấn đề thật | M1 |
-| 3 | Mở rộng dải T/RH khi mô phỏng, train lại, `export_firmware` | M1 |
+| 3 | Mở rộng dải T/RH khi mô phỏng, train lại | M1 |
 | 4 | Theo dõi `no2.model_alarm` so với `no2.proj_alarm` trong `ai/state`; chỉ nâng ngưỡng nếu model NO2 báo riêng | M2 |
 | 5 | Chạy thêm 3–5 seed cho cửa sổ 20 và 30 phút để chắc chênh lệch không phải ngẫu nhiên | độ dài cửa sổ |
 | 6 | Đặt thiết bị cạnh máy đo CO tham chiếu, tạo sự cố có kiểm soát, so lead time thật với +6.5 phút | toàn bộ |

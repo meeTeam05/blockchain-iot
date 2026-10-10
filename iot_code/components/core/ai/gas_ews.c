@@ -1,8 +1,7 @@
 /**
  * @file gas_ews.c
  *
- * @brief See gas_ews.h. Mirrors ungdungdidong/gas_ews/features.py line by
- *        line; tools/test_gas_ews_host.c checks it against golden vectors.
+ * @brief See gas_ews.h. tools/test_gas_ews_host.c checks it against golden vectors.
  *
  * Copyright (C) 2026 MinhNhat & BaoViet
  */

@@ -15,7 +15,7 @@ Nguyên tắc dùng cho tài liệu này:
 
 1. Device runtime trên ESP32-S3 chạy ESP-IDF.
 2. Server/runtime stack chạy trong Docker Compose.
-3. Mobile app Flutter làm control plane cho người dùng.
+3. Mobile app làm control plane cho người dùng.
 
 Ở mức tổng quan:
 
@@ -41,7 +41,7 @@ PostgreSQL / TimescaleDB
 Redis
   -> cache và transient coordination
 
-Flutter app
+Mobile app
   -> dùng REST cho snapshot, mutation, history, provisioning
   -> dùng SSE cho live updates
 ```
@@ -65,7 +65,7 @@ flowchart LR
     end
 
     subgraph App["User control plane"]
-        FLUTTER["Flutter app"]
+        MOBILE["Mobile app"]
     end
 
     FW -->|MQTT| EMQX
@@ -75,7 +75,7 @@ flowchart LR
     NGINX -->|/api + /api/realtime| API
     NGINX -->|/mqtt| EMQX
     NGINX -->|/ota| OTA
-    FLUTTER -->|REST + SSE| NGINX
+    MOBILE -->|REST + SSE| NGINX
 ```
 
 App hiện tại không kết nối trực tiếp tới MQTT broker.
@@ -104,9 +104,9 @@ Luồng dữ liệu chính từ thiết bị tới UI:
                               |
                               | HTTPS + SSE
                               v
-+------------------------- Flutter app ------------------+
-| Dio REST client + Dio SSE client                       |
-|   -> Riverpod providers                                |
++------------------------- Mobile app -------------------+
+| REST client + SSE client                               |
+|   -> client state                                      |
 |   -> screens / dashboard / notifications / settings    |
 +--------------------------------------------------------+
 ```
@@ -272,7 +272,7 @@ Server
 
 ```mermaid
 sequenceDiagram
-    participant App as Flutter app
+    participant App as Mobile app
     participant Device as ESP32-S3 firmware
     participant API as Fastify API
     participant EMQX as EMQX
@@ -470,7 +470,7 @@ Fastify API:
 - quản lý refresh token trong DB
 - expose `login`, `register`, `refresh`, `logout`
 
-Refresh token được dùng cho cả browser-style cookie path và mobile-style body field, nhưng app Flutter hiện dùng body field và secure storage của chính nó.
+Refresh token được dùng cho cả browser-style cookie path và mobile-style body field, nhưng app hiện dùng body field và secure storage của chính nó.
 
 ### 4.6 EMQX và MQTT bridge
 
@@ -537,7 +537,7 @@ App REST request
 
 ```mermaid
 sequenceDiagram
-    participant App as Flutter app
+    participant App as Mobile app
     participant API as Fastify API
     participant DB as PostgreSQL
     participant EMQX as EMQX
@@ -617,144 +617,9 @@ Trong worktree hiện tại, notification projection đang lấy từ:
 - terminal `command.updated`
 - terminal `ota.progress`
 
-## 5. Kiến trúc app
+## 5. Hợp đồng cross-stack
 
-### 5.1 Vai trò của app
-
-App Flutter là control plane cho người dùng cuối.
-
-Hiện tại app phụ trách:
-
-- auth và session restore
-- home và room management
-- device provisioning
-- device dashboard
-- command issuance
-- telemetry history và live status
-- notification list
-- profile và một số màn hình settings theo thiết bị
-
-### 5.2 Navigation và screen topology
-
-`app/lib/core/router.dart` định nghĩa routing hiện tại.
-
-Shell chính dùng `StatefulShellRoute.indexedStack` với ba tab:
-
-- `/home`
-- `/notifications`
-- `/profile`
-
-Các drill-down route đáng chú ý:
-
-- `/homes`
-- `/homes/create`
-- `/homes/:homeId`
-- `/provision`, `/provision/scan`, `/provision/wifi`, `/provision/announce`, `/provision/name`
-- `/devices/:id`
-- `/devices/:id/commands`
-- `/devices/:id/settings`
-- `/devices/:id/calibrate/:sensor`
-- `/devices/:id/ota`
-
-### 5.3 Auth và session model trên app
-
-`app/lib/providers/auth_provider.dart` đang giữ auth session state.
-
-Thiết kế hiện tại:
-
-- access token chỉ giữ trong memory
-- refresh token và serialized user được lưu trong secure storage
-- `dioProvider` gắn `AuthInterceptor` để tự refresh access token khi cần
-- `GoRouter` redirect theo auth state
-- logout sẽ clear secure storage, access token trong memory, và invalidate các session-scoped provider
-
-### 5.4 Service boundary của app
-
-App hiện có ba nhóm transport rõ ràng:
-
-- REST qua `Dio` tới `https://minhnhat05.xyz/api`
-- SSE qua `GET /realtime`
-- BLE + local HTTP cho provisioning
-
-`app/lib/core/app_config.dart` vẫn giữ `defaultMqttBrokerUri = wss://minhnhat05.xyz/mqtt`, nhưng app không dùng URI này để mở MQTT client của riêng mình.
-Giá trị đó hiện thuộc provisioning/config context, không phải live app transport.
-
-### 5.5 Provisioning flow trong app
-
-Provisioning flow của app là flow đa transport:
-
-1. App scan và kết nối BLE tới device.
-2. App gửi SSID/password qua BLE.
-3. Device trả lại `device_id` và IP sau khi đã vào Wi-Fi.
-4. App gọi `POST /devices` để đăng ký thiết bị trên backend.
-5. API trả `secret_key`.
-6. App gọi local `POST http://<device-ip>/api/config`.
-7. Device reboot và lên MQTT.
-8. App poll `/devices/announce/:mac` để xác nhận thiết bị đã online.
-
-`app/lib/services/device_service.dart` hiện là lớp service chịu trách nhiệm chính cho flow này.
-
-### 5.6 Riverpod state model
-
-State app hiện tổ chức quanh Riverpod providers/notifiers.
-
-Những provider nổi bật:
-
-- `authProvider`
-- `homesProvider`
-- `roomsProvider(homeId)`
-- `devicesProvider`
-- `shadowProvider(deviceId)`
-- `commandsProvider(deviceId)`
-- `telemetryLiveProvider(deviceId)`
-- `telemetryHistoryProvider(...)`
-- `notificationsProvider`
-- `realtimeEventsProvider`
-
-Pattern hiện tại là:
-
-- REST fetch snapshot ban đầu
-- `realtimeEventsProvider` cung cấp stream event dùng chung
-- domain-specific notifier nghe stream này rồi apply đúng event type của mình
-
-Ví dụ:
-
-- `devicesProvider` phản ứng với `device.status`
-- `shadowProvider` phản ứng với `shadow.reported`
-- `commandsProvider` phản ứng với `command.updated`
-- `telemetryLiveProvider` phản ứng với `telemetry.point` và `replay.reset`
-- `notificationsProvider` vừa fetch `GET /notifications`, vừa bổ sung item mới từ realtime stream
-
-### 5.7 Realtime client của app
-
-`app/lib/services/realtime_service.dart` triển khai SSE client hiện tại.
-
-Đặc tính chính:
-
-- dùng `Dio` với `Accept: text/event-stream`
-- giữ `Last-Event-ID` trong session memory của stream
-- reconnect theo exponential backoff
-- trạng thái kết nối gồm:
-  - `disconnected`
-  - `connecting`
-  - `connected`
-  - `degraded`
-- đánh dấu `degraded` khi server gửi `replay.reset`
-
-Luồng realtime hiện tại là:
-
-```text
-API SSE stream
-  -> SseDecoder
-  -> RealtimeEvent model
-  -> Riverpod listener trong các notifier
-  -> chỉ domain state liên quan được cập nhật
-  -> UI cập nhật theo slice tương ứng
-```
-
-## 6. Hợp đồng cross-stack
-
-### 6.1 Identity chung
+### 5.1 Identity chung
 
 `device_id` là identity chung giữa các layer:
 
@@ -766,7 +631,7 @@ API SSE stream
 
 Format chuẩn hiện tại là lowercase MAC-style `aa:bb:cc:dd:ee:ff`.
 
-### 6.2 Phân vai transport
+### 5.2 Phân vai transport
 
 Phân lớp transport hiện tại của hệ thống:
 
@@ -780,7 +645,7 @@ Phân lớp transport hiện tại của hệ thống:
   - API <-> app
   - device status, telemetry.point, shadow.reported, command.updated, ota.progress, replay.reset
 
-### 6.3 Ba luồng xuyên stack quan trọng
+### 5.3 Ba luồng xuyên stack quan trọng
 
 #### Provisioning
 
@@ -820,7 +685,7 @@ App action
   -> realtime event + notification projection khi phù hợp
 ```
 
-## 7. Source-of-truth liên quan
+## 6. Source-of-truth liên quan
 
 Các file contract liên quan trực tiếp tới kiến trúc hiện tại:
 
@@ -829,6 +694,5 @@ Các file contract liên quan trực tiếp tới kiến trúc hiện tại:
 - `server/docker-compose.yml`: runtime topology của server stack
 - `iot_code/components/core/sysload/sysload.c`: boot orchestration của firmware
 - `server/api/src/app.js`: plugin và route registration của API
-- `app/lib/core/router.dart`: routing topology của app
 
 Khi tài liệu này xung đột với các file trên hoặc với code runtime hiện tại, code và wiring hiện tại phải được xem là chuẩn cao hơn.

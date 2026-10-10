@@ -96,8 +96,7 @@ function refreshTerminalOtaCaches(deviceId: string): void {
 }
 
 // Registered once at module load — patches whichever device's OTA progress
-// cache is active, then drives post-reboot reconciliation. Mirrors
-// mobileApp's RealtimeEventRouter.applyOtaProgress.
+// cache is active, then drives post-reboot reconciliation.
 realtimeService.onEvent((event: RealtimeEvent) => {
   if (event.type !== 'ota.progress') return;
 
