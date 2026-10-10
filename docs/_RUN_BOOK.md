@@ -283,7 +283,7 @@ Chọn: **Infura key riêng cho dApp** làm chính, publicnode làm dự phòng.
 
 **Lệnh 2: allowlist có hiệu lực**
 ```bash
-DAPP_RPC=https://sepolia.infura.io/v3/3cee5593bc624feeb316e388d26365cc
+DAPP_RPC=https://sepolia.infura.io/v3/<INFURA_DAPP_KEY>
 for o in https://minhnhat05.xyz https://evil.example; do
   curl -s -X POST -H 'content-type: application/json' -H "Origin: $o" \
     --data '{"jsonrpc":"2.0","id":1,"method":"eth_chainId"}' "$DAPP_RPC"; echo "  <- $o"
