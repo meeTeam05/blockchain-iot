@@ -55,7 +55,7 @@ Incident path: *device signs -> MQTT -> API verifies and stores -> relayer `logI
 | `/contracts` (Solidity) | [`blockchain/contracts/`](blockchain/contracts) |
 | `/iot_code` (device firmware) | [`firmware/`](firmware) |
 | `/ai_model` (model file and inference code) | [`firmware/components/core/ai/`](firmware/components/core/ai), weights in [`model/gas_ews_int8.tflite`](firmware/components/core/ai/model/gas_ews_int8.tflite) |
-| `Report_Nhom07.pdf` | [`Report_Nhom07.pdf`](Report_Nhom07.pdf) |
+| `Report_Nhom10.pdf` | [`Report_Nhom10.pdf`](Report_Nhom10.pdf) |
 
 ## Sepolia deployment (chain ID 11155111)
 
