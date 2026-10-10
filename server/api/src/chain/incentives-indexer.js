@@ -1,4 +1,4 @@
-// Chain worker, incentives read side (Task5_8_plan.md, Task 7). Extends the indexer to
+// Chain worker, incentives read side. Extends the indexer to
 // SafetyIncentives with the same scheme as indexer.js: only blocks CHAIN_CONFIRMATIONS
 // deep are read, events are stored idempotently by (contract, tx_hash, log_index) and a
 // batch commits together with its own chain_checkpoints row (key = incentives address).

@@ -1,4 +1,4 @@
-// Token incentives API (Task5_8_plan.md, Task 7, step 7.5). Read-only; the chain worker
+// Token incentives API. Read-only; the chain worker
 // writes everything these routes return. The incident detail route adds `incentive`.
 import { normalizeDeviceId } from '../utils/device-id.js';
 import { checkDeviceAccess } from '../utils/check-access.js';

@@ -1,4 +1,4 @@
-// Worker startup checks for incentives (Task5_8_plan.md, Task 7, step 7.1): the keeper
+// Worker startup checks for incentives: the keeper
 // wallet must be dedicated and funded, the deployment must read the worker's AirSafetyLog,
 // and with INCENTIVES_ENABLED off nothing incentive-related runs.
 import test from 'node:test';

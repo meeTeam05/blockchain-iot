@@ -1,4 +1,4 @@
-// Chain worker, keeper (Task5_8_plan.md, Task 7). Runs after relayer.tick() when
+// Chain worker, keeper. Runs after relayer.tick() when
 // KEEPER_ENABLED, from its own wallet (never the relayer/manager/operator wallet):
 //   1. record_ack       recordTimelyAck for incidents acknowledged (or resolved) in time (R1)
 //   2. record_resolve   recordTimelyResolve for resolved incidents whose ack was paid (R2)

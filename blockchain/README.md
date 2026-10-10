@@ -147,7 +147,7 @@ field evidence/attestation/mask nào đều làm verify thất bại.
 
 ## Incentives: token ASAFE thưởng/phạt (Task 6)
 
-Luật đầy đủ: [`Token_incentive_task.md`](../docs/tasks/Token_incentive_task.md). Hai contract
+Hai contract
 mới **chỉ đọc** `AirSafetyLog` qua `getIncident`/`getDevice`
 ([`IAirSafetyLogView.sol`](contracts/IAirSafetyLogView.sol)); `AirSafetyLog`,
 domain EIP-712 và firmware không đổi.

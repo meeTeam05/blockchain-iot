@@ -10,7 +10,7 @@ import {IAirSafetyLogView} from "./IAirSafetyLogView.sol";
 /// @title SafetyIncentives
 /// @notice Rewards device owners for reacting to incidents on time and slashes
 ///         late owners and a late relaying operator, using only facts already
-///         anchored in AirSafetyLog (Token_incentive_task.md). Every rule is
+///         anchored in AirSafetyLog. Every rule is
 ///         permissionless; slashers earn a keeper share of the penalty.
 /// @dev    AirSafetyLog is only read. The reward fund is the token balance not
 ///         owed to stakers (`balanceOf(this) - totalBonded`), so rewards can

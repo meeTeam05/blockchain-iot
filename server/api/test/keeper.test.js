@@ -1,4 +1,4 @@
-// Keeper (Task5_8_plan.md, Task 7, step 7.6): picks the right incidents, never processes
+// Keeper: picks the right incidents, never processes
 // one twice, treats AlreadySettled / AckDeadlinePassed as normal, backs off on RPC errors
 // and never calls slashLateRelay.
 import test from 'node:test';

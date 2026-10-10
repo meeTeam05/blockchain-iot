@@ -1,5 +1,5 @@
-// Local end-to-end of the token incentives backend over a real chain (Task5_8_plan.md,
-// Task 7, step 7.6), following the one-day scenario of Token_incentive_task.md:
+// Local end-to-end of the token incentives backend over a real chain,
+// following a one-day scenario:
 //   intake -> relayer -> AirSafetyLog -> indexer -> incentives indexer -> keeper -> API
 //
 // Skipped unless E2E_CHAIN_RPC_URL points at a hardhat node (chain 11155111):

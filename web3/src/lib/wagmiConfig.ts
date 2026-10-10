@@ -8,7 +8,7 @@ import { injected, mock } from 'wagmi/connectors'
 import { defineChain } from 'viem'
 import { activeNetwork } from '../config/networks'
 
-// Playwright E2E (Web3_task.md mục 9 "E2E UI"): drives a real browser against
+// Playwright E2E: drives a real browser against
 // a real hardhat node, but signs through wagmi's mock connector instead of a
 // real MetaMask extension -- same approach already proven by decision #9's
 // spike and by test/integration/ownerActions.integration.test.tsx. Never on

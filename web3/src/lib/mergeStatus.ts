@@ -1,4 +1,4 @@
-// B3 status merge table (tmp/Web3_task.md mục B3) -- chain state takes
+// B3 status merge table -- chain state takes
 // priority whenever it's known; API chain_status only disambiguates the
 // "chưa thấy gì trên chain" (chain status None) case.
 import type { PillTone } from '../components/ui/Pill'

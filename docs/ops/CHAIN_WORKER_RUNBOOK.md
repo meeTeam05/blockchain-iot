@@ -2,7 +2,6 @@
 
 Vận hành phần đưa incident lên Sepolia: relayer, device op, indexer, giám sát và
 xử lý sự cố. Kiến trúc và luật nghiệp vụ nằm ở
-[`docs/tasks/Blockchain_task.md`](../tasks/Blockchain_task.md) (Task 4) và
 [`docs/reference/BLOCKCHAIN_INCIDENT_SCHEMA.md`](../reference/BLOCKCHAIN_INCIDENT_SCHEMA.md).
 
 ## 1. Thành phần

@@ -1,4 +1,4 @@
--- Blockchain incident intake (Blockchain_task.md, Task 3).
+-- Blockchain incident intake.
 -- Evidence is kept indefinitely: these tables have no retention policy and no
 -- ON DELETE CASCADE from devices, so deleting a device never deletes evidence.
 

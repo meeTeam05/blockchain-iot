@@ -1,6 +1,5 @@
 // B0: reads the generated per-network deployment + env, so switching
-// VITE_NETWORK between localhost and sepolia needs no code change
-// (tmp/Web3_task.md B0 "Xong khi" criterion).
+// VITE_NETWORK between localhost and sepolia needs no code change.
 import { INCIDENT_DEPLOYMENTS } from '../generated/incident-deployments'
 
 export type NetworkKey = keyof typeof INCIDENT_DEPLOYMENTS

@@ -1,4 +1,4 @@
-// Incentives API (Task5_8_plan.md, Task 7, step 7.5), over data written by the real
+// Incentives API, over data written by the real
 // incentives indexer: per-device history (members only), public overdue list without
 // device ids or measurements, params snapshot, leaderboard, and the incident detail block.
 import test from 'node:test';

@@ -1,7 +1,7 @@
 // B4: independent verification, used by the incident page and by the
 // standalone /verify/:deviceId/:incidentId route. Four checks, each computed in
-// the browser and/or read from chain -- never taken on the API's word alone
-// (Web3_task.md Nguyên tắc 2). The outcome comes from lib/verification.ts.
+// the browser and/or read from chain -- never taken on the API's word alone.
+// The outcome comes from lib/verification.ts.
 import { Fragment, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { Hex } from 'viem'

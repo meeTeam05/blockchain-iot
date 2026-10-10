@@ -1,4 +1,4 @@
-// SafetyIncentives / AirSafeToken bindings for the chain worker (Task5_8_plan.md, Task 7).
+// SafetyIncentives / AirSafeToken bindings for the chain worker.
 // The incentives contracts only read AirSafetyLog; the deployment record comes from
 // blockchain/deployments/<network>.incentives.json through the generated module.
 import { Contract, Wallet, getAddress } from 'ethers';
@@ -24,7 +24,7 @@ export const SKIP_REASONS = Object.freeze(['DailyCap', 'InsufficientFund', 'NoBo
 export const RULE_ACK = 1;
 export const RULE_RESOLVE = 2;
 
-// Below this the keeper still runs but warns (Web3_task.md B1 uses the same threshold).
+// Below this the keeper still runs but warns.
 export const KEEPER_LOW_BALANCE_WEI = 2_000_000_000_000_000n; // 0.002 ETH
 
 // Params struct field -> API key. Durations and amounts are uint64/uint128 and are

@@ -1,4 +1,4 @@
-// Read side of the token incentives (Task5_8_plan.md, Task 7). Everything here comes from
+// Read side of the token incentives. Everything here comes from
 // tables the chain worker projects from SafetyIncentives (migration 020); the API needs
 // no RPC connection. Token amounts are wei decimal strings (ASAFE has 18 decimals),
 // durations are seconds as decimal strings, times are ISO strings.
@@ -9,7 +9,7 @@ import { INCENTIVES_DEPLOYMENTS } from '../generated/incentives-deployments.js';
 import { computeDeviceIdHash } from './incident-verify.js';
 
 const BPS = 10_000n;
-// Web3_task.md risk table: warn when the reward fund drops below 1 000 ASAFE.
+// Warn when the reward fund drops below 1 000 ASAFE.
 export const LOW_FUND_WEI = 1_000n * 10n ** 18n;
 
 // Events that belong to a device's history (B7 wallet page, B9 incident labels).
@@ -333,7 +333,7 @@ export async function getIncentiveParams(fastify, { historyLimit = 20 } = {}) {
     };
 }
 
-// GET /api/incentives/leaderboard (Token_incentive_task.md): owners by rewards earned and
+// GET /api/incentives/leaderboard: owners by rewards earned and
 // keepers by bounty actually received. Addresses only; never device ids.
 // Each slash pays floor(amount * keeperShareBps / 10000) with the keeperShareBps of the
 // latest ParamsUpdated at or before it, as the contract does. The indexer backfills the

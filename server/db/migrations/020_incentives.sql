@@ -1,4 +1,4 @@
--- Token incentives backend (Task5_8_plan.md, Task 7).
+-- Token incentives backend.
 --
 -- SafetyIncentives is the source of truth; these tables are a projection written only
 -- by the chain worker (incentives indexer + keeper) so the API and dApp can list

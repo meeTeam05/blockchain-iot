@@ -94,8 +94,7 @@ này theo origin hiện tại.
 server riêng (cổng `5174`, không đụng cổng `5173` bạn đang dùng tay) với
 `VITE_E2E_MOCK_ACCOUNT` đặt sẵn -- `src/lib/wagmiConfig.ts` khi thấy biến này
 dùng connector `mock()` của wagmi thay vì `injected()`, nên **không cần cài
-MetaMask** để chạy test này (đúng quyết định #9 + mục 9 "E2E UI" của
-`docs/tasks/Web3_task.md`: mock connector, không phải MetaMask thật).
+MetaMask** để chạy test này (mock connector, không phải MetaMask thật).
 
 Cần dựng sẵn trước khi chạy (giống mọi test trong `server/api/test/e2e/*`):
 ```bash

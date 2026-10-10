@@ -1,6 +1,6 @@
 import { defineConfig } from '@playwright/test'
 
-// Web3_task.md mục 9 "E2E UI": kịch bản A trên hardhat, ví mô phỏng bằng mock
+// E2E UI: kịch bản A trên hardhat, ví mô phỏng bằng mock
 // connector của wagmi (xem src/lib/wagmiConfig.ts) -- không cần MetaMask thật.
 // Precondition (same as server/api/test/e2e/*): a hardhat node AND the full
 // docker-compose backend (postgres/redis/emqx/api/chain-worker) must already

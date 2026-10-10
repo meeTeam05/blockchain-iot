@@ -1,4 +1,4 @@
-// MQTT intake for device/{id}/incident (docs/tasks/Blockchain_task.md, Task 3).
+// MQTT intake for device/{id}/incident.
 // Order: dedupe -> domain-independent verify (format, semantics, hashes, signature format)
 // -> authenticate by (domain, signer) against the device's signer history -> time policy/
 // sequence uniqueness -> one DB transaction (incident + outbox + realtime) -> MQTT packet

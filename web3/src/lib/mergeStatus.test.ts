@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { deriveIncidentStatus, mergeIncidentStatus } from './mergeStatus'
 
-describe('mergeIncidentStatus (tmp/Web3_task.md B3 table)', () => {
+describe('mergeIncidentStatus (B3 table)', () => {
   it('queued/pending + None -> đang đưa lên chain', () => {
     expect(mergeIncidentStatus('queued', 'None').label).toBe('Đang đưa lên chain')
     expect(mergeIncidentStatus('pending', 'None').label).toBe('Đang đưa lên chain')

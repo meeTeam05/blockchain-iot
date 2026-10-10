@@ -136,7 +136,7 @@ Cần đổi server (ví dụ quick tunnel `trycloudflare.com`): đặt `EXPO_PU
 
 Máy này (2026-10-03) đang có `server/.env` ở chế độ hardhat local: `INCIDENT_DEPLOYMENT=localhost`, `CHAIN_RPC_URL=http://host.docker.internal:8545`, và hai khóa ví là tài khoản mặc định của hardhat, không phải ví Sepolia thật. Tầng 2 cần:
 
-1. `server/.env` Sepolia từ người giữ file (theo `docs/tasks/Task5_8_plan.md` là Viet Ho). Xem phần "3 quy tắc" trong [`ops/E2E_GUIDE_SERVER_ENV_HOLDER.md`](ops/E2E_GUIDE_SERVER_ENV_HOLDER.md).
+1. `server/.env` Sepolia từ người giữ file. Xem phần "3 quy tắc" trong [`ops/E2E_GUIDE_SERVER_ENV_HOLDER.md`](ops/E2E_GUIDE_SERVER_ENV_HOLDER.md).
 2. Người giữ `.env` xác nhận đã **dừng chain-worker của họ**. Chỉ một worker được chạy với cùng ví relayer, nếu không tranh nonce.
 
 **Lệnh (sao lưu `.env` hiện tại trước khi thay)**
@@ -366,7 +366,7 @@ curl -s -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","id
 
 ## A8b. (Tùy chọn) Nới `maxRelayDelay` trên Sepolia
 
-Luật P2 phạt operator khi `loggedAt - observedAt` vượt `maxRelayDelay`, nên một thiết bị offline lâu hơn ngưỡng làm operator bị phạt dù relayer ghi ngay (xem "Giới hạn đã biết" trong `tasks/Token_incentive_task.md`). Contract không đổi được cách đo, nhưng admin nới được ngưỡng bằng `setParams`, không cần deploy lại.
+Luật P2 phạt operator khi `loggedAt - observedAt` vượt `maxRelayDelay`, nên một thiết bị offline lâu hơn ngưỡng làm operator bị phạt dù relayer ghi ngay. Contract không đổi được cách đo, nhưng admin nới được ngưỡng bằng `setParams`, không cần deploy lại.
 
 **Lệnh 1: đọc giá trị hiện tại (không cần khóa)**
 ```bash
@@ -597,7 +597,7 @@ npm run test:incentives-e2e
 - Có dòng `✓  1 e2e/incentives.spec.ts:36:1 › one day through the real UI: approve/stake, R1/R2, P1, manual P2, daily cap and cooldown`.
 - Cuối output có `1 passed` (khoảng 30 giây).
 
-Kịch bản đi qua UI các bước: approve và stake, verify evidence, ack/resolve (thưởng R1 và R2), phạt P1 (owner bỏ qua ack), phạt P2 bấm tay (operator relay trễ), trần thưởng theo ngày, quỹ thưởng không đủ, cooldown và withdraw. Các luật và tham số: [`tasks/Token_incentive_task.md`](tasks/Token_incentive_task.md).
+Kịch bản đi qua UI các bước: approve và stake, verify evidence, ack/resolve (thưởng R1 và R2), phạt P1 (owner bỏ qua ack), phạt P2 bấm tay (operator relay trễ), trần thưởng theo ngày, quỹ thưởng không đủ, cooldown và withdraw. Các luật và tham số: [`blockchain/README.md`](../blockchain/README.md).
 
 Muốn hội đồng nhìn thấy trình duyệt: `npm run test:incentives-e2e -- --headed` (chưa chạy thử với `--headed`).
 
@@ -728,7 +728,7 @@ Tab Lịch sử đọc `eth_getLogs` qua `VITE_RPC_URL` từ block deploy. Với
 
 **Sai thì:**
 - Nút "Review alerts" của MetaMask bị xám: lỗi extension MetaMask đã được xác nhận, không phải code dự án (ghi trong `tmp/05_reports/2026-10-02_task5-progress-report.md`). Tải lại trang và thử lại.
-- Giao dịch revert với báo lỗi tiếng Việt: bảng lỗi nằm ở mục 6 của `tasks/Web3_task.md`.
+- Giao dịch revert với báo lỗi tiếng Việt.
 
 Lưu ý: tiêu chí hoàn thành M3 của Task 5 là chạy trọn kịch bản này trên Sepolia thật bằng MetaMask. Chưa có bằng chứng trong ghi chú nhóm là đã chạy trọn. Hãy chạy thử một lần trước ngày demo.
 
@@ -790,7 +790,7 @@ Giống B6: `cd web3 && npm run test:incentives-e2e`, đúng khi `1 passed`. Đ�
 | AirSafetyLog events | `https://sepolia.etherscan.io/address/0x45CF175ffd4B1Ad77E87389d1e92945f9Bc88d3A#events` |
 | Deploy AirSafeToken | tx `0x967445ea3d96707390156d2a817d364baddb64aa30a9cd37747aca6228558b9d`, block 11834177 |
 | Deploy SafetyIncentives | tx `0xa1605adc85bceae68ae352cafe7886cc287c5329bba05e2fb75346289d2a49db`, block 11834182 |
-| Kit `dc:b4:d9:13:ed:8c` | sequence 6 đến 9 đã `confirmed` (theo `docs/tasks/Task5_8_plan.md`) |
+| Kit `dc:b4:d9:13:ed:8c` | sequence 6 đến 9 đã `confirmed` |
 
 Kiểm tra nhanh trạng thái thật của kit trên chain, không cần server:
 ```bash

@@ -1,6 +1,5 @@
 // Hard gate for decision #1: must match both real test vectors exactly, and
-// a single mutated field must flip the result. Runs fully offline (no RPC),
-// matching tmp/Web3_task.md bước 5.5's stated acceptance criterion.
+// a single mutated field must flip the result. Runs fully offline (no RPC).
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'

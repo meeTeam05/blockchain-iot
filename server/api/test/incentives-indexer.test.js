@@ -1,4 +1,4 @@
-// Incentives indexer (Task5_8_plan.md, Task 7, step 7.3): SafetyIncentives events are
+// Incentives indexer: SafetyIncentives events are
 // stored idempotently, update incidents/bonds, emit realtime, honour confirmations and
 // keep their own checkpoint; pendingSettlement() fills coverage and deadlines.
 import test from 'node:test';

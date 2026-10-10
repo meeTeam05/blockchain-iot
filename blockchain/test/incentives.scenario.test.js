@@ -1,4 +1,4 @@
-// One day of operation from Token_incentive_task.md ("Kịch bản minh họa"),
+// One day of operation,
 // replayed against the real AirSafetyLog with device-signed incidents. Every
 // balance in the end-of-day table and every rejected call is asserted.
 const { expect } = require("chai");

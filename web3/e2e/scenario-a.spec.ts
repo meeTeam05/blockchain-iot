@@ -1,5 +1,5 @@
-// Web3_task.md muc 7, Kich ban A (E2E incident, Task 5): connect, verify, ack, resolve.
-// Web3_task.md muc 9 "E2E UI": chay tren hardhat, vi mo phong bang mock connector
+// Kich ban A (E2E incident): connect, verify, ack, resolve.
+// E2E UI: chay tren hardhat, vi mo phong bang mock connector
 // cua wagmi (xem src/lib/wagmiConfig.ts + playwright.config.ts) -- khong can
 // MetaMask that. Giong cac file server/api/test/e2e/*.test.js, test nay doi hoi
 // ha tang that da dung san (hardhat node + full docker-compose backend), vi
